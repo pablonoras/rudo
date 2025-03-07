@@ -1,41 +1,66 @@
-import React, { useState } from 'react';
-import { CoachView } from './components/CoachView';
-import { AthleteView } from './components/AthleteView';
-import { LanguageToggle } from './components/LanguageToggle';
-import { translations } from './i18n/translations';
-import { Language, Athlete } from './types';
+import { useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { Layout } from './components/Layout';
+import { ThemeProvider } from './components/ThemeProvider';
+import { LandingPage } from './pages/LandingPage';
+import { ProgramDashboard } from './pages/coach/ProgramDashboard';
+import { ProgramCalendar } from './pages/coach/ProgramCalendar';
+import { ProgramAssignment } from './pages/coach/ProgramAssignment';
+import { AthleteDashboard } from './pages/athlete/Dashboard';
+import { initializeWithSampleData } from './lib/workout';
 
 function App() {
-  const [language, setLanguage] = useState<Language>('es');
-  const [isCoach, setIsCoach] = useState(true);
-  const [viewingAthlete, setViewingAthlete] = useState<Athlete | null>(null);
-  const t = translations[language];
+  useEffect(() => {
+    // Initialize sample data when the app starts
+    initializeWithSampleData();
+  }, []);
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white">
-      <LanguageToggle language={language} setLanguage={setLanguage} />
-      {isCoach && !viewingAthlete ? (
-        <CoachView 
-          t={t} 
-          onViewAsAthlete={(athlete) => {
-            setViewingAthlete(athlete);
-          }} 
-        />
-      ) : (
-        <div className="relative">
-          {viewingAthlete && (
-            <button
-              onClick={() => setViewingAthlete(null)}
-              className="fixed top-4 left-4 px-4 py-2 bg-slate-800 rounded-lg hover:bg-slate-700 transition-colors flex items-center gap-2 z-10"
-            >
-              ← Back to Coach View
-            </button>
-          )}
-          <AthleteView t={t} athlete={viewingAthlete} />
-        </div>
-      )}
-    </div>
+    <ThemeProvider>
+      <Router>
+        <Routes>
+          {/* Landing Page */}
+          <Route path="/" element={<LandingPage />} />
+
+          {/* Coach Routes */}
+          <Route
+            path="/coach"
+            element={
+              <Layout>
+                <ProgramDashboard />
+              </Layout>
+            }
+          />
+          <Route
+            path="/coach/program/:programId"
+            element={
+              <Layout>
+                <ProgramCalendar />
+              </Layout>
+            }
+          />
+          <Route
+            path="/coach/program/:programId/assign"
+            element={
+              <Layout>
+                <ProgramAssignment />
+              </Layout>
+            }
+          />
+
+          {/* Athlete Routes */}
+          <Route
+            path="/athlete"
+            element={
+              <Layout>
+                <AthleteDashboard />
+              </Layout>
+            }
+          />
+        </Routes>
+      </Router>
+    </ThemeProvider>
   );
 }
 
-export default App
+export default App;
