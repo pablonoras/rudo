@@ -6,6 +6,7 @@ import AuthCallback from './components/auth/AuthCallback';
 import CoachDashboard from './components/dashboard/CoachDashboard';
 import AthleteDashboard from './components/dashboard/AthleteDashboard';
 import ProtectedRoute from './components/auth/ProtectedRoute';
+import LoginSuccess from './components/auth/LoginSuccess';
 
 function App() {
   return (
@@ -13,6 +14,7 @@ function App() {
       <Route path="/" element={<LandingPage />} />
       <Route path="/role-selection" element={<RoleSelection />} />
       <Route path="/auth/callback" element={<AuthCallback />} />
+      <Route path="/login/success" element={<LoginSuccess />} />
       <Route 
         path="/coach/*" 
         element={

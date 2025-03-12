@@ -15,14 +15,10 @@ const AuthCallback = () => {
         if (error) throw error;
         
         if (session) {
-          // Redirect based on role
-          if (role === 'coach') {
-            navigate('/coach');
-          } else if (role === 'athlete') {
-            navigate('/athlete');
-          } else {
-            navigate('/role-selection');
-          }
+          // First redirect to success page
+          navigate('/login/success');
+        } else {
+          navigate('/role-selection');
         }
       } catch (error) {
         console.error('Error in auth callback:', error);

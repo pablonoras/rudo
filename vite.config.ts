@@ -14,5 +14,6 @@ export default defineConfig({
     headers: {
       'Service-Worker-Allowed': '/'
     }
-  }
+  },
+  envDir: '.' // Explicitly set the env file directory
 });
