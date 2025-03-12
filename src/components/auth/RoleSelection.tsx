@@ -8,13 +8,16 @@ const RoleSelection = () => {
 
   const handleGoogleLogin = async (role: 'coach' | 'athlete') => {
     try {
-      const redirectTo = `${window.location.origin}/${role}`;
-      console.log('Redirect URL:', redirectTo); // For debugging
+      // Get the current domain
+      const domain = window.location.origin;
+      
+      // Construct the redirect URL based on the role
+      const redirectTo = `${domain}/auth/callback?role=${role}`;
       
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: redirectTo,
+          redirectTo,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
@@ -27,7 +30,7 @@ const RoleSelection = () => {
         throw error;
       }
 
-      console.log('Auth successful:', data); // For debugging
+      console.log('Auth successful:', data);
       
     } catch (error) {
       console.error('Error:', error);
