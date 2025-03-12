@@ -3,7 +3,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, Edit2, Copy, Trash2, Plus } from 'lucide-react';
 import type { WorkoutBlock as WorkoutBlockType } from '../../lib/workout';
-import { BlockEditor } from './BlockEditor';
+import { useModal } from '../../contexts/ModalContext';
 import { ExerciseLibrary } from './ExerciseLibrary';
 
 interface WorkoutBlockProps {
@@ -19,8 +19,9 @@ export function WorkoutBlock({
   onRemove,
   onDuplicate,
 }: WorkoutBlockProps) {
-  const [isEditing, setIsEditing] = useState(false);
   const [showExercises, setShowExercises] = useState(false);
+  const { showBlockEditor } = useModal();
+  
   const {
     attributes,
     listeners,
@@ -89,7 +90,7 @@ export function WorkoutBlock({
             </div>
             <div className="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
               <button
-                onClick={() => setIsEditing(true)}
+                onClick={() => showBlockEditor({ block, onSave: onUpdate })}
                 className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
                 title="Edit block"
               >
@@ -148,17 +149,6 @@ export function WorkoutBlock({
           </button>
         </div>
       </div>
-
-      {isEditing && (
-        <BlockEditor
-          block={block}
-          onSave={(updatedBlock) => {
-            onUpdate(updatedBlock);
-            setIsEditing(false);
-          }}
-          onClose={() => setIsEditing(false)}
-        />
-      )}
 
       {showExercises && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">

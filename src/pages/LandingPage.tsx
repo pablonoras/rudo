@@ -1,16 +1,17 @@
 import { Link } from 'react-router-dom';
-import { Dumbbell, Users } from 'lucide-react';
+import { Users, Dumbbell } from 'lucide-react';
 
 export function LandingPage() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col items-center justify-center p-4">
       <div className="text-center mb-8">
-        <Dumbbell className="h-16 w-16 text-blue-600 dark:text-blue-400 mx-auto mb-4" />
-        <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-2">
-          CrossFit Coach Platform
-        </h1>
+        <div className="mb-4">
+          <span className="text-6xl font-black tracking-wider text-gray-900 dark:text-gray-100">
+            RUDO
+          </span>
+        </div>
         <p className="text-lg text-gray-600 dark:text-gray-400">
-          Program, track, and manage your CrossFit workouts
+          Program, track, and manage your workouts
         </p>
       </div>
 

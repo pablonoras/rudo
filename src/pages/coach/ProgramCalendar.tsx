@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import {
   format,
   startOfWeek,
@@ -12,159 +12,48 @@ import {
   ChevronLeft,
   ChevronRight,
   Plus,
-  Copy,
-  Trash2,
-  Edit2,
   Users,
-  CopyCheck,
+  Save,
+  Send,
 } from 'lucide-react';
-import { useWorkoutStore, type WorkoutType, type WorkoutBlock } from '../../lib/workout';
-import { WorkoutForm } from '../../components/workout/WorkoutForm';
-import { Link } from 'react-router-dom';
+import { useWorkoutStore } from '../../lib/workout';
+import { SessionForm } from '../../components/session/SessionForm';
+import { SessionBlock } from '../../components/session/SessionBlock';
 
-function WorkoutCard({ workout, onDelete, onDuplicate, onEdit }: {
-  workout: WorkoutBlock;
-  onDelete: () => void;
-  onDuplicate: () => void;
-  onEdit: () => void;
-}) {
-  const getTypeColor = (type: WorkoutType) => {
-    const colors = {
-      warmup: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-      strength: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-      wod: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-      cooldown: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-    };
-    return colors[type];
-  };
-
-  return (
-    <div className="mb-2 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 group">
-      <div className="flex items-center justify-between mb-1">
-        <div>
-          <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">
-            {workout.name}
-          </h3>
-          <div className="flex items-center gap-2 mt-1">
-            <span className={`text-xs px-2 py-0.5 rounded-full capitalize ${getTypeColor(workout.type)}`}>
-              {workout.type}
-            </span>
-            {workout.format && (
-              <span className="text-xs text-gray-500 dark:text-gray-400">
-                {workout.format === 'forTime' ? 'For Time' : workout.format.toUpperCase()}
-                {workout.timeLimit ? ` (${workout.timeLimit} min)` : ''}
-                {workout.rounds ? ` (${workout.rounds} rounds)` : ''}
-                {workout.interval ? ` (${workout.interval}s intervals)` : ''}
-              </span>
-            )}
-          </div>
-        </div>
-        <div className="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button
-            onClick={onEdit}
-            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
-            title="Edit workout"
-          >
-            <Edit2 className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-          </button>
-          <button
-            onClick={onDuplicate}
-            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
-            title="Duplicate workout"
-          >
-            <Copy className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-          </button>
-          <button
-            onClick={onDelete}
-            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
-            title="Delete workout"
-          >
-            <Trash2 className="h-4 w-4 text-red-500" />
-          </button>
-        </div>
-      </div>
-
-      <div className="mt-2 text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap font-mono">
-        {workout.description}
-      </div>
-
-      {workout.scaling && (
-        <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-          <span className="font-medium">Scaling: </span>
-          {workout.scaling}
-        </div>
-      )}
-
-      {workout.notes && (
-        <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-          <span className="font-medium">Notes: </span>
-          {workout.notes}
-        </div>
-      )}
-    </div>
-  );
+interface PublishConfirmModalProps {
+  onConfirm: (shouldAssign: boolean) => void;
+  onCancel: () => void;
 }
 
-function CopyWorkoutModal({ onClose, onCopy, dates }: {
-  onClose: () => void;
-  onCopy: (selectedDates: string[]) => void;
-  dates: string[];
-}) {
-  const [selectedDates, setSelectedDates] = useState<string[]>([]);
-
+function PublishConfirmModal({ onConfirm, onCancel }: PublishConfirmModalProps) {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md">
-        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-            Copy Workout To Multiple Days
-          </h2>
-        </div>
-        <div className="p-4 max-h-96 overflow-y-auto">
-          <div className="space-y-2">
-            {dates.map((date) => (
-              <label
-                key={date}
-                className="flex items-center space-x-2 p-2 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded cursor-pointer"
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedDates.includes(date)}
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      setSelectedDates([...selectedDates, date]);
-                    } else {
-                      setSelectedDates(selectedDates.filter((d) => d !== date));
-                    }
-                  }}
-                  className="rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
-                />
-                <span className="text-sm text-gray-900 dark:text-gray-100">
-                  {format(parseISO(date), 'EEEE, MMMM d')}
-                </span>
-              </label>
-            ))}
-          </div>
-        </div>
-        <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
-          <div className="flex justify-end space-x-3">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md border border-gray-300 dark:border-gray-600"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={() => {
-                onCopy(selectedDates);
-                onClose();
-              }}
-              disabled={selectedDates.length === 0}
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md disabled:opacity-50"
-            >
-              Copy to Selected Days
-            </button>
-          </div>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md p-6">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+          Publish Program
+        </h3>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+          Would you like to assign this program to athletes now?
+        </p>
+        <div className="flex justify-end space-x-3">
+          <button
+            onClick={onCancel}
+            className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md border border-gray-300 dark:border-gray-600"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => onConfirm(false)}
+            className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md"
+          >
+            Publish Only
+          </button>
+          <button
+            onClick={() => onConfirm(true)}
+            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md"
+          >
+            Publish & Assign
+          </button>
         </div>
       </div>
     </div>
@@ -172,27 +61,42 @@ function CopyWorkoutModal({ onClose, onCopy, dates }: {
 }
 
 export function ProgramCalendar() {
+  const navigate = useNavigate();
   const { programId } = useParams<{ programId: string }>();
   const {
     programs,
-    addWorkout,
-    updateWorkout,
-    deleteWorkout,
-    duplicateWorkout,
-    duplicateWeek,
+    addSession,
+    updateSession,
+    deleteSession,
+    updateProgramStatus,
   } = useWorkoutStore();
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [addWorkoutDate, setAddWorkoutDate] = useState<string | null>(null);
-  const [editWorkout, setEditWorkout] = useState<{
-    date: string;
-    workout: WorkoutBlock;
-  } | null>(null);
-  const [copyWorkout, setCopyWorkout] = useState<{
-    date: string;
-    workout: WorkoutBlock;
-  } | null>(null);
+  const [addSessionDate, setAddSessionDate] = useState<string | null>(null);
+  const [showPublishModal, setShowPublishModal] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const program = programId ? programs[programId] : null;
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    // Simulate save operation
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    setIsSaving(false);
+  };
+
+  const handlePublish = async (shouldAssign: boolean) => {
+    if (!programId) return;
+    
+    // Update program status to published
+    updateProgramStatus(programId, 'published');
+    
+    if (shouldAssign) {
+      // Navigate to assignment page
+      navigate(`/coach/program/${programId}/assign`);
+    }
+    
+    setShowPublishModal(false);
+  };
 
   const weekDays = Array.from({ length: 7 }, (_, i) => {
     const start = startOfWeek(selectedDate);
@@ -207,53 +111,12 @@ export function ProgramCalendar() {
     setSelectedDate(addDays(selectedDate, 7));
   };
 
-  const handleAddWorkout = (date: string, workout: Omit<WorkoutBlock, 'id' | 'createdAt' | 'updatedAt'>) => {
-    if (!programId) return;
-    addWorkout(programId, date, workout);
-  };
-
-  const handleUpdateWorkout = (date: string, workoutId: string, updates: Partial<WorkoutBlock>) => {
-    if (!programId) return;
-    updateWorkout(programId, date, workoutId, updates);
-  };
-
-  const handleDuplicateWorkout = (fromDate: string, toDate: string, workoutId: string) => {
-    if (!programId) return;
-    duplicateWorkout(programId, fromDate, toDate, workoutId);
-  };
-
-  const handleDuplicateWeek = () => {
-    if (!programId) return;
-    const startDate = format(startOfWeek(selectedDate), 'yyyy-MM-dd');
-    duplicateWeek(programId, startDate);
-  };
-
-  const handleCopyToMultipleDays = (fromDate: string, workoutId: string, toDates: string[]) => {
-    toDates.forEach((date) => {
-      handleDuplicateWorkout(fromDate, date, workoutId);
-    });
-  };
-
   const isDateInProgram = (date: Date) => {
     if (!program) return false;
     return isWithinInterval(date, {
       start: parseISO(program.startDate),
       end: parseISO(program.endDate),
     });
-  };
-
-  // Get all available dates in the program for copying
-  const getAvailableDates = () => {
-    if (!program) return [];
-    const start = parseISO(program.startDate);
-    const end = parseISO(program.endDate);
-    const dates: string[] = [];
-    let current = start;
-    while (current <= end) {
-      dates.push(format(current, 'yyyy-MM-dd'));
-      current = addDays(current, 1);
-    }
-    return dates;
   };
 
   if (!program) {
@@ -277,20 +140,23 @@ export function ProgramCalendar() {
           </p>
         </div>
         <div className="flex items-center space-x-4">
-          <Link
-            to={`/coach/program/${programId}/assign`}
-            className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
-          >
-            <Users className="h-4 w-4 mr-2" />
-            Assign Program
-          </Link>
           <button
-            onClick={handleDuplicateWeek}
-            className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
+            onClick={handleSave}
+            disabled={isSaving}
+            className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
           >
-            <CopyCheck className="h-4 w-4 mr-2" />
-            Copy Week Forward
+            <Save className="h-4 w-4 mr-2" />
+            {isSaving ? 'Saving...' : 'Save'}
           </button>
+          {program.status === 'draft' && (
+            <button
+              onClick={() => setShowPublishModal(true)}
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+            >
+              <Send className="h-4 w-4 mr-2" />
+              Publish
+            </button>
+          )}
           <div className="flex items-center space-x-2">
             <button
               onClick={handlePrevWeek}
@@ -331,25 +197,30 @@ export function ProgramCalendar() {
 
                 {isInProgram && (
                   <>
-                    {dayProgram?.workouts.map((workout) => (
-                      <WorkoutCard
-                        key={workout.id}
-                        workout={workout}
-                        onDelete={() => {
-                          if (!programId) return;
-                          deleteWorkout(programId, dateStr, workout.id);
+                    {dayProgram?.sessions.map((session) => (
+                      <SessionBlock
+                        key={session.id}
+                        session={session}
+                        onUpdate={(updates) =>
+                          updateSession(programId, dateStr, session.id, updates)
+                        }
+                        onDelete={() =>
+                          deleteSession(programId, dateStr, session.id)
+                        }
+                        onAddWorkout={(workout) => {
+                          updateSession(programId, dateStr, session.id, {
+                            workouts: [...session.workouts, workout],
+                          });
                         }}
-                        onDuplicate={() => setCopyWorkout({ date: dateStr, workout })}
-                        onEdit={() => setEditWorkout({ date: dateStr, workout })}
                       />
                     ))}
 
                     <button
-                      onClick={() => setAddWorkoutDate(dateStr)}
-                      className="mt-2 w-full flex items-center justify-center px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                      onClick={() => setAddSessionDate(dateStr)}
+                      className="mt-4 w-full flex items-center justify-center px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                     >
                       <Plus className="h-4 w-4 mr-1" />
-                      Add Workout
+                      Add Session
                     </button>
                   </>
                 )}
@@ -359,42 +230,28 @@ export function ProgramCalendar() {
         </div>
       </div>
 
-      {addWorkoutDate && (
-        <WorkoutForm
-          title={`Add Workout for ${format(parseISO(addWorkoutDate), 'MMMM d, yyyy')}`}
-          onClose={() => setAddWorkoutDate(null)}
-          onSave={(workout) => {
-            handleAddWorkout(addWorkoutDate, workout);
-            setAddWorkoutDate(null);
+      {addSessionDate && (
+        <SessionForm
+          title={`Add Session for ${format(parseISO(addSessionDate), 'MMMM d, yyyy')}`}
+          onClose={() => setAddSessionDate(null)}
+          onSave={(session) => {
+            addSession(programId, addSessionDate, {
+              ...session,
+              workouts: [],
+            });
+            setAddSessionDate(null);
           }}
         />
       )}
 
-      {editWorkout && (
-        <WorkoutForm
-          title={`Edit Workout for ${format(parseISO(editWorkout.date), 'MMMM d, yyyy')}`}
-          initialData={editWorkout.workout}
-          onClose={() => setEditWorkout(null)}
-          onSave={(updates) => {
-            handleUpdateWorkout(editWorkout.date, editWorkout.workout.id, updates);
-            setEditWorkout(null);
-          }}
-        />
-      )}
-
-      {copyWorkout && (
-        <CopyWorkoutModal
-          onClose={() => setCopyWorkout(null)}
-          onCopy={(selectedDates) => {
-            handleCopyToMultipleDays(
-              copyWorkout.date,
-              copyWorkout.workout.id,
-              selectedDates
-            );
-          }}
-          dates={getAvailableDates().filter((date) => date !== copyWorkout.date)}
+      {showPublishModal && (
+        <PublishConfirmModal
+          onConfirm={handlePublish}
+          onCancel={() => setShowPublishModal(false)}
         />
       )}
     </div>
   );
 }
+
+export default ProgramCalendar;

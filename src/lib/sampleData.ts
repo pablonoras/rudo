@@ -1,5 +1,5 @@
 import { addDays, format } from 'date-fns';
-import type { Program, WorkoutBlock } from './workout';
+import type { Program, WorkoutBlock, Session } from './workout';
 
 // Helper to generate dates
 const getDateString = (daysFromNow: number) => {
@@ -74,17 +74,25 @@ const wodBlocks: Omit<WorkoutBlock, 'id' | 'createdAt' | 'updatedAt'>[] = [
     stimulus: 'endurance',
     goal: 'Large volume chipper. Break sets early to maintain steady pace.',
   },
-  {
-    name: 'Gymnastic Skill Work',
-    type: 'wod',
-    format: 'emom',
-    rounds: 12,
-    description: 'EMOM 12:\nOdd: 8-10 Strict Pull-ups\nEven: 8-10 Strict Handstand Push-ups',
-    scaling: '- Pull-ups: Ring rows or banded\n- HSPU: Pike push-ups or box push-ups',
-    stimulus: 'skill',
-    goal: 'Focus on perfect form and full range of motion',
-  },
 ];
+
+// Create sample sessions with workouts
+const createSampleSession = (
+  name: string,
+  type: 'crossfit' | 'strength' | 'conditioning' | 'skills',
+  workouts: WorkoutBlock[]
+): Session => {
+  const now = new Date().toISOString();
+  return {
+    id: `session-${Date.now()}-${Math.random()}`,
+    name,
+    type,
+    duration: 60,
+    workouts,
+    createdAt: now,
+    updatedAt: now,
+  };
+};
 
 // Sample Programs
 export const samplePrograms: Program[] = [
@@ -94,59 +102,61 @@ export const samplePrograms: Program[] = [
     description: 'Focused strength and conditioning program for the upcoming competition season',
     startDate: getDateString(0), // Starts today
     endDate: getDateString(42), // 6 weeks
+    status: 'published',
+    weekCount: 6,
     days: {
       [getDateString(0)]: {
         id: getDateString(0),
         date: getDateString(0),
-        workouts: [
-          {
-            ...commonWarmups[0],
-            id: 'warmup-1',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-          {
-            ...strengthBlocks[0],
-            id: 'strength-1',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-          {
-            ...wodBlocks[0],
-            id: 'wod-1',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-          {
-            ...commonCooldowns[0],
-            id: 'cooldown-1',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
+        sessions: [
+          createSampleSession('Morning Session', 'crossfit', [
+            {
+              ...commonWarmups[0],
+              id: 'warmup-1',
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            },
+            {
+              ...strengthBlocks[0],
+              id: 'strength-1',
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            },
+            {
+              ...wodBlocks[0],
+              id: 'wod-1',
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            },
+          ]),
         ],
       },
       [getDateString(1)]: {
         id: getDateString(1),
         date: getDateString(1),
-        workouts: [
-          {
-            ...commonWarmups[1],
-            id: 'warmup-2',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-          {
-            ...strengthBlocks[1],
-            id: 'strength-2',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-          {
-            ...wodBlocks[1],
-            id: 'wod-2',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
+        sessions: [
+          createSampleSession('Strength Focus', 'strength', [
+            {
+              ...commonWarmups[1],
+              id: 'warmup-2',
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            },
+            {
+              ...strengthBlocks[1],
+              id: 'strength-2',
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            },
+          ]),
+          createSampleSession('Conditioning', 'conditioning', [
+            {
+              ...wodBlocks[1],
+              id: 'wod-2',
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            },
+          ]),
         ],
       },
     },
@@ -163,23 +173,27 @@ export const samplePrograms: Program[] = [
     description: 'Progressive program focused on building foundational movement patterns and capacity',
     startDate: getDateString(7), // Starts in a week
     endDate: getDateString(35), // 4 weeks
+    status: 'draft',
+    weekCount: 4,
     days: {
       [getDateString(7)]: {
         id: getDateString(7),
         date: getDateString(7),
-        workouts: [
-          {
-            ...commonWarmups[0],
-            id: 'warmup-3',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-          {
-            ...wodBlocks[2],
-            id: 'wod-3',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
+        sessions: [
+          createSampleSession('Skills and Technique', 'skills', [
+            {
+              ...commonWarmups[0],
+              id: 'warmup-3',
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            },
+            {
+              ...wodBlocks[2],
+              id: 'wod-3',
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            },
+          ]),
         ],
       },
     },

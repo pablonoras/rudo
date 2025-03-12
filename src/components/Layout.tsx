@@ -1,6 +1,8 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Dumbbell } from 'lucide-react';
+import { useState } from 'react';
 import { ThemeToggle } from './ThemeToggle';
+import { GlobalSearch } from './GlobalSearch';
+import { UserSettings } from './UserSettings';
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
@@ -13,30 +15,49 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <div className="flex justify-between h-16">
             <div className="flex items-center">
               <Link to="/" className="flex items-center">
-                <Dumbbell className="h-8 w-8 text-blue-600 dark:text-blue-400" />
-                <span className="ml-2 text-xl font-bold text-gray-900 dark:text-gray-100">
-                  CrossFit Coach
+                <span className="text-2xl font-black tracking-wider text-gray-900 dark:text-gray-100">
+                  RUDO
                 </span>
               </Link>
               {isCoach && (
                 <div className="ml-8 flex space-x-4">
                   <Link
                     to="/coach"
-                    className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 px-3 py-2 rounded-md text-sm font-medium"
+                    className={`px-3 py-2 rounded-md text-sm font-medium ${
+                      location.pathname === '/coach'
+                        ? 'text-blue-600 dark:text-blue-400'
+                        : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100'
+                    }`}
                   >
                     Dashboard
                   </Link>
                   <Link
-                    to="/coach/calendar"
-                    className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 px-3 py-2 rounded-md text-sm font-medium"
+                    to="/coach/programs"
+                    className={`px-3 py-2 rounded-md text-sm font-medium ${
+                      location.pathname.includes('/coach/program')
+                        ? 'text-blue-600 dark:text-blue-400'
+                        : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100'
+                    }`}
                   >
-                    Calendar
+                    Programs
+                  </Link>
+                  <Link
+                    to="/coach/athletes"
+                    className={`px-3 py-2 rounded-md text-sm font-medium ${
+                      location.pathname === '/coach/athletes'
+                        ? 'text-blue-600 dark:text-blue-400'
+                        : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100'
+                    }`}
+                  >
+                    Athletes
                   </Link>
                 </div>
               )}
             </div>
-            <div className="flex items-center">
+            <div className="flex items-center space-x-4">
+              {isCoach && <GlobalSearch />}
               <ThemeToggle />
+              <UserSettings />
             </div>
           </div>
         </div>

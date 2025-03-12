@@ -1,15 +1,24 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Plus, Calendar, Users, Trash2, ArrowRight } from 'lucide-react';
-import { useWorkoutStore } from '../../lib/workout';
-import { format, parseISO } from 'date-fns';
+import { Plus } from 'lucide-react';
+import { useWorkoutStore, type ProgramStatus } from '../../lib/workout';
+import { ProgramCard } from '../../components/program/ProgramCard';
+import { ProgramFilters } from '../../components/program/ProgramFilters';
+import { ProgramSearch } from '../../components/program/ProgramSearch';
 
 export function ProgramDashboard() {
-  const { programs, createProgram, deleteProgram } = useWorkoutStore();
+  const {
+    programs,
+    createProgram,
+    deleteProgram,
+    updateProgramStatus,
+    programFilter,
+    setProgramFilter,
+  } = useWorkoutStore();
   const [isCreating, setIsCreating] = useState(false);
   const [newProgramName, setNewProgramName] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const handleCreateProgram = (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,6 +28,8 @@ export function ProgramDashboard() {
       name: newProgramName,
       startDate,
       endDate,
+      status: 'draft',
+      weekCount: 0,
       days: {},
       assignedTo: { athletes: [], teams: [] },
     });
@@ -27,6 +38,23 @@ export function ProgramDashboard() {
     setNewProgramName('');
     setStartDate('');
     setEndDate('');
+  };
+
+  const programsList = Object.values(programs);
+  
+  // Filter programs based on search query and status
+  const filteredPrograms = programsList
+    .filter((program) => 
+      program.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (program.description?.toLowerCase() || '').includes(searchQuery.toLowerCase())
+    )
+    .filter((program) => programFilter === 'all' || program.status === programFilter);
+
+  const counts = {
+    all: programsList.length,
+    draft: programsList.filter((p) => p.status === 'draft').length,
+    published: programsList.filter((p) => p.status === 'published').length,
+    archived: programsList.filter((p) => p.status === 'archived').length,
   };
 
   return (
@@ -43,6 +71,44 @@ export function ProgramDashboard() {
           New Program
         </button>
       </div>
+
+      <div className="flex flex-col sm:flex-row gap-4 items-start">
+        <div className="w-full sm:w-64">
+          <ProgramSearch
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Search programs..."
+          />
+        </div>
+        <div className="flex-1">
+          <ProgramFilters
+            currentFilter={programFilter}
+            onFilterChange={setProgramFilter}
+            counts={counts}
+          />
+        </div>
+      </div>
+
+      {filteredPrograms.length === 0 ? (
+        <div className="text-center py-12">
+          <p className="text-gray-500 dark:text-gray-400">
+            {searchQuery
+              ? 'No programs match your search'
+              : 'No programs found for the selected filter'}
+          </p>
+        </div>
+      ) : (
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {filteredPrograms.map((program) => (
+            <ProgramCard
+              key={program.id}
+              program={program}
+              onStatusChange={(status) => updateProgramStatus(program.id, status)}
+              onDelete={() => deleteProgram(program.id)}
+            />
+          ))}
+        </div>
+      )}
 
       {isCreating && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
@@ -124,66 +190,6 @@ export function ProgramDashboard() {
           </div>
         </div>
       )}
-
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {Object.values(programs).map((program) => (
-          <div
-            key={program.id}
-            className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700"
-          >
-            <div className="p-6">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                  {program.name}
-                </h3>
-                <button
-                  onClick={() => deleteProgram(program.id)}
-                  className="text-gray-400 hover:text-red-500 dark:hover:text-red-400"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
-
-              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                {format(parseISO(program.startDate), 'MMM d')} -{' '}
-                {format(parseISO(program.endDate), 'MMM d, yyyy')}
-              </p>
-
-              <div className="mt-4 flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400">
-                <div className="flex items-center">
-                  <Calendar className="h-4 w-4 mr-1" />
-                  <span>{Object.keys(program.days).length} workouts</span>
-                </div>
-                <div className="flex items-center">
-                  <Users className="h-4 w-4 mr-1" />
-                  <span>
-                    {program.assignedTo.athletes.length +
-                      program.assignedTo.teams.length}{' '}
-                    assigned
-                  </span>
-                </div>
-              </div>
-
-              <div className="mt-6 flex items-center justify-between">
-                <Link
-                  to={`/coach/program/${program.id}`}
-                  className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium text-sm inline-flex items-center"
-                >
-                  View Program
-                  <ArrowRight className="h-4 w-4 ml-1" />
-                </Link>
-                <Link
-                  to={`/coach/program/${program.id}/assign`}
-                  className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 inline-flex items-center"
-                >
-                  <Users className="h-4 w-4 mr-1" />
-                  Assign
-                </Link>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }

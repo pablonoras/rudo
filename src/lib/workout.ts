@@ -1,36 +1,31 @@
 import { create } from 'zustand';
 import { samplePrograms } from './sampleData';
 
+export type SessionType = 
+  | 'CrossFit'
+  | 'Olympic Weightlifting'
+  | 'Powerlifting'
+  | 'Endurance'
+  | 'Gymnastics'
+  | 'Recovery'
+  | 'Competition Prep'
+  | 'Skills & Drills'
+  | 'Custom';
+
 export type WorkoutType = 'warmup' | 'strength' | 'wod' | 'cooldown';
 export type WorkoutFormat = 'forTime' | 'amrap' | 'emom' | 'tabata' | 'rounds' | 'complex' | 'benchmark';
-export type WorkoutStimulus = 'endurance' | 'strength' | 'power' | 'skill' | 'recovery';
+export type ProgramStatus = 'draft' | 'published' | 'archived';
 
-export const BENCHMARK_WORKOUTS = {
-  fran: {
-    name: 'Fran',
-    type: 'forTime',
-    description: 'Thrusters (95/65 lb)\nPull-ups\n\n21-15-9 reps',
-    scaling: 'Reduce weight, use ring rows or banded pull-ups',
-    stimulus: 'power',
-    goal: 'Fast glycolytic power output, sub-5 minutes for elite athletes',
-  },
-  murph: {
-    name: 'Murph',
-    type: 'forTime',
-    description: '1 mile Run\n100 Pull-ups\n200 Push-ups\n300 Air Squats\n1 mile Run\n\nWear a Weight Vest (20/14 lb)',
-    scaling: 'Partition the reps, scale pull-ups to ring rows, push-ups to knees',
-    stimulus: 'endurance',
-    goal: 'Long endurance chipper, test of overall work capacity',
-  },
-  grace: {
-    name: 'Grace',
-    type: 'forTime',
-    description: '30 Clean & Jerks (135/95 lb)',
-    scaling: 'Reduce weight, power clean and push press',
-    stimulus: 'power',
-    goal: 'Fast cycle Olympic lifting, sub-3 minutes for elite athletes',
-  },
-} as const;
+export interface Session {
+  id: string;
+  name: string;
+  type: SessionType;
+  duration: number;
+  startTime?: string;
+  workouts: WorkoutBlock[];
+  createdAt: string;
+  updatedAt: string;
+}
 
 export interface WorkoutBlock {
   id: string;
@@ -42,9 +37,9 @@ export interface WorkoutBlock {
   rounds?: number;
   interval?: number;
   scaling?: string;
-  notes?: string;
-  stimulus?: WorkoutStimulus;
+  stimulus?: string;
   goal?: string;
+  notes?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -52,7 +47,15 @@ export interface WorkoutBlock {
 export interface DayProgram {
   id: string;
   date: string;
-  workouts: WorkoutBlock[];
+  sessions: Session[];
+}
+
+export interface ProgramAssignment {
+  date: string;
+  athletes: string[];
+  teams: string[];
+  message?: string;
+  replacedExisting: boolean;
 }
 
 export interface Program {
@@ -61,11 +64,14 @@ export interface Program {
   description?: string;
   startDate: string;
   endDate: string;
+  status: ProgramStatus;
+  weekCount: number;
   days: Record<string, DayProgram>;
   assignedTo: {
     athletes: string[];
     teams: string[];
   };
+  assignments?: ProgramAssignment[];
   createdAt: string;
   updatedAt: string;
 }
@@ -73,33 +79,45 @@ export interface Program {
 interface WorkoutStore {
   programs: Record<string, Program>;
   selectedProgramId: string | null;
+  programFilter: ProgramStatus | 'all';
   
+  // Program Management
   createProgram: (program: Omit<Program, 'id' | 'createdAt' | 'updatedAt'>) => string;
   updateProgram: (programId: string, updates: Partial<Program>) => void;
   deleteProgram: (programId: string) => void;
   selectProgram: (programId: string | null) => void;
+  updateProgramStatus: (programId: string, status: ProgramStatus) => void;
+  setProgramFilter: (filter: ProgramStatus | 'all') => void;
   
+  // Workout Management
   addWorkout: (programId: string, date: string, workout: Omit<WorkoutBlock, 'id' | 'createdAt' | 'updatedAt'>) => void;
   updateWorkout: (programId: string, date: string, workoutId: string, updates: Partial<WorkoutBlock>) => void;
   deleteWorkout: (programId: string, date: string, workoutId: string) => void;
   duplicateWorkout: (programId: string, fromDate: string, toDate: string, workoutId: string) => void;
+  duplicateDay: (programId: string, fromDate: string, toDate: string) => void;
   duplicateWeek: (programId: string, fromDate: string) => void;
-  copyWorkoutToPattern: (
+  
+  // Session Management
+  addSession: (programId: string, date: string, session: Omit<Session, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  updateSession: (programId: string, date: string, sessionId: string, updates: Partial<Session>) => void;
+  deleteSession: (programId: string, date: string, sessionId: string) => void;
+  
+  // Assignment Management
+  assignProgram: (
     programId: string,
-    fromDate: string,
-    workoutId: string,
-    pattern: {
-      weekCount: number;
-      days: ('M' | 'T' | 'W' | 'Th' | 'F' | 'Sa' | 'Su')[];
+    data: {
+      athletes: string[];
+      teams: string[];
+      message?: string;
+      replaceExisting: boolean;
     }
   ) => void;
-  
-  assignProgram: (programId: string, athletes: string[], teams: string[]) => void;
 }
 
 export const useWorkoutStore = create<WorkoutStore>((set) => ({
   programs: {},
   selectedProgramId: null,
+  programFilter: 'all',
 
   createProgram: (program) => {
     const id = `program-${Date.now()}`;
@@ -111,8 +129,6 @@ export const useWorkoutStore = create<WorkoutStore>((set) => ({
         [id]: {
           ...program,
           id,
-          days: {},
-          assignedTo: { athletes: [], teams: [] },
           createdAt: now,
           updatedAt: now,
         },
@@ -147,6 +163,21 @@ export const useWorkoutStore = create<WorkoutStore>((set) => ({
   selectProgram: (programId) =>
     set({ selectedProgramId: programId }),
 
+  updateProgramStatus: (programId, status) =>
+    set((state) => ({
+      programs: {
+        ...state.programs,
+        [programId]: {
+          ...state.programs[programId],
+          status,
+          updatedAt: new Date().toISOString(),
+        },
+      },
+    })),
+
+  setProgramFilter: (filter) =>
+    set({ programFilter: filter }),
+
   addWorkout: (programId, date, workout) =>
     set((state) => {
       const program = state.programs[programId];
@@ -157,7 +188,7 @@ export const useWorkoutStore = create<WorkoutStore>((set) => ({
       const existingDay = program.days[date] || {
         id: date,
         date,
-        workouts: [],
+        sessions: [],
       };
 
       return {
@@ -260,7 +291,7 @@ export const useWorkoutStore = create<WorkoutStore>((set) => ({
       const targetDay = program.days[toDate] || {
         id: toDate,
         date: toDate,
-        workouts: [],
+        sessions: [],
       };
 
       return {
@@ -281,6 +312,40 @@ export const useWorkoutStore = create<WorkoutStore>((set) => ({
                     updatedAt: now,
                   },
                 ],
+              },
+            },
+            updatedAt: now,
+          },
+        },
+      };
+    }),
+
+  duplicateDay: (programId, fromDate, toDate) =>
+    set((state) => {
+      const program = state.programs[programId];
+      if (!program) return state;
+
+      const sourceDay = program.days[fromDate];
+      if (!sourceDay) return state;
+
+      const now = new Date().toISOString();
+
+      return {
+        programs: {
+          ...state.programs,
+          [programId]: {
+            ...program,
+            days: {
+              ...program.days,
+              [toDate]: {
+                id: toDate,
+                date: toDate,
+                sessions: sourceDay.sessions.map((session) => ({
+                  ...session,
+                  id: `session-${Date.now()}-${session.id}`,
+                  createdAt: now,
+                  updatedAt: now,
+                })),
               },
             },
             updatedAt: now,
@@ -313,9 +378,9 @@ export const useWorkoutStore = create<WorkoutStore>((set) => ({
           newDays[destDate] = {
             id: destDate,
             date: destDate,
-            workouts: sourceDay.workouts.map((workout) => ({
-              ...workout,
-              id: `workout-${Date.now()}-${workout.id}`,
+            sessions: sourceDay.sessions.map((session) => ({
+              ...session,
+              id: `session-${Date.now()}-${session.id}`,
               createdAt: now,
               updatedAt: now,
             })),
@@ -338,66 +403,18 @@ export const useWorkoutStore = create<WorkoutStore>((set) => ({
       };
     }),
 
-  copyWorkoutToPattern: (programId, fromDate, workoutId, pattern) =>
+  addSession: (programId, date, session) => 
     set((state) => {
       const program = state.programs[programId];
       if (!program) return state;
 
-      const sourceDay = program.days[fromDate];
-      if (!sourceDay) return state;
-
-      const workout = sourceDay.workouts.find((w) => w.id === workoutId);
-      if (!workout) return state;
-
       const now = new Date().toISOString();
-      const startDate = new Date(fromDate);
-      const newDays: Record<string, DayProgram> = {};
-
-      // Map day names to numbers (0 = Sunday)
-      const dayMap = {
-        'Su': 0,
-        'M': 1,
-        'T': 2,
-        'W': 3,
-        'Th': 4,
-        'F': 5,
-        'Sa': 6,
+      const sessionId = `session-${Date.now()}`;
+      const existingDay = program.days[date] || {
+        id: date,
+        date,
+        sessions: [],
       };
-
-      // For each week in the pattern
-      for (let week = 0; week < pattern.weekCount; week++) {
-        // For each selected day in the pattern
-        pattern.days.forEach((day) => {
-          const targetDate = new Date(startDate);
-          targetDate.setDate(targetDate.getDate() + (week * 7));
-          
-          // Adjust to the correct day of the week
-          const currentDay = targetDate.getDay();
-          const targetDay = dayMap[day];
-          const diff = targetDay - currentDay;
-          targetDate.setDate(targetDate.getDate() + diff);
-
-          const dateStr = targetDate.toISOString().split('T')[0];
-          const existingDay = program.days[dateStr] || {
-            id: dateStr,
-            date: dateStr,
-            workouts: [],
-          };
-
-          newDays[dateStr] = {
-            ...existingDay,
-            workouts: [
-              ...existingDay.workouts,
-              {
-                ...workout,
-                id: `workout-${Date.now()}-${week}-${day}`,
-                createdAt: now,
-                updatedAt: now,
-              },
-            ],
-          };
-        });
-      }
 
       return {
         programs: {
@@ -406,7 +423,18 @@ export const useWorkoutStore = create<WorkoutStore>((set) => ({
             ...program,
             days: {
               ...program.days,
-              ...newDays,
+              [date]: {
+                ...existingDay,
+                sessions: [
+                  ...existingDay.sessions,
+                  {
+                    ...session,
+                    id: sessionId,
+                    createdAt: now,
+                    updatedAt: now,
+                  },
+                ],
+              },
             },
             updatedAt: now,
           },
@@ -414,7 +442,65 @@ export const useWorkoutStore = create<WorkoutStore>((set) => ({
       };
     }),
 
-  assignProgram: (programId, athletes, teams) =>
+  updateSession: (programId, date, sessionId, updates) =>
+    set((state) => {
+      const program = state.programs[programId];
+      if (!program) return state;
+
+      const existingDay = program.days[date];
+      if (!existingDay) return state;
+
+      return {
+        programs: {
+          ...state.programs,
+          [programId]: {
+            ...program,
+            days: {
+              ...program.days,
+              [date]: {
+                ...existingDay,
+                sessions: existingDay.sessions.map((session) =>
+                  session.id === sessionId
+                    ? { ...session, ...updates, updatedAt: new Date().toISOString() }
+                    : session
+                ),
+              },
+            },
+            updatedAt: new Date().toISOString(),
+          },
+        },
+      };
+    }),
+
+  deleteSession: (programId, date, sessionId) =>
+    set((state) => {
+      const program = state.programs[programId];
+      if (!program) return state;
+
+      const existingDay = program.days[date];
+      if (!existingDay) return state;
+
+      return {
+        programs: {
+          ...state.programs,
+          [programId]: {
+            ...program,
+            days: {
+              ...program.days,
+              [date]: {
+                ...existingDay,
+                sessions: existingDay.sessions.filter(
+                  (session) => session.id !== sessionId
+                ),
+              },
+            },
+            updatedAt: new Date().toISOString(),
+          },
+        },
+      };
+    }),
+
+  assignProgram: (programId, data) =>
     set((state) => {
       const program = state.programs[programId];
       if (!program) return state;
@@ -425,9 +511,19 @@ export const useWorkoutStore = create<WorkoutStore>((set) => ({
           [programId]: {
             ...program,
             assignedTo: {
-              athletes,
-              teams,
+              athletes: data.athletes,
+              teams: data.teams,
             },
+            assignments: [
+              ...(program.assignments || []),
+              {
+                date: new Date().toISOString(),
+                athletes: data.athletes,
+                teams: data.teams,
+                message: data.message,
+                replacedExisting: data.replaceExisting,
+              },
+            ],
             updatedAt: new Date().toISOString(),
           },
         },
@@ -435,14 +531,14 @@ export const useWorkoutStore = create<WorkoutStore>((set) => ({
     }),
 }));
 
-// Add initialization with sample data
-export const initializeWithSampleData = () => {
+export function initializeWithSampleData() {
   const store = useWorkoutStore.getState();
   
-  samplePrograms.forEach(program => {
-    store.programs[program.id] = program;
+  samplePrograms.forEach((program) => {
+    store.programs[program.id] = {
+      ...program,
+      status: 'published',
+      weekCount: 6,
+    };
   });
-  
-  // Select the competition program by default
-  store.selectedProgramId = 'program-competition';
-};
+}

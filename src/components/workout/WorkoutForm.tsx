@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { X, Info } from 'lucide-react';
 import type { WorkoutType, WorkoutFormat } from '../../lib/workout';
-import { BENCHMARK_WORKOUTS } from '../../lib/workout';
+import { BENCHMARK_WORKOUTS } from '../../lib/benchmarks';
 
 interface WorkoutFormProps {
   initialData?: {
