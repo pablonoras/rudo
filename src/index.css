@@ -2,19 +2,22 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Lazy loading styles */
-.lazy {
-  opacity: 0;
-  transition: opacity 0.3s ease-in-out;
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --border: 214.3 31.8% 91.4%;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+  }
 }
 
-.lazy.loaded {
-  opacity: 1;
-}
-
-/* Responsive background images */
-@media (min-width: 768px) {
-  .bg-responsive {
-    background-image: var(--bg-desktop);
+@layer base {
+  body {
+    @apply bg-background text-foreground;
   }
 }
