@@ -5,11 +5,11 @@ import { ThemeProvider } from './components/ThemeProvider';
 import { ModalProvider } from './contexts/ModalContext';
 
 // Auth components
-import LandingPage from './components/LandingPage';
 import AuthCallback from './components/auth/AuthCallback';
 import LoginSuccess from './components/auth/LoginSuccess';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import RoleSelection from './components/auth/RoleSelection';
+import { LandingPage } from './pages/LandingPage';
 
 // Coach pages
 import { AthleteProfile } from './pages/coach/AthleteProfile';
