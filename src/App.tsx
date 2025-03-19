@@ -9,7 +9,7 @@ import AuthCallback from './components/auth/AuthCallback';
 import LoginSuccess from './components/auth/LoginSuccess';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import RoleSelection from './components/auth/RoleSelection';
-import { LandingPage } from './pages/LandingPage';
+import { LandingPage } from './components/LandingPage';
 
 // Coach pages
 import { AthleteProfile } from './pages/coach/AthleteProfile';
