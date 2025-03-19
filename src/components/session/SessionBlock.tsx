@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { 
   Plus, 
   Edit2, 
@@ -7,9 +7,25 @@ import {
   MoreVertical,
   ChevronDown,
   ChevronUp,
+  Clock,
 } from 'lucide-react';
 import type { Session, WorkoutBlock } from '../../lib/workout';
 import { useModal } from '../../contexts/ModalContext';
+import { MenuPortal } from '../MenuPortal';
+
+const getWorkoutTypeColor = (type?: string) => {
+  if (!type) return 'border-gray-400 bg-gray-50 dark:bg-gray-900/20';
+  
+  const colors: Record<string, string> = {
+    warmup: 'border-yellow-400 bg-yellow-50 dark:bg-yellow-900/20',
+    strength: 'border-red-400 bg-red-50 dark:bg-red-900/20',
+    wod: 'border-blue-400 bg-blue-50 dark:bg-blue-900/20',
+    skill: 'border-purple-400 bg-purple-50 dark:bg-purple-900/20',
+    cooldown: 'border-green-400 bg-green-50 dark:bg-green-900/20',
+  };
+
+  return colors[type.toLowerCase()] || 'border-gray-400 bg-gray-50 dark:bg-gray-900/20';
+};
 
 interface SessionBlockProps {
   session: Session;
@@ -20,6 +36,86 @@ interface SessionBlockProps {
   onEditWorkout?: (workoutId: string, updates: Partial<WorkoutBlock>) => void;
   onDeleteWorkout?: (workoutId: string) => void;
   onDuplicateWorkout?: (workoutId: string) => void;
+}
+
+interface WorkoutActionButtonProps {
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+  variant?: 'default' | 'danger';
+}
+
+function WorkoutActionButton({ icon, label, onClick, variant = 'default' }: WorkoutActionButtonProps) {
+  return (
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      className={`p-1.5 rounded-full transition-all duration-150 group/button ${
+        variant === 'danger' 
+          ? 'hover:bg-red-100 dark:hover:bg-red-900/20' 
+          : 'hover:bg-gray-200 dark:hover:bg-gray-600'
+      }`}
+      title={label}
+    >
+      <span className={`inline-flex items-center ${
+        variant === 'danger'
+          ? 'text-red-500 group-hover/button:text-red-600 dark:group-hover/button:text-red-400'
+          : 'text-gray-500 dark:text-gray-400 group-hover/button:text-gray-700 dark:group-hover/button:text-gray-300'
+      }`}>
+        {icon}
+      </span>
+    </button>
+  );
+}
+
+function WorkoutDetails({ workout }: { workout: WorkoutBlock }) {
+  if (!workout.format && !workout.rounds && !workout.goal && !workout.scaling && !workout.notes) {
+    return null;
+  }
+
+  return (
+    <div className="mt-3 pl-4 space-y-3 text-sm">
+      {workout.format && (
+        <div>
+          <span className="font-medium text-gray-700 dark:text-gray-300">Format: </span>
+          <span className="text-gray-600 dark:text-gray-400 capitalize">{workout.format}</span>
+          {workout.timeLimit && (
+            <span className="text-gray-600 dark:text-gray-400"> ({workout.timeLimit} min)</span>
+          )}
+        </div>
+      )}
+      
+      {workout.rounds && (
+        <div>
+          <span className="font-medium text-gray-700 dark:text-gray-300">Rounds: </span>
+          <span className="text-gray-600 dark:text-gray-400">{workout.rounds}</span>
+        </div>
+      )}
+
+      {workout.goal && (
+        <div>
+          <span className="font-medium text-gray-700 dark:text-gray-300">Goal: </span>
+          <span className="text-gray-600 dark:text-gray-400">{workout.goal}</span>
+        </div>
+      )}
+
+      {workout.scaling && (
+        <div>
+          <span className="font-medium text-gray-700 dark:text-gray-300">Scaling: </span>
+          <span className="text-gray-600 dark:text-gray-400">{workout.scaling}</span>
+        </div>
+      )}
+
+      {workout.notes && (
+        <div>
+          <span className="font-medium text-gray-700 dark:text-gray-300">Notes: </span>
+          <span className="text-gray-600 dark:text-gray-400">{workout.notes}</span>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function SessionBlock({
@@ -34,7 +130,8 @@ export function SessionBlock({
 }: SessionBlockProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
-  const [activeWorkoutMenu, setActiveWorkoutMenu] = useState<string | null>(null);
+  const [expandedWorkouts, setExpandedWorkouts] = useState<Set<string>>(new Set());
+  const menuTriggerRef = useRef<HTMLButtonElement>(null);
   const { showSessionForm, showWorkoutForm } = useModal();
 
   const handleEditSession = () => {
@@ -65,148 +162,160 @@ export function SessionBlock({
       initialData: workout,
       onSave: (updates) => onEditWorkout(workout.id, updates)
     });
-    setActiveWorkoutMenu(null);
   };
 
+  const toggleWorkout = (workoutId: string) => {
+    setExpandedWorkouts((prev) => {
+      const next = new Set(prev);
+      if (next.has(workoutId)) {
+        next.delete(workoutId);
+      } else {
+        next.add(workoutId);
+      }
+      return next;
+    });
+  };
+
+  const menuItems = [
+    {
+      id: 'edit',
+      label: 'Edit',
+      icon: <Edit2 className="h-3.5 w-3.5 mr-2" />,
+      onClick: handleEditSession,
+      className: 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+    },
+    onDuplicate && {
+      id: 'duplicate',
+      label: 'Duplicate',
+      icon: <Copy className="h-3.5 w-3.5 mr-2" />,
+      onClick: () => {
+        onDuplicate();
+        setShowMenu(false);
+      },
+      className: 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+    },
+    {
+      id: 'delete',
+      label: 'Delete',
+      icon: <Trash2 className="h-3.5 w-3.5 mr-2" />,
+      onClick: () => {
+        onDelete();
+        setShowMenu(false);
+      },
+      className: 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20'
+    }
+  ].filter(Boolean);
+
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200/50 dark:border-gray-700/50 shadow-sm">
-      <div 
-        className="p-2 flex items-center justify-between cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50"
-        onClick={() => setIsExpanded(!isExpanded)}
-      >
-        <div className="flex items-center space-x-2">
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden border border-gray-200/50 dark:border-gray-700/50">
+      <div className="p-3 flex items-center justify-between">
+        <div 
+          className="flex-1 flex items-center gap-2 cursor-pointer"
+          onClick={() => setIsExpanded(!isExpanded)}
+        >
           {isExpanded ? (
-            <ChevronUp className="h-4 w-4 text-gray-400" />
+            <ChevronUp className="h-4 w-4 text-gray-400 flex-shrink-0" />
           ) : (
-            <ChevronDown className="h-4 w-4 text-gray-400" />
+            <ChevronDown className="h-4 w-4 text-gray-400 flex-shrink-0" />
           )}
-          <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">
-            {session.name}
-          </h3>
+          <div>
+            <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">
+              {session.name}
+            </h3>
+            <div className="flex items-center mt-1 text-xs text-gray-500 dark:text-gray-400">
+              <Clock className="h-3 w-3 mr-1" />
+              <span>{session.duration}min</span>
+              {session.startTime && (
+                <span className="ml-2">@ {session.startTime}</span>
+              )}
+            </div>
+          </div>
         </div>
         
-        <div className="relative" onClick={e => e.stopPropagation()}>
+        <div className="relative flex items-center">
           <button
-            onClick={() => setShowMenu(!showMenu)}
-            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+            ref={menuTriggerRef}
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowMenu(!showMenu);
+            }}
+            className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full"
           >
             <MoreVertical className="h-4 w-4 text-gray-500 dark:text-gray-400" />
           </button>
 
-          {showMenu && (
-            <div className="absolute right-0 mt-1 w-40 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-10">
-              <button
-                onClick={handleEditSession}
-                className="w-full px-3 py-1.5 text-sm text-left text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
-              >
-                <Edit2 className="h-3 w-3 mr-2" />
-                Edit
-              </button>
-              {onDuplicate && (
+          <MenuPortal
+            isOpen={showMenu}
+            onClose={() => setShowMenu(false)}
+            triggerRef={menuTriggerRef}
+          >
+            <div>
+              {menuItems.map((item) => (
                 <button
-                  onClick={() => {
-                    onDuplicate();
-                    setShowMenu(false);
-                  }}
-                  className="w-full px-3 py-1.5 text-sm text-left text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
+                  key={item.id}
+                  onClick={item.onClick}
+                  className={`w-full px-3 py-1.5 text-sm text-left flex items-center ${item.className}`}
                 >
-                  <Copy className="h-3 w-3 mr-2" />
-                  Duplicate
+                  {item.icon}
+                  {item.label}
                 </button>
-              )}
-              <button
-                onClick={() => {
-                  onDelete();
-                  setShowMenu(false);
-                }}
-                className="w-full px-3 py-1.5 text-sm text-left text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center"
-              >
-                <Trash2 className="h-3 w-3 mr-2" />
-                Delete
-              </button>
+              ))}
             </div>
-          )}
+          </MenuPortal>
         </div>
       </div>
 
       {isExpanded && (
-        <div className="border-t border-gray-200 dark:border-gray-700 p-2">
-          <div className="space-y-2">
+        <div className="border-t border-gray-200 dark:border-gray-700">
+          <div className="p-3 space-y-3">
             {session.workouts.map((workout) => (
               <div
                 key={workout.id}
-                className="bg-gray-50 dark:bg-gray-700/50 rounded-md p-2 group"
+                onClick={() => toggleWorkout(workout.id)}
+                className={`group relative rounded-lg border-l-4 ${getWorkoutTypeColor(workout.type)} p-3 cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50`}
               >
                 <div className="flex items-center justify-between">
-                  <div>
+                  <div className="flex-1">
                     <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100">
                       {workout.name}
                     </h4>
+                    {workout.description && (
+                      <p className="mt-1 text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap font-mono">
+                        {workout.description}
+                      </p>
+                    )}
+                    {expandedWorkouts.has(workout.id) && (
+                      <WorkoutDetails workout={workout} />
+                    )}
                   </div>
-                  <div className="relative" onClick={e => e.stopPropagation()}>
-                    <button
-                      onClick={() => setActiveWorkoutMenu(activeWorkoutMenu === workout.id ? null : workout.id)}
-                      className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <MoreVertical className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-                    </button>
-
-                    {activeWorkoutMenu === workout.id && (
-                      <div className="absolute right-0 mt-1 w-40 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-10">
-                        {onEditWorkout && (
-                          <button
-                            onClick={() => handleEditWorkout(workout)}
-                            className="w-full px-3 py-1.5 text-sm text-left text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
-                          >
-                            <Edit2 className="h-3 w-3 mr-2" />
-                            Edit
-                          </button>
-                        )}
-                        {onDuplicateWorkout && (
-                          <button
-                            onClick={() => {
-                              onDuplicateWorkout(workout.id);
-                              setActiveWorkoutMenu(null);
-                            }}
-                            className="w-full px-3 py-1.5 text-sm text-left text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
-                          >
-                            <Copy className="h-3 w-3 mr-2" />
-                            Duplicate
-                          </button>
-                        )}
-                        {onDeleteWorkout && (
-                          <button
-                            onClick={() => {
-                              onDeleteWorkout(workout.id);
-                              setActiveWorkoutMenu(null);
-                            }}
-                            className="w-full px-3 py-1.5 text-sm text-left text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center"
-                          >
-                            <Trash2 className="h-3 w-3 mr-2" />
-                            Delete
-                          </button>
-                        )}
-                      </div>
+                  <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {onEditWorkout && (
+                      <WorkoutActionButton
+                        key={`edit-${workout.id}`}
+                        icon={<Edit2 className="h-4 w-4" />}
+                        label="Edit workout"
+                        onClick={() => handleEditWorkout(workout)}
+                      />
+                    )}
+                    {onDeleteWorkout && (
+                      <WorkoutActionButton
+                        key={`delete-${workout.id}`}
+                        icon={<Trash2 className="h-4 w-4" />}
+                        label="Delete workout"
+                        onClick={() => onDeleteWorkout(workout.id)}
+                        variant="danger"
+                      />
                     )}
                   </div>
                 </div>
-                <div className="mt-2 text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap font-mono">
-                  {workout.description}
-                </div>
-                {workout.notes && (
-                  <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    <span className="font-medium">Notes: </span>
-                    {workout.notes}
-                  </div>
-                )}
               </div>
             ))}
 
             <button
               onClick={handleAddWorkout}
-              className="w-full flex items-center justify-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              className="w-full flex items-center justify-center px-3 py-2 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
             >
-              <Plus className="h-3 w-3 mr-1" />
+              <Plus className="h-4 w-4 mr-2" />
               Add Workout
             </button>
           </div>

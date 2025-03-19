@@ -19,7 +19,7 @@ type SessionFormProps = {
 
 type WorkoutFormProps = {
   title: string;
-  initialData?: WorkoutBlock;
+  initialData?: Partial<WorkoutBlock>;
   onSave: (data: WorkoutBlock) => void;
 };
 

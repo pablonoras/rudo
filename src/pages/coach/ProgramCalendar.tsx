@@ -6,15 +6,16 @@ import {
   addDays,
   parseISO,
   isWithinInterval,
+  isSameDay,
 } from 'date-fns';
 import {
   Calendar as CalendarIcon,
   ChevronLeft,
   ChevronRight,
   Plus,
-  Users,
-  Save,
   Send,
+  Save,
+  ArrowLeft,
 } from 'lucide-react';
 import { useWorkoutStore } from '../../lib/workout';
 import { SessionForm } from '../../components/session/SessionForm';
@@ -79,22 +80,16 @@ export function ProgramCalendar() {
 
   const handleSave = async () => {
     setIsSaving(true);
-    // Simulate save operation
     await new Promise(resolve => setTimeout(resolve, 1000));
     setIsSaving(false);
   };
 
   const handlePublish = async (shouldAssign: boolean) => {
     if (!programId) return;
-    
-    // Update program status to published
     updateProgramStatus(programId, 'published');
-    
     if (shouldAssign) {
-      // Navigate to assignment page
       navigate(`/coach/program/${programId}/assign`);
     }
-    
     setShowPublishModal(false);
   };
 
@@ -129,8 +124,18 @@ export function ProgramCalendar() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
+          <div className="flex items-center gap-2 mb-2">
+            <button
+              onClick={() => navigate('/coach/programs')}
+              className="inline-flex items-center text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+            >
+              <ArrowLeft className="h-4 w-4 mr-1" />
+              Back to Programs
+            </button>
+          </div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
             {program.name}
           </h1>
@@ -139,7 +144,7 @@ export function ProgramCalendar() {
             {format(parseISO(program.endDate), 'MMMM d, yyyy')}
           </p>
         </div>
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center gap-4">
           <button
             onClick={handleSave}
             disabled={isSaving}
@@ -157,44 +162,64 @@ export function ProgramCalendar() {
               Publish
             </button>
           )}
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={handlePrevWeek}
-              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full"
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </button>
-            <button
-              onClick={handleNextWeek}
-              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full"
-            >
-              <ChevronRight className="h-5 w-5" />
-            </button>
-          </div>
         </div>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
-        <div className="grid grid-cols-7 gap-px bg-gray-200 dark:bg-gray-700">
-          {weekDays.map((date) => {
-            const dateStr = format(date, 'yyyy-MM-dd');
-            const dayProgram = program.days[dateStr];
-            const isInProgram = isDateInProgram(date);
+      {/* Calendar Navigation */}
+      <div className="flex items-center justify-between bg-white dark:bg-gray-800 rounded-t-lg p-4 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center gap-2">
+          <CalendarIcon className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+            {format(selectedDate, 'MMMM yyyy')}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handlePrevWeek}
+            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </button>
+          <button
+            onClick={handleNextWeek}
+            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full"
+          >
+            <ChevronRight className="h-5 w-5" />
+          </button>
+        </div>
+      </div>
 
-            return (
-              <div
-                key={dateStr}
-                className={`bg-white dark:bg-gray-800 p-4 min-h-[300px] ${
-                  !isInProgram ? 'opacity-50 pointer-events-none' : ''
+      {/* Calendar Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-7 gap-4 md:gap-px bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden">
+        {weekDays.map((date) => {
+          const dateStr = format(date, 'yyyy-MM-dd');
+          const dayProgram = program.days[dateStr];
+          const isToday = isSameDay(date, new Date());
+          const isInProgram = isDateInProgram(date);
+
+          return (
+            <div
+              key={dateStr}
+              className={`relative bg-white dark:bg-gray-800 min-h-[300px] md:min-h-[500px] ${
+                !isInProgram ? 'opacity-50 pointer-events-none' : ''
+              }`}
+            >
+              {/* Date Header */}
+              <div 
+                className={`sticky top-0 z-10 p-3 border-b border-gray-200 dark:border-gray-700 ${
+                  isToday ? 'bg-blue-50 dark:bg-blue-900/20' : 'bg-white dark:bg-gray-800'
                 }`}
               >
                 <div className="font-medium text-sm text-gray-900 dark:text-gray-100">
                   {format(date, 'EEEE')}
                 </div>
-                <div className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                <div className="text-sm text-gray-500 dark:text-gray-400">
                   {format(date, 'MMM d')}
                 </div>
+              </div>
 
+              {/* Sessions */}
+              <div className="p-3 space-y-3">
                 {isInProgram && (
                   <>
                     {dayProgram?.sessions.map((session) => (
@@ -217,19 +242,20 @@ export function ProgramCalendar() {
 
                     <button
                       onClick={() => setAddSessionDate(dateStr)}
-                      className="mt-4 w-full flex items-center justify-center px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                      className="w-full flex items-center justify-center px-3 py-2 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                     >
-                      <Plus className="h-4 w-4 mr-1" />
+                      <Plus className="h-4 w-4 mr-2" />
                       Add Session
                     </button>
                   </>
                 )}
               </div>
-            );
-          })}
-        </div>
+            </div>
+          );
+        })}
       </div>
 
+      {/* Modals */}
       {addSessionDate && (
         <SessionForm
           title={`Add Session for ${format(parseISO(addSessionDate), 'MMMM d, yyyy')}`}
