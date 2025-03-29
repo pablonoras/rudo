@@ -24,7 +24,7 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
   const srcSet = ext !== 'webp' ? [
     `${src} 1x`,
     src.replace(`.${ext}`, '.webp') + ' 1x'
-  ] : undefined;
+  ].join(', ') : undefined;
 
   return (
     <img

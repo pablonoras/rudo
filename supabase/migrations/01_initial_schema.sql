@@ -1,38 +1,20 @@
 /*
-  # Initial Schema Setup for CrossFit Coach Platform
+  # CrossFit Coach Platform Schema
 
-  1. New Tables
-    - profiles
-      - Stores user profile information and role (coach/athlete)
-      - Links to Supabase auth.users
-    - teams
-      - Groups athletes under a coach
-      - Enables team-based program assignment
-    - team_members
-      - Junction table for team membership
-    - programs
-      - Workout programs created by coaches
-    - program_assignments
-      - Links programs to athletes/teams
-    - program_days
-      - Individual days within a program
-    - workout_blocks
-      - Components of a workout day (e.g., warmup, strength, metcon)
-    - exercises
-      - Exercise library
-    - workout_exercises
-      - Exercises within a workout block
-    - completion_logs
-      - Tracks athlete workout completion
-
-  2. Security
-    - RLS policies for each table
-    - Role-based access control
+  Sections:
+  1. Types and Enums
+  2. Core Tables (profiles, teams)
+  3. Program Tables (programs, assignments, days)
+  4. Workout Tables (blocks, exercises)
+  5. Authentication Functions
+  6. Security Policies
+  7. Indexes and Constraints
 */
 
--- Create custom types
+-- 1. Types and Enums
 CREATE TYPE user_role AS ENUM ('coach', 'athlete');
 
+-- 2. Core Tables
 -- Profiles table
 CREATE TABLE profiles (
   id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -41,7 +23,8 @@ CREATE TABLE profiles (
   email text NOT NULL,
   avatar_url text,
   created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now()
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT valid_email CHECK (email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$')
 );
 
 -- Teams table
@@ -62,6 +45,7 @@ CREATE TABLE team_members (
   PRIMARY KEY (team_id, athlete_id)
 );
 
+-- 3. Program Tables
 -- Programs table
 CREATE TABLE programs (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -99,6 +83,7 @@ CREATE TABLE program_days (
   UNIQUE (program_id, day_number)
 );
 
+-- 4. Workout Tables
 -- Workout blocks table
 CREATE TABLE workout_blocks (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -146,6 +131,75 @@ CREATE TABLE completion_logs (
   rating integer CHECK (rating >= 1 AND rating <= 5)
 );
 
+-- 5. Authentication Functions
+-- Function to handle new user creation (including Google OAuth)
+CREATE OR REPLACE FUNCTION handle_new_user()
+RETURNS trigger AS $$
+BEGIN
+  INSERT INTO public.profiles (
+    id,
+    role,
+    full_name,
+    email,
+    avatar_url
+  )
+  VALUES (
+    new.id,
+    COALESCE((new.raw_user_meta_data->>'role')::user_role, 'athlete'::user_role),
+    COALESCE(
+      new.raw_user_meta_data->>'full_name',
+      new.raw_user_meta_data->>'name',
+      new.raw_user_meta_data->>'user_name',
+      'Anonymous'
+    ),
+    COALESCE(new.email, (new.raw_user_meta_data->>'email')),
+    COALESCE(
+      new.raw_user_meta_data->>'avatar_url',
+      new.raw_user_meta_data->>'picture'
+    )
+  );
+  RETURN new;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to update updated_at timestamp
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = now();
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+-- Function to validate coach role
+CREATE OR REPLACE FUNCTION validate_coach_role()
+RETURNS trigger AS $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM profiles
+    WHERE id = NEW.coach_id AND role = 'coach'
+  ) THEN
+    RAISE EXCEPTION 'Only users with coach role can create or update teams';
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function to validate athlete role
+CREATE OR REPLACE FUNCTION validate_athlete_role()
+RETURNS trigger AS $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM profiles
+    WHERE id = NEW.athlete_id AND role = 'athlete'
+  ) THEN
+    RAISE EXCEPTION 'Only users with athlete role can be added to teams';
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- 6. Security Policies
 -- Enable RLS on all tables
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE teams ENABLE ROW LEVEL SECURITY;
@@ -158,26 +212,43 @@ ALTER TABLE exercises ENABLE ROW LEVEL SECURITY;
 ALTER TABLE workout_exercises ENABLE ROW LEVEL SECURITY;
 ALTER TABLE completion_logs ENABLE ROW LEVEL SECURITY;
 
--- RLS Policies
-
--- Profiles: Users can read their own profile and coaches can read their athletes' profiles
+-- Profiles policies
 CREATE POLICY "Users can read own profile"
   ON profiles
   FOR SELECT
   USING (auth.uid() = id);
 
-CREATE POLICY "Coaches can read their athletes' profiles"
+CREATE POLICY "Users can update own profile"
+  ON profiles
+  FOR UPDATE
+  USING (auth.uid() = id)
+  WITH CHECK (auth.uid() = id);
+
+CREATE POLICY "Team members can view each other's profiles"
   ON profiles
   FOR SELECT
   USING (
     EXISTS (
-      SELECT 1 FROM team_members tm
-      JOIN teams t ON tm.team_id = t.id
-      WHERE t.coach_id = auth.uid() AND tm.athlete_id = profiles.id
+      SELECT 1 FROM team_members tm1
+      JOIN team_members tm2 ON tm1.team_id = tm2.team_id
+      WHERE tm1.athlete_id = auth.uid()
+      AND tm2.athlete_id = profiles.id
     )
   );
 
--- Teams: Coaches can manage their teams, athletes can read teams they belong to
+CREATE POLICY "Coaches can update their team members' profiles"
+  ON profiles
+  FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM teams t
+      JOIN team_members tm ON t.id = tm.team_id
+      WHERE t.coach_id = auth.uid()
+      AND tm.athlete_id = profiles.id
+    )
+  );
+
+-- Teams policies
 CREATE POLICY "Coaches can manage their teams"
   ON teams
   FOR ALL
@@ -193,7 +264,7 @@ CREATE POLICY "Athletes can view their teams"
     )
   );
 
--- Team members: Coaches can manage their team members
+-- Team members policies
 CREATE POLICY "Coaches can manage team members"
   ON team_members
   FOR ALL
@@ -204,7 +275,7 @@ CREATE POLICY "Coaches can manage team members"
     )
   );
 
--- Programs: Coaches can manage their programs
+-- Programs policies
 CREATE POLICY "Coaches can manage their programs"
   ON programs
   FOR ALL
@@ -227,25 +298,61 @@ CREATE POLICY "Athletes can view assigned programs"
     )
   );
 
--- Create functions for user management
-CREATE OR REPLACE FUNCTION handle_new_user()
-RETURNS trigger AS $$
-BEGIN
-  INSERT INTO profiles (id, role, full_name, email)
-  VALUES (
-    new.id,
-    CASE 
-      WHEN new.raw_user_meta_data->>'role' = 'coach' THEN 'coach'::user_role
-      ELSE 'athlete'::user_role
-    END,
-    COALESCE(new.raw_user_meta_data->>'full_name', ''),
-    new.email
-  );
-  RETURN new;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+-- 7. Indexes and Constraints
+-- Add indexes for common queries
+CREATE INDEX idx_profiles_email ON profiles(email);
+CREATE INDEX idx_team_members_athlete ON team_members(athlete_id);
+CREATE INDEX idx_team_members_team ON team_members(team_id);
+CREATE INDEX idx_programs_coach ON programs(coach_id);
 
--- Trigger for new user creation
-CREATE OR REPLACE TRIGGER on_auth_user_created
+-- Add updated_at triggers
+CREATE TRIGGER update_profiles_updated_at
+    BEFORE UPDATE ON profiles
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_teams_updated_at
+    BEFORE UPDATE ON teams
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_programs_updated_at
+    BEFORE UPDATE ON programs
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_program_days_updated_at
+    BEFORE UPDATE ON program_days
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_workout_blocks_updated_at
+    BEFORE UPDATE ON workout_blocks
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_exercises_updated_at
+    BEFORE UPDATE ON exercises
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_workout_exercises_updated_at
+    BEFORE UPDATE ON workout_exercises
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Add role validation triggers
+CREATE TRIGGER validate_coach_role_trigger
+    BEFORE INSERT OR UPDATE ON teams
+    FOR EACH ROW
+    EXECUTE FUNCTION validate_coach_role();
+
+CREATE TRIGGER validate_athlete_role_trigger
+    BEFORE INSERT OR UPDATE ON team_members
+    FOR EACH ROW
+    EXECUTE FUNCTION validate_athlete_role();
+
+-- Create trigger for new user creation
+CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION handle_new_user();

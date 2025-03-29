@@ -1,6 +1,5 @@
-import React from 'react';
+import { ArrowLeft, Dumbbell, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { Dumbbell, Users, ArrowLeft } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 const RoleSelection = () => {

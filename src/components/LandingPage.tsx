@@ -1,16 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  ArrowRight, 
-  Dumbbell, 
-  Users, 
-  MessageSquare, 
-  Trophy, 
-  Clock,
+import {
+  ArrowRight,
   ClipboardCheck,
+  Clock,
   Computer,
+  Dumbbell,
   Menu,
+  MessageSquare,
+  Trophy,
+  Users,
   X
 } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import OptimizedImage from './OptimizedImage';
 
@@ -53,18 +53,26 @@ const LandingPage = () => {
     <div className="min-h-screen bg-black text-white flex flex-col">
       {/* Background with responsive images */}
       <div className="fixed inset-0">
-        <div 
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat md:hidden"
-          style={{
-            backgroundImage: `url(${HERO_BG.MOBILE})`
-          }}
-        />
-        <div 
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat hidden md:block"
-          style={{
-            backgroundImage: `url(${HERO_BG.DESKTOP})`
-          }}
-        />
+        <div className="absolute inset-0 md:hidden">
+          <OptimizedImage
+            src={HERO_BG.MOBILE}
+            alt="Hero background mobile"
+            width={768}
+            height={1024}
+            priority
+            className="w-full h-full object-cover"
+          />
+        </div>
+        <div className="absolute inset-0 hidden md:block">
+          <OptimizedImage
+            src={HERO_BG.DESKTOP}
+            alt="Hero background desktop"
+            width={2070}
+            height={1380}
+            priority
+            className="w-full h-full object-cover"
+          />
+        </div>
         <div 
           className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/80 to-black"
           style={{

@@ -1,15 +1,15 @@
-import { useState } from 'react';
+import { format, parseISO } from 'date-fns';
 import {
-  Calendar,
-  Users,
   BarChart2,
-  TrendingUp,
-  Clock,
+  Calendar,
   ChevronRight,
+  Clock,
+  TrendingUp,
+  Users,
 } from 'lucide-react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useWorkoutStore } from '../../lib/workout';
-import { format, parseISO } from 'date-fns';
 
 export function CoachDashboard() {
   const { programs } = useWorkoutStore();
