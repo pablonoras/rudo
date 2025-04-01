@@ -12,36 +12,41 @@
 */
 
 -- 1. Types and Enums
-CREATE TYPE user_role AS ENUM ('coach', 'athlete');
+-- Create enum for user roles (with safety check)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role') THEN
+        CREATE TYPE user_role AS ENUM ('coach', 'athlete');
+    END IF;
+END$$;
 
 -- 2. Core Tables
--- Profiles table
-CREATE TABLE profiles (
-  id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  role user_role NOT NULL,
-  full_name text NOT NULL,
-  email text NOT NULL,
-  avatar_url text,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
+-- Profiles table (with safety check)
+CREATE TABLE IF NOT EXISTS profiles (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  role TEXT NOT NULL DEFAULT 'athlete', -- Using TEXT instead of enum for safety
+  full_name TEXT NOT NULL,
+  email TEXT NOT NULL,
+  avatar_url TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   CONSTRAINT valid_email CHECK (email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$')
 );
 
 -- Teams table
-CREATE TABLE teams (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  coach_id uuid NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  name text NOT NULL,
-  description text,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now()
+CREATE TABLE IF NOT EXISTS teams (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  coach_id UUID NOT NULL REFERENCES profiles(id),
+  name TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- Team members junction table
-CREATE TABLE team_members (
-  team_id uuid REFERENCES teams(id) ON DELETE CASCADE,
-  athlete_id uuid REFERENCES profiles(id) ON DELETE CASCADE,
-  joined_at timestamptz NOT NULL DEFAULT now(),
+CREATE TABLE IF NOT EXISTS team_members (
+  team_id UUID REFERENCES teams(id) ON DELETE CASCADE,
+  athlete_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  joined_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY (team_id, athlete_id)
 );
 
@@ -132,33 +137,39 @@ CREATE TABLE completion_logs (
 );
 
 -- 5. Authentication Functions
--- Function to handle new user creation (including Google OAuth)
+-- Function to handle new user creation with better error handling
 CREATE OR REPLACE FUNCTION handle_new_user()
-RETURNS trigger AS $$
+RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO public.profiles (
-    id,
-    role,
-    full_name,
-    email,
-    avatar_url
-  )
-  VALUES (
-    new.id,
-    COALESCE((new.raw_user_meta_data->>'role')::user_role, 'athlete'::user_role),
-    COALESCE(
-      new.raw_user_meta_data->>'full_name',
-      new.raw_user_meta_data->>'name',
-      new.raw_user_meta_data->>'user_name',
-      'Anonymous'
-    ),
-    COALESCE(new.email, (new.raw_user_meta_data->>'email')),
-    COALESCE(
-      new.raw_user_meta_data->>'avatar_url',
-      new.raw_user_meta_data->>'picture'
-    )
-  );
-  RETURN new;
+  -- Extract role from query parameters or default to athlete
+  DECLARE
+    role_value TEXT;
+  BEGIN
+    -- Get role from URL params or default to athlete
+    role_value := COALESCE(current_setting('request.jwt.claim.role', true), 'athlete');
+    
+    -- Insert profile safely
+    INSERT INTO public.profiles (
+      id, 
+      role,
+      full_name, 
+      email,
+      avatar_url
+    ) VALUES (
+      NEW.id,
+      role_value,
+      COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'name', 'User'),
+      COALESCE(NEW.email, NEW.raw_user_meta_data->>'email'),
+      COALESCE(NEW.raw_user_meta_data->>'avatar_url', NEW.raw_user_meta_data->>'picture')
+    );
+    
+    RETURN NEW;
+  EXCEPTION 
+    WHEN OTHERS THEN
+      -- Log error but don't fail auth
+      RAISE LOG 'Error in handle_new_user: %', SQLERRM;
+      RETURN NEW;
+  END;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
@@ -213,16 +224,13 @@ ALTER TABLE workout_exercises ENABLE ROW LEVEL SECURITY;
 ALTER TABLE completion_logs ENABLE ROW LEVEL SECURITY;
 
 -- Profiles policies
-CREATE POLICY "Users can read own profile"
-  ON profiles
-  FOR SELECT
+CREATE POLICY "Users can view their own profile"
+  ON profiles FOR SELECT
   USING (auth.uid() = id);
 
-CREATE POLICY "Users can update own profile"
-  ON profiles
-  FOR UPDATE
-  USING (auth.uid() = id)
-  WITH CHECK (auth.uid() = id);
+CREATE POLICY "Users can update their own profile"
+  ON profiles FOR UPDATE
+  USING (auth.uid() = id);
 
 CREATE POLICY "Team members can view each other's profiles"
   ON profiles
@@ -352,7 +360,8 @@ CREATE TRIGGER validate_athlete_role_trigger
     FOR EACH ROW
     EXECUTE FUNCTION validate_athlete_role();
 
--- Create trigger for new user creation
+-- Create trigger for new user creation (with safety check)
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION handle_new_user();

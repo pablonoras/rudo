@@ -12,6 +12,21 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, role }) => {
   const [user, setUser] = useState(null);
 
   useEffect(() => {
+  
+    const fetchSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (session?.user) {
+        // Fetch user's role from user_metadata or custom table
+        const userRole = session.user.user_metadata.role; 
+        setUser({ ...session.user, role: userRole });
+      } else {
+        setUser(null);
+      }
+      setLoading(false);
+    };
+
+    fetchSession();
     // Check authentication status
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user || null);

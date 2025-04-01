@@ -6,10 +6,10 @@ import { ModalProvider } from './contexts/ModalContext';
 
 // Auth components
 import AuthCallback from './components/auth/AuthCallback';
+import CoachSearch from './components/auth/CoachSearch';
 import LoginSuccess from './components/auth/LoginSuccess';
 import ProtectedRoute from './components/auth/ProtectedRoute';
-import RoleSelection from './components/auth/RoleSelection';
-import LandingPage from './components/LandingPage'; // Updated import
+import LandingPage from './components/LandingPage';
 
 // Coach pages
 import { AthleteProfile } from './pages/coach/AthleteProfile';
@@ -21,6 +21,9 @@ import { ProgramDashboard } from './pages/coach/ProgramDashboard';
 
 // Athlete pages
 import { AthleteDashboard } from './pages/athlete/Dashboard';
+
+// Debugging tools
+import CoachSearchDebug from './debugging/CoachSearchDebug';
 
 import { initializeWithSampleData } from './lib/workout';
 
@@ -34,9 +37,12 @@ function App() {
       <ModalProvider>
         <Routes>
           <Route path="/" element={<LandingPage />} />
-          <Route path="/role-selection" element={<RoleSelection />} />
+          <Route path="/role-selection" element={<CoachSearch />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/login/success" element={<LoginSuccess />} />
+          
+          {/* Debugging routes */}
+          <Route path="/debug/coach-search" element={<CoachSearchDebug />} />
           
           {/* Protected Coach Routes */}
           <Route 
