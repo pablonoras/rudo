@@ -5,10 +5,13 @@ import { ThemeProvider } from './components/ThemeProvider';
 import { ModalProvider } from './contexts/ModalContext';
 
 // Auth components
+import AthleteSignIn from './components/auth/AthleteSignIn';
 import AuthCallback from './components/auth/AuthCallback';
 import CoachSearch from './components/auth/CoachSearch';
+import CoachSignIn from './components/auth/CoachSignIn';
 import LoginSuccess from './components/auth/LoginSuccess';
 import ProtectedRoute from './components/auth/ProtectedRoute';
+import RoleSelection from './components/auth/RoleSelection';
 import LandingPage from './components/LandingPage';
 
 // Coach pages
@@ -37,7 +40,11 @@ function App() {
       <ModalProvider>
         <Routes>
           <Route path="/" element={<LandingPage />} />
+          <Route path="/choose-role" element={<RoleSelection />} />
           <Route path="/role-selection" element={<CoachSearch />} />
+          <Route path="/athlete-signin" element={<AthleteSignIn />} />
+          <Route path="/athlete-signin/:coachName" element={<AthleteSignIn />} />
+          <Route path="/coach-signin" element={<CoachSignIn />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/login/success" element={<LoginSuccess />} />
           

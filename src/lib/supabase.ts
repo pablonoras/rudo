@@ -42,6 +42,49 @@ export async function getCurrentProfile(): Promise<Profile | null> {
   return profile;
 }
 
+/**
+ * Ensures a profile exists for the current user
+ * This is important for OAuth sign-ins where profile creation might fail
+ */
+export async function ensureProfileExists(role: UserRole = 'coach'): Promise<boolean> {
+  try {
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return false;
+    
+    // Check if profile exists
+    const { data: existingProfile, error: fetchError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', user.id)
+      .maybeSingle();
+    
+    if (fetchError) throw fetchError;
+    
+    // If profile already exists, we're done
+    if (existingProfile) return true;
+    
+    // Profile doesn't exist, create it
+    const { error: insertError } = await supabase.from('profiles').insert([
+      {
+        id: user.id,
+        role,
+        full_name: user.user_metadata.full_name || user.user_metadata.name || 'User',
+        email: user.email || user.user_metadata.email || '',
+        avatar_url: user.user_metadata.avatar_url || user.user_metadata.picture || null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+    ]);
+    
+    if (insertError) throw insertError;
+    return true;
+  } catch (error) {
+    console.error('Error ensuring profile exists:', error);
+    return false;
+  }
+}
+
 export async function signUp(
   email: string,
   password: string,

@@ -111,7 +111,7 @@ const LandingPage = () => {
 
             {/* Desktop CTA */}
             <Link 
-              to="/role-selection"
+              to="/choose-role"
               className="hidden lg:block bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white px-6 py-2 rounded-full font-medium transition-all duration-300 border border-white/20"
             >
               Sign In
@@ -121,7 +121,7 @@ const LandingPage = () => {
           {/* Mobile menu */}
           <div className={`lg:hidden ${isMenuOpen ? 'block' : 'hidden'} pt-4`}>
             <Link 
-              to="/role-selection"
+              to="/choose-role"
               className="block w-full text-center bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white px-6 py-2 rounded-full font-medium transition-all duration-300 border border-white/20"
             >
               Sign In
@@ -143,7 +143,7 @@ const LandingPage = () => {
                 no en las hojas de cálculo.
               </p>
               <Link 
-                to="/role-selection"
+                to="/choose-role"
                 className="group inline-flex items-center bg-white text-black px-8 sm:px-10 py-4 sm:py-5 rounded-full font-bold text-lg sm:text-xl hover:bg-purple-600 hover:text-white transition-all duration-300"
               >
                 Descubre RUDO
@@ -226,7 +226,7 @@ const LandingPage = () => {
                   Accede a tu cuenta y comienza a transformar tu box con RUDO
                 </p>
                 <Link 
-                  to="/role-selection"
+                  to="/choose-role"
                   className="inline-block bg-white hover:bg-purple-600 text-black hover:text-white font-bold px-8 sm:px-10 py-4 sm:py-5 rounded-full transition-all duration-300 text-lg"
                 >
                   Sign In
