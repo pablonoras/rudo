@@ -12,6 +12,8 @@ import {
 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useLanguage } from '../contexts/LanguageContext';
+import LanguageToggle from './LanguageToggle';
 import OptimizedImage from './OptimizedImage';
 
 // Hero background images
@@ -40,6 +42,7 @@ const Feature = ({ icon, title, description }: { icon: React.ReactNode, title: s
 const LandingPage = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { t } = useLanguage();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -101,21 +104,29 @@ const LandingPage = () => {
           <div className="flex items-center justify-between">
             <div className="text-2xl sm:text-3xl font-black tracking-tighter">RUDO</div>
             
-            {/* Mobile menu button */}
-            <button 
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="lg:hidden p-2 rounded-lg hover:bg-white/10 transition-colors"
-            >
-              {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </button>
+            {/* Language toggle - mobile */}
+            <div className="lg:hidden flex items-center gap-2">
+              <LanguageToggle />
+              
+              {/* Mobile menu button */}
+              <button 
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+              >
+                {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              </button>
+            </div>
 
-            {/* Desktop CTA */}
-            <Link 
-              to="/choose-role"
-              className="hidden lg:block bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white px-6 py-2 rounded-full font-medium transition-all duration-300 border border-white/20"
-            >
-              Sign In
-            </Link>
+            {/* Desktop nav items */}
+            <div className="hidden lg:flex items-center gap-4">
+              <LanguageToggle />
+              <Link 
+                to="/choose-role"
+                className="bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white px-6 py-2 rounded-full font-medium transition-all duration-300 border border-white/20"
+              >
+                {t('signin')}
+              </Link>
+            </div>
           </div>
 
           {/* Mobile menu */}
@@ -124,7 +135,7 @@ const LandingPage = () => {
               to="/choose-role"
               className="block w-full text-center bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white px-6 py-2 rounded-full font-medium transition-all duration-300 border border-white/20"
             >
-              Sign In
+              {t('signin')}
             </Link>
           </div>
         </div>
@@ -136,17 +147,16 @@ const LandingPage = () => {
           <div className="container mx-auto px-4 sm:px-6 max-w-7xl pt-32">
             <div className="max-w-4xl mx-auto text-center">
               <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black mb-6 sm:mb-8 bg-gradient-to-r from-white via-purple-300 to-blue-300 inline-block text-transparent bg-clip-text leading-tight">
-                Tu Box Merece una Experiencia Digital de Primer Nivel
+                {t('hero.title')}
               </h1>
               <p className="text-lg sm:text-xl lg:text-2xl mb-8 sm:mb-12 text-gray-300 max-w-3xl mx-auto leading-relaxed">
-                Porque sabemos que el verdadero espíritu del CrossFit está en la comunidad,
-                no en las hojas de cálculo.
+                {t('hero.subtitle')}
               </p>
               <Link 
                 to="/choose-role"
                 className="group inline-flex items-center bg-white text-black px-8 sm:px-10 py-4 sm:py-5 rounded-full font-bold text-lg sm:text-xl hover:bg-purple-600 hover:text-white transition-all duration-300"
               >
-                Descubre RUDO
+                {t('hero.cta')}
                 <ArrowRight className="ml-2 transition-transform group-hover:translate-x-1" />
               </Link>
             </div>
@@ -158,24 +168,24 @@ const LandingPage = () => {
           <div className="container mx-auto px-4 sm:px-6 max-w-7xl">
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-center mb-12 sm:mb-16">
               <span className="bg-gradient-to-r from-purple-400 to-blue-400 inline-block text-transparent bg-clip-text">
-                Entendemos Tus Desafíos
+                {t('painpoints.title')}
               </span>
             </h2>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 lg:gap-10">
               <PainPoint 
                 icon={<Clock className="w-8 h-8 sm:w-10 sm:h-10" />}
-                title="¿Cansado de Perder Tiempo?"
-                description="Sabemos que pasas horas programando en Excel, enviando WhatsApps uno por uno, y tratando de coordinar los horarios."
+                title={t('painpoints.time.title')}
+                description={t('painpoints.time.description')}
               />
               <PainPoint 
                 icon={<ClipboardCheck className="w-8 h-8 sm:w-10 sm:h-10" />}
-                title="¿Frustrado con el Seguimiento?"
-                description="Los atletas pierden sus registros, los PRs se olvidan, y es imposible ver el progreso real."
+                title={t('painpoints.tracking.title')}
+                description={t('painpoints.tracking.description')}
               />
               <PainPoint 
                 icon={<Computer className="w-8 h-8 sm:w-10 sm:h-10" />}
-                title="¿Software Obsoleto?"
-                description="Las plataformas actuales son lentas, complicadas y no están pensadas para Latinoamérica."
+                title={t('painpoints.software.title')}
+                description={t('painpoints.software.description')}
               />
             </div>
           </div>
@@ -186,29 +196,29 @@ const LandingPage = () => {
           <div className="container mx-auto px-4 sm:px-6 max-w-7xl">
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-center mb-12 sm:mb-16">
               <span className="bg-gradient-to-r from-purple-400 to-blue-400 inline-block text-transparent bg-clip-text">
-                Soluciones Diseñadas para Tu Box
+                {t('features.title')}
               </span>
             </h2>
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 lg:gap-10">
               <Feature
                 icon={<Dumbbell className="w-8 h-8 sm:w-10 sm:h-10" />}
-                title="Programación Inteligente"
-                description="Simplifica la programación de tus WODs y el seguimiento de tus atletas."
+                title={t('features.programming.title')}
+                description={t('features.programming.description')}
               />
               <Feature
                 icon={<Users className="w-8 h-8 sm:w-10 sm:h-10" />}
-                title="Gestión de Membresías"
-                description="Control total de tus membresías y pagos de forma automatizada."
+                title={t('features.membership.title')}
+                description={t('features.membership.description')}
               />
               <Feature
                 icon={<MessageSquare className="w-8 h-8 sm:w-10 sm:h-10" />}
-                title="Comunicación Efectiva"
-                description="Mantén a tu comunidad conectada con notificaciones automáticas."
+                title={t('features.communication.title')}
+                description={t('features.communication.description')}
               />
               <Feature
                 icon={<Trophy className="w-8 h-8 sm:w-10 sm:h-10" />}
-                title="Comunidad & Competencia"
-                description="Impulsa el espíritu competitivo con rankings y desafíos."
+                title={t('features.community.title')}
+                description={t('features.community.description')}
               />
             </div>
           </div>
@@ -220,16 +230,16 @@ const LandingPage = () => {
             <div className="max-w-3xl mx-auto">
               <div className="bg-white/5 border border-white/10 rounded-2xl sm:rounded-3xl p-8 sm:p-12 text-center backdrop-blur-sm">
                 <h2 className="text-3xl sm:text-4xl font-bold mb-4 sm:mb-6">
-                  El Futuro de tu Box Comienza Hoy
+                  {t('cta.title')}
                 </h2>
                 <p className="text-lg sm:text-xl text-gray-400 mb-6 sm:mb-8 leading-relaxed">
-                  Accede a tu cuenta y comienza a transformar tu box con RUDO
+                  {t('cta.subtitle')}
                 </p>
                 <Link 
                   to="/choose-role"
                   className="inline-block bg-white hover:bg-purple-600 text-black hover:text-white font-bold px-8 sm:px-10 py-4 sm:py-5 rounded-full transition-all duration-300 text-lg"
                 >
-                  Sign In
+                  {t('signin')}
                 </Link>
               </div>
             </div>
@@ -243,7 +253,7 @@ const LandingPage = () => {
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
             <div className="text-xl sm:text-2xl font-black tracking-tighter">RUDO</div>
             <div className="text-sm sm:text-base text-gray-400">
-              © 2025 Rudo. Construyendo el futuro del fitness.
+              {t('footer.copyright')}
             </div>
           </div>
         </div>

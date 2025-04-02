@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { ThemeProvider } from './components/ThemeProvider';
+import { LanguageProvider } from './contexts/LanguageContext';
 import { ModalProvider } from './contexts/ModalContext';
 
 // Auth components
@@ -37,56 +38,58 @@ function App() {
 
   return (
     <ThemeProvider>
-      <ModalProvider>
-        <Routes>
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/choose-role" element={<RoleSelection />} />
-          <Route path="/role-selection" element={<CoachSearch />} />
-          <Route path="/athlete-signin" element={<AthleteSignIn />} />
-          <Route path="/athlete-signin/:coachName" element={<AthleteSignIn />} />
-          <Route path="/coach-signin" element={<CoachSignIn />} />
-          <Route path="/auth/callback" element={<AuthCallback />} />
-          <Route path="/login/success" element={<LoginSuccess />} />
-          
-          {/* Debugging routes */}
-          <Route path="/debug/coach-search" element={<CoachSearchDebug />} />
-          
-          {/* Protected Coach Routes */}
-          <Route 
-            path="/coach/*" 
-            element={
-              <ProtectedRoute role="coach">
-                <Layout>
-                  <Routes>
-                    <Route path="/" element={<CoachDashboard />} />
-                    <Route path="/programs" element={<ProgramDashboard />} />
-                    <Route path="/athletes" element={<Athletes />} />
-                    <Route path="/athletes/:athleteId" element={<AthleteProfile />} />
-                    <Route path="/program/:programId" element={<ProgramCalendar />} />
-                    <Route path="/program/:programId/assign" element={<ProgramAssignment />} />
-                  </Routes>
-                </Layout>
-              </ProtectedRoute>
-            } 
-          />
+      <LanguageProvider>
+        <ModalProvider>
+          <Routes>
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/choose-role" element={<RoleSelection />} />
+            <Route path="/role-selection" element={<CoachSearch />} />
+            <Route path="/athlete-signin" element={<AthleteSignIn />} />
+            <Route path="/athlete-signin/:coachName" element={<AthleteSignIn />} />
+            <Route path="/coach-signin" element={<CoachSignIn />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
+            <Route path="/login/success" element={<LoginSuccess />} />
+            
+            {/* Debugging routes */}
+            <Route path="/debug/coach-search" element={<CoachSearchDebug />} />
+            
+            {/* Protected Coach Routes */}
+            <Route 
+              path="/coach/*" 
+              element={
+                <ProtectedRoute role="coach">
+                  <Layout>
+                    <Routes>
+                      <Route path="/" element={<CoachDashboard />} />
+                      <Route path="/programs" element={<ProgramDashboard />} />
+                      <Route path="/athletes" element={<Athletes />} />
+                      <Route path="/athletes/:athleteId" element={<AthleteProfile />} />
+                      <Route path="/program/:programId" element={<ProgramCalendar />} />
+                      <Route path="/program/:programId/assign" element={<ProgramAssignment />} />
+                    </Routes>
+                  </Layout>
+                </ProtectedRoute>
+              } 
+            />
 
-          {/* Protected Athlete Routes */}
-          <Route 
-            path="/athlete/*" 
-            element={
-              <ProtectedRoute role="athlete">
-                <Layout>
-                  <Routes>
-                    <Route path="/" element={<AthleteDashboard />} />
-                  </Routes>
-                </Layout>
-              </ProtectedRoute>
-            } 
-          />
+            {/* Protected Athlete Routes */}
+            <Route 
+              path="/athlete/*" 
+              element={
+                <ProtectedRoute role="athlete">
+                  <Layout>
+                    <Routes>
+                      <Route path="/" element={<AthleteDashboard />} />
+                    </Routes>
+                  </Layout>
+                </ProtectedRoute>
+              } 
+            />
 
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </ModalProvider>
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </ModalProvider>
+      </LanguageProvider>
     </ThemeProvider>
   );
 }
