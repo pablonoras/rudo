@@ -65,8 +65,8 @@ const CoachSignIn = () => {
                 
                 <div className="max-w-xs mx-auto">
                   <img 
-                    src="https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?auto=format&fit=crop&w=400&q=80" 
-                    alt="Coach training" 
+                    src="https://images.unsplash.com/photo-1544216717-3bbf52512659?auto=format&fit=crop&w=400&q=80" 
+                    alt="Coach instructing athlete" 
                     className="w-full h-48 object-cover rounded-lg mb-8 opacity-80"
                   />
                 </div>

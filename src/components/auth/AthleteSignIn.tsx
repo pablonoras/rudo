@@ -162,8 +162,15 @@ const AthleteSignIn = () => {
               ) : (
                 <>
                   <div className="text-center mb-6">
-                    <h2 className="text-2xl font-bold mb-2">Coach Found!</h2>
                     <p className="text-gray-400">Ready to join {foundCoach.full_name}?</p>
+                  </div>
+                  
+                  <div className="max-w-xs mx-auto mb-6">
+                    <img 
+                      src="https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?auto=format&fit=crop&w=400&q=80" 
+                      alt="Athlete lifting barbell" 
+                      className="w-full h-48 object-cover rounded-lg opacity-80"
+                    />
                   </div>
                   
                   <button

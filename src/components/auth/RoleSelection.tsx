@@ -1,6 +1,5 @@
 import { ArrowLeft, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import RoleInfo from './RoleInfo';
 
 const RoleSelection = () => {
   const navigate = useNavigate();
@@ -26,9 +25,6 @@ const RoleSelection = () => {
               Choose Your Role
             </h1>
             
-            {/* Role Information Banner */}
-            <RoleInfo />
-            
             <div className="grid md:grid-cols-2 gap-8">
               {/* Coach Option */}
               <div 
@@ -37,11 +33,15 @@ const RoleSelection = () => {
               >
                 <div className="flex justify-center mb-6">
                   <div className="w-24 h-24 bg-gradient-to-br from-purple-600 to-blue-500 rounded-full flex items-center justify-center">
+                    {/* Improved Clipboard Icon for Coach */}
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="12" cy="12" r="10"></circle>
-                      <polyline points="12 6 12 12 16 14"></polyline>
-                      <path d="M18 3 l-3 3"></path>
-                      <path d="M6 3 l3 3"></path>
+                      {/* Clipboard with decorative elements */}
+                      <rect x="8" y="2" width="8" height="4" rx="1" />
+                      <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+                      {/* Clipboard lines/content */}
+                      <line x1="9" y1="10" x2="15" y2="10" />
+                      <line x1="9" y1="14" x2="15" y2="14" />
+                      <line x1="9" y1="18" x2="13" y2="18" />
                     </svg>
                   </div>
                 </div>
@@ -64,15 +64,14 @@ const RoleSelection = () => {
               >
                 <div className="flex justify-center mb-6">
                   <div className="w-24 h-24 bg-gradient-to-br from-blue-600 to-cyan-500 rounded-full flex items-center justify-center">
+                    {/* Dumbbell Icon for Athlete */}
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M6 5v14"></path>
                       <path d="M18 5v14"></path>
                       <path d="M6 9h12"></path>
                       <path d="M6 15h12"></path>
-                      <path d="M6 5h12"></path>
-                      <path d="M6 19h12"></path>
-                      <rect x="2" y="8" width="4" height="8" rx="1"></rect>
-                      <rect x="18" y="8" width="4" height="8" rx="1"></rect>
+                      <rect x="2" y="7" width="4" height="10" rx="1"></rect>
+                      <rect x="18" y="7" width="4" height="10" rx="1"></rect>
                     </svg>
                   </div>
                 </div>
