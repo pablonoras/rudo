@@ -1,19 +1,24 @@
-import { format, parseISO } from 'date-fns';
+/**
+ * src/pages/coach/Dashboard.tsx
+ * 
+ * This file contains the actual Coach Dashboard that will display real data from Supabase.
+ * Currently shows an empty state that will be populated as the user adds programs and athletes.
+ */
+
 import {
   BarChart2,
   Calendar,
-  ChevronRight,
-  Clock,
-  TrendingUp,
+  FilePlus,
+  Plus,
+  PlusCircle,
+  UserPlus,
   Users,
 } from 'lucide-react';
-import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useWorkoutStore } from '../../lib/workout';
+import { useProfile } from '../../contexts/ProfileContext';
 
 export function CoachDashboard() {
-  const { programs } = useWorkoutStore();
-  const [timeRange] = useState<'week' | 'month'>('week');
+  const { profile } = useProfile();
 
   // Get greeting based on time of day
   const getGreeting = () => {
@@ -23,201 +28,124 @@ export function CoachDashboard() {
     return 'Good evening';
   };
 
-  // Calculate dashboard metrics
-  const activePrograms = Object.values(programs).filter(
-    (p) => p.status === 'published'
-  );
-  const totalAthletes = activePrograms.reduce(
-    (sum, p) => sum + p.assignedTo.athletes.length,
-    0
-  );
-  const totalTeams = activePrograms.reduce(
-    (sum, p) => sum + p.assignedTo.teams.length,
-    0
-  );
-  const totalWorkouts = activePrograms.reduce(
-    (sum, p) => sum + Object.keys(p.days).length,
-    0
-  );
-
-  // Get recent programs
-  const recentPrograms = Object.values(programs)
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 3);
+  // Get coach name from profile
+  const coachName = profile?.full_name || 'Coach';
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-          {getGreeting()}, Coach 👋
+          {getGreeting()}, {coachName} 👋
         </h1>
         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          Here's what's happening with your athletes and programs today
+          Welcome to your dashboard. Here you can manage your athletes and programs.
         </p>
       </div>
 
-      {/* Key Metrics */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        <Link
-          to="/coach/programs"
-          className="bg-white dark:bg-gray-800 overflow-hidden rounded-lg shadow hover:shadow-md transition-shadow"
-        >
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <Calendar className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
-                    Active Programs
-                  </dt>
-                  <dd className="flex items-baseline">
-                    <div className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
-                      {activePrograms.length}
-                    </div>
-                  </dd>
-                </dl>
-              </div>
+      {/* Quick Actions */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Quick Actions</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Link
+            to="/coach/programs"
+            className="flex items-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
+          >
+            <FilePlus className="h-6 w-6 text-blue-600 dark:text-blue-400 mr-3" />
+            <div>
+              <h3 className="font-medium text-gray-900 dark:text-gray-100">Create Program</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Build workout templates</p>
             </div>
-          </div>
-        </Link>
-
-        <Link
-          to="/coach/athletes"
-          className="bg-white dark:bg-gray-800 overflow-hidden rounded-lg shadow hover:shadow-md transition-shadow"
-        >
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <Users className="h-6 w-6 text-green-600 dark:text-green-400" />
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
-                    Total Athletes
-                  </dt>
-                  <dd className="flex items-baseline">
-                    <div className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
-                      {totalAthletes}
-                    </div>
-                    <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">
-                      across {totalTeams} teams
-                    </span>
-                  </dd>
-                </dl>
-              </div>
+          </Link>
+          <Link
+            to="/coach/athletes"
+            className="flex items-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors"
+          >
+            <UserPlus className="h-6 w-6 text-green-600 dark:text-green-400 mr-3" />
+            <div>
+              <h3 className="font-medium text-gray-900 dark:text-gray-100">Add Athletes</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Invite people to join</p>
             </div>
-          </div>
-        </Link>
-
-        <Link
-          to="/coach/programs"
-          className="bg-white dark:bg-gray-800 overflow-hidden rounded-lg shadow hover:shadow-md transition-shadow"
-        >
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <BarChart2 className="h-6 w-6 text-purple-600 dark:text-purple-400" />
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
-                    Total Workouts
-                  </dt>
-                  <dd className="flex items-baseline">
-                    <div className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
-                      {totalWorkouts}
-                    </div>
-                    <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">
-                      this {timeRange}
-                    </span>
-                  </dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </Link>
-
-        <Link
-          to="/coach/athletes"
-          className="bg-white dark:bg-gray-800 overflow-hidden rounded-lg shadow hover:shadow-md transition-shadow"
-        >
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <TrendingUp className="h-6 w-6 text-red-600 dark:text-red-400" />
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
-                    Completion Rate
-                  </dt>
-                  <dd className="flex items-baseline">
-                    <div className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
-                      92%
-                    </div>
-                    <span className="ml-2 text-sm text-emerald-600 dark:text-emerald-400">
-                      +2.5%
-                    </span>
-                  </dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </Link>
+          </Link>
+        </div>
       </div>
 
-      {/* Recent Programs */}
-      <div className="bg-white dark:bg-gray-800 shadow rounded-lg">
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-4">
+      {/* Empty State: Programs */}
+      <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
+        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between">
             <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">
-              Recent Programs
+              Your Programs
             </h2>
             <Link
               to="/coach/programs"
-              className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 flex items-center"
+              className="flex items-center text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300"
             >
-              View all
-              <ChevronRight className="h-4 w-4 ml-1" />
+              <PlusCircle className="h-4 w-4 mr-1" />
+              New Program
             </Link>
           </div>
-          <div className="space-y-4">
-            {recentPrograms.map((program) => (
-              <Link
-                key={program.id}
-                to={`/coach/program/${program.id}`}
-                className="block p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                      {program.name}
-                    </h3>
-                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                      {format(parseISO(program.startDate), 'MMM d')} -{' '}
-                      {format(parseISO(program.endDate), 'MMM d, yyyy')}
-                    </p>
-                  </div>
-                  <div className="flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400">
-                    <div className="flex items-center">
-                      <Clock className="h-4 w-4 mr-1" />
-                      <span>{program.weekCount} weeks</span>
-                    </div>
-                    <div className="flex items-center">
-                      <Users className="h-4 w-4 mr-1" />
-                      <span>
-                        {program.assignedTo.athletes.length +
-                          program.assignedTo.teams.length}{' '}
-                        assigned
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </Link>
-            ))}
+        </div>
+        <div className="p-6 flex flex-col items-center justify-center text-center py-12">
+          <Calendar className="h-12 w-12 text-gray-400 dark:text-gray-500 mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-1">No programs yet</h3>
+          <p className="text-gray-500 dark:text-gray-400 max-w-md mb-6">
+            Create your first workout program to start assigning to your athletes and teams.
+          </p>
+          <Link
+            to="/coach/programs"
+            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Create Program
+          </Link>
+        </div>
+      </div>
+
+      {/* Empty State: Athletes */}
+      <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
+        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">
+              Your Athletes
+            </h2>
+            <Link
+              to="/coach/athletes"
+              className="flex items-center text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300"
+            >
+              <PlusCircle className="h-4 w-4 mr-1" />
+              Add Athletes
+            </Link>
           </div>
+        </div>
+        <div className="p-6 flex flex-col items-center justify-center text-center py-12">
+          <Users className="h-12 w-12 text-gray-400 dark:text-gray-500 mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-1">No athletes yet</h3>
+          <p className="text-gray-500 dark:text-gray-400 max-w-md mb-6">
+            Add athletes to your roster to start assigning programs and tracking their progress.
+          </p>
+          <Link
+            to="/coach/athletes"
+            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 dark:focus:ring-offset-gray-800"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Athletes
+          </Link>
+        </div>
+      </div>
+
+      {/* Recent Activity - Will be implemented when data is available */}
+      <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
+        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">
+            Recent Activity
+          </h2>
+        </div>
+        <div className="p-6 flex flex-col items-center justify-center text-center py-12">
+          <BarChart2 className="h-12 w-12 text-gray-400 dark:text-gray-500 mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-1">No activity yet</h3>
+          <p className="text-gray-500 dark:text-gray-400 max-w-md">
+            Your recent activity will appear here once you start creating programs and adding athletes.
+          </p>
         </div>
       </div>
     </div>
