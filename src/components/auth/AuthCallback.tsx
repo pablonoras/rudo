@@ -1,3 +1,11 @@
+/**
+ * src/components/auth/AuthCallback.tsx
+ * 
+ * Callback handler for authentication flows. 
+ * Updated to no longer require a coachId for athletes, as they can find and
+ * connect with coaches directly from their dashboard after signing in.
+ */
+
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ensureProfileExists, supabase } from '../../lib/supabase';
@@ -68,7 +76,7 @@ const AuthCallback = () => {
             // Redirect to coach dashboard
             navigate('/coach/');
           } 
-          else if (role === 'athlete' && coachId) {
+          else if (role === 'athlete') {
             console.log('Setting up athlete profile...');
             
             // First ensure the profile exists
@@ -94,28 +102,34 @@ const AuthCallback = () => {
               }
             }
 
-            // Create coach_athletes record to associate athlete with coach
-            const { error: coachAthleteError } = await supabase
-              .from('coach_athletes')
-              .insert({
-                coach_id: coachId,
-                athlete_id: session.user.id
-              });
-            
-            if (coachAthleteError) {
-              console.error('Error associating with coach:', coachAthleteError);
-              // Check if this is a role conflict error
-              if (coachAthleteError.message && coachAthleteError.message.includes('coach cannot be added as an athlete')) {
-                setError('You cannot join as an athlete because you already have a coach account.');
-                setTimeout(() => navigate('/choose-role'), 5000);
-                return;
+            // If a coachId was provided, create the coach_athletes record
+            if (coachId) {
+              console.log('Associating athlete with coach...');
+              
+              // Create coach_athletes record to associate athlete with coach
+              const { error: coachAthleteError } = await supabase
+                .from('coach_athletes')
+                .insert({
+                  coach_id: coachId,
+                  athlete_id: session.user.id,
+                  status: 'active'
+                });
+              
+              if (coachAthleteError) {
+                console.error('Error associating with coach:', coachAthleteError);
+                // Check if this is a role conflict error
+                if (coachAthleteError.message && coachAthleteError.message.includes('coach cannot be added as an athlete')) {
+                  setError('You cannot join as an athlete because you already have a coach account.');
+                  setTimeout(() => navigate('/choose-role'), 5000);
+                  return;
+                }
               }
-            }
-            
-            // Store coach information in localStorage for future reference
-            if (coachName) {
-              localStorage.setItem('coachName', coachName);
-              localStorage.setItem('coachId', coachId);
+              
+              // Store coach information in localStorage for future reference
+              if (coachName) {
+                localStorage.setItem('coachName', coachName);
+                localStorage.setItem('coachId', coachId);
+              }
             }
             
             // Redirect to athlete dashboard
@@ -166,8 +180,7 @@ const AuthCallback = () => {
         </div>
       ) : (
         <div className="animate-pulse flex flex-col items-center">
-          <div className="w-16 h-16 border-4 border-t-blue-600 border-b-blue-600 border-l-transparent border-r-transparent rounded-full animate-spin mb-4"></div>
-          <p className="text-xl font-medium">Setting up your account...</p>
+          <div className="w-16 h-16 border-4 border-t-blue-600 border-b-blue-600 border-l-transparent border-r-transparent rounded-full animate-spin"></div>
         </div>
       )}
     </div>

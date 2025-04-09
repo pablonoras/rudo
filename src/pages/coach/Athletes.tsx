@@ -1,6 +1,5 @@
-import { BarChart2, Plus, Search, Users } from 'lucide-react';
+import { AlertCircle, BarChart2, CheckCircle, Plus, Search, Users, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { AddAthleteModal } from '../../components/athlete/AddAthleteModal';
 import { useProfile } from '../../contexts/ProfileContext';
 import { supabase } from '../../lib/supabase';
@@ -20,58 +19,103 @@ type Athlete = {
 };
 
 export function Athletes() {
-  const { profile, loading } = useProfile();
+  const { profile } = useProfile();
   const [athletes, setAthletes] = useState<Athlete[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [levelFilter, setLevelFilter] = useState<AthleteLevel | 'all'>('all');
-  const [teamFilter, setTeamFilter] = useState<TeamFilter>('all');
+  const [teamFilter] = useState<TeamFilter>('all');
   const [showAddAthlete, setShowAddAthlete] = useState(false);
+  const [activatingAthleteId, setActivatingAthleteId] = useState<string | null>(null);
+  const [updatingAthleteId, setUpdatingAthleteId] = useState<string | null>(null);
+  const [showStatusMenu, setShowStatusMenu] = useState<string | null>(null);
 
   // Fetch athletes for the current coach
-  useEffect(() => {
-    async function fetchAthletes() {
-      if (!profile?.id) return;
+  const fetchAthletes = async () => {
+    if (!profile?.id) return;
+    
+    setIsLoading(true);
+    setError(null);
+    try {
+      const coachId = profile.id;
       
-      setIsLoading(true);
-      try {
-        // Get athletes linked to this coach through coach_athletes table
-        const { data, error } = await supabase
-          .from('coach_athletes')
-          .select(`
-            athlete_id,
-            joined_at,
-            status,
-            profiles!athlete_id(id, full_name, email, avatar_url)
-          `)
-          .eq('coach_id', profile.id);
-
-        if (error) throw error;
+      // First query to get all athlete_ids for this coach
+      const { data: athleteRelations, error: relationsError } = await supabase
+        .from('coach_athletes')
+        .select('athlete_id, joined_at, status')
+        .eq('coach_id', coachId);
         
-        if (!data) {
-          setAthletes([]);
-          return;
-        }
-
-        // Transform data to match the Athlete type
-        const formattedAthletes = data.map((item: any) => ({
-          id: item.profiles.id,
-          full_name: item.profiles.full_name,
-          email: item.profiles.email,
-          avatar_url: item.profiles.avatar_url,
-          joined_at: item.joined_at,
-          status: item.status,
-          level: 'beginner' as AthleteLevel, // Default value, can be updated later
-        }));
-
-        setAthletes(formattedAthletes);
-      } catch (error) {
-        console.error('Error fetching athletes:', error);
-      } finally {
-        setIsLoading(false);
+      if (relationsError) {
+        console.error('Error fetching coach-athlete relations:', relationsError);
+        throw relationsError;
       }
+      
+      if (!athleteRelations || athleteRelations.length === 0) {
+        setAthletes([]);
+        setIsLoading(false);
+        return;
+      }
+      
+      // Extract athlete IDs
+      const athleteIds = athleteRelations.map(rel => rel.athlete_id);
+      
+      // Query athlete profiles
+      const { data: athleteProfiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, full_name, email, avatar_url')
+        .in('id', athleteIds);
+      
+      if (profilesError) {
+        console.error('Error fetching athlete profiles:', profilesError);
+      }
+      
+      // Create a map of athlete IDs to profiles for efficient lookup
+      const profileMap = (athleteProfiles || []).reduce((map: Record<string, any>, profile: any) => {
+        map[profile.id] = profile;
+        return map;
+      }, {});
+      
+      // Combine the relation data with profile data
+      const formattedAthletes = athleteRelations
+        .map(relation => {
+          const profile = profileMap[relation.athlete_id];
+          
+          if (!profile) {
+            // Create a placeholder profile for athletes without profile data
+            return {
+              id: relation.athlete_id,
+              full_name: 'Athlete (data incomplete)',
+              email: 'email@not.available',
+              avatar_url: null,
+              joined_at: relation.joined_at,
+              status: relation.status,
+              level: 'beginner' as AthleteLevel,
+            } as Athlete;
+          }
+          
+          return {
+            id: profile.id,
+            full_name: profile.full_name,
+            email: profile.email,
+            avatar_url: profile.avatar_url,
+            joined_at: relation.joined_at,
+            status: relation.status,
+            level: 'beginner' as AthleteLevel,
+          } as Athlete;
+        });
+      
+      setAthletes(formattedAthletes);
+      
+    } catch (error) {
+      console.error('Error fetching athletes:', error);
+      setError('Failed to load athletes. Please try again later.');
+    } finally {
+      setIsLoading(false);
     }
+  };
 
+  useEffect(() => {
     if (profile) {
       fetchAthletes();
     }
@@ -87,6 +131,119 @@ export function Athletes() {
     return matchesSearch && matchesLevel && matchesTeam;
   });
 
+  // Function to activate an athlete (change status from pending to active)
+  const activateAthlete = async (athleteId: string) => {
+    if (!profile?.id) return;
+    
+    try {
+      setActivatingAthleteId(athleteId);
+      console.log(`Activating athlete: ${athleteId}`);
+      
+      // Find the coach-athlete relationship for this athlete
+      const { data: relationships, error: findError } = await supabase
+        .from('coach_athletes')
+        .select('id')
+        .eq('coach_id', profile.id)
+        .eq('athlete_id', athleteId)
+        .single();
+      
+      if (findError) {
+        console.error('Error finding coach-athlete relationship:', findError);
+        throw findError;
+      }
+      
+      if (!relationships) {
+        throw new Error('Relationship not found');
+      }
+      
+      // Update the status to active
+      const { error: updateError } = await supabase
+        .from('coach_athletes')
+        .update({ status: 'active' })
+        .eq('id', relationships.id);
+      
+      if (updateError) {
+        console.error('Error activating athlete:', updateError);
+        throw updateError;
+      }
+      
+      console.log('Successfully activated athlete');
+      
+      // Update the local state
+      setAthletes(prev => 
+        prev.map(athlete => 
+          athlete.id === athleteId 
+            ? { ...athlete, status: 'active' } 
+            : athlete
+        )
+      );
+    } catch (err) {
+      console.error('Error activating athlete:', err);
+      setError('Failed to activate athlete. Please try again.');
+    } finally {
+      setActivatingAthleteId(null);
+    }
+  };
+
+  // Function to change athlete status
+  const updateAthleteStatus = async (athleteId: string, newStatus: string) => {
+    if (!profile?.id) return;
+    
+    try {
+      setUpdatingAthleteId(athleteId);
+      console.log(`Updating athlete ${athleteId} status to: ${newStatus}`);
+      
+      // Find the coach-athlete relationship for this athlete
+      const { data: relationships, error: findError } = await supabase
+        .from('coach_athletes')
+        .select('id')
+        .eq('coach_id', profile.id)
+        .eq('athlete_id', athleteId)
+        .single();
+      
+      if (findError) {
+        console.error('Error finding coach-athlete relationship:', findError);
+        throw findError;
+      }
+      
+      if (!relationships) {
+        throw new Error('Relationship not found');
+      }
+      
+      // Update the status
+      const { error: updateError } = await supabase
+        .from('coach_athletes')
+        .update({ status: newStatus })
+        .eq('id', relationships.id);
+      
+      if (updateError) {
+        console.error(`Error changing athlete status to ${newStatus}:`, updateError);
+        throw updateError;
+      }
+      
+      console.log(`Successfully updated athlete status to ${newStatus}`);
+      
+      // Update the local state
+      setAthletes(prev => 
+        prev.map(athlete => 
+          athlete.id === athleteId 
+            ? { ...athlete, status: newStatus } 
+            : athlete
+        )
+      );
+    } catch (err) {
+      console.error(`Error updating athlete status to ${newStatus}:`, err);
+      setError(`Failed to update athlete status. Please try again.`);
+    } finally {
+      setUpdatingAthleteId(null);
+      setShowStatusMenu(null);
+    }
+  };
+
+  const toggleStatusMenu = (athleteId: string | null) => {
+    setShowStatusMenu(prevId => prevId === athleteId ? null : athleteId);
+  };
+
   const handleAddAthletes = () => {
     setShowAddAthlete(false);
     // Refresh the athletes list after adding
@@ -95,48 +252,6 @@ export function Athletes() {
       fetchAthletes();
     }
   };
-
-  // Function to fetch athletes (used for refreshing after adding new ones)
-  async function fetchAthletes() {
-    if (!profile?.id) return;
-    
-    try {
-      // Get athletes linked to this coach through coach_athletes table
-      const { data, error } = await supabase
-        .from('coach_athletes')
-        .select(`
-          athlete_id,
-          joined_at,
-          status,
-          profiles!athlete_id(id, full_name, email, avatar_url)
-        `)
-        .eq('coach_id', profile.id);
-
-      if (error) throw error;
-      
-      if (!data) {
-        setAthletes([]);
-        return;
-      }
-
-      // Transform data to match the Athlete type
-      const formattedAthletes = data.map((item: any) => ({
-        id: item.profiles.id,
-        full_name: item.profiles.full_name,
-        email: item.profiles.email,
-        avatar_url: item.profiles.avatar_url,
-        joined_at: item.joined_at,
-        status: item.status,
-        level: 'beginner' as AthleteLevel, // Default value, can be updated later
-      }));
-
-      setAthletes(formattedAthletes);
-    } catch (error) {
-      console.error('Error fetching athletes:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }
 
   return (
     <div className="space-y-6">
@@ -206,7 +321,7 @@ export function Athletes() {
         </div>
       </div>
 
-      {/* Filters and Search */}
+      {/* Search and Filters */}
       <div className="flex flex-col sm:flex-row gap-4 items-start">
         <div className="w-full sm:w-64">
           <div className="relative">
@@ -234,10 +349,32 @@ export function Athletes() {
         </div>
       </div>
 
+      {/* Error Message */}
+      {error && (
+        <div className="rounded-md bg-red-50 dark:bg-red-900/50 p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <AlertCircle className="h-5 w-5 text-red-400" />
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800 dark:text-red-200">
+                Error
+              </h3>
+              <div className="mt-2 text-sm text-red-700 dark:text-red-300">
+                {error}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Athletes List */}
       <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
         {isLoading ? (
-          <div className="p-6 text-center">Loading athletes...</div>
+          <div className="p-6 text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">Loading athletes...</p>
+          </div>
         ) : athletes.length === 0 ? (
           <div className="p-6 text-center text-gray-500 dark:text-gray-400">
             No athletes found. Click "Add Athlete" to get started.
@@ -257,9 +394,6 @@ export function Athletes() {
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Joined
-                </th>
-                <th className="relative px-6 py-3">
-                  <span className="sr-only">Actions</span>
                 </th>
               </tr>
             </thead>
@@ -299,24 +433,76 @@ export function Athletes() {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                      athlete.status === 'active' 
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
-                        : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                    }`}>
-                      {athlete.status || "Active"}
-                    </span>
+                    <div className="flex items-center">
+                      <div className="relative">
+                        <button 
+                          onClick={() => toggleStatusMenu(athlete.id)}
+                          className={`px-2 py-1 inline-flex items-center text-xs font-semibold rounded-full ${
+                            athlete.status === 'active' 
+                              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
+                              : athlete.status === 'inactive'
+                              ? 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                              : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                          } hover:ring-2 hover:ring-offset-1 hover:ring-opacity-50 ${
+                            athlete.status === 'active' ? 'hover:ring-green-400' : 
+                            athlete.status === 'inactive' ? 'hover:ring-gray-400' : 'hover:ring-yellow-400'
+                          } transition-all`}
+                        >
+                          <span>
+                            {athlete.status === 'active' ? 'Active' : 
+                            athlete.status === 'inactive' ? 'Inactive' : 'Pending'}
+                          </span>
+                          <svg className="ml-1 h-3 w-3 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
+                        
+                        {/* Status change dropdown */}
+                        {showStatusMenu === athlete.id && (
+                          <div className="fixed mt-1 w-40 z-[1000] bg-white dark:bg-gray-800 rounded-md shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+                            <div className="py-1">
+                              {athlete.status === 'active' && (
+                                <button
+                                  onClick={() => updateAthleteStatus(athlete.id, 'inactive')}
+                                  className="w-full text-left px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-red-50 dark:hover:bg-red-900/20 group flex items-center"
+                                >
+                                  <X className="h-4 w-4 mr-3 text-red-500 flex-shrink-0" />
+                                  <span className="whitespace-nowrap">Set Inactive</span>
+                                </button>
+                              )}
+                              {athlete.status === 'inactive' && (
+                                <button
+                                  onClick={() => updateAthleteStatus(athlete.id, 'active')}
+                                  className="w-full text-left px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-green-50 dark:hover:bg-green-900/20 group flex items-center"
+                                >
+                                  <CheckCircle className="h-4 w-4 mr-3 text-green-500 flex-shrink-0" />
+                                  <span className="whitespace-nowrap">Set Active</span>
+                                </button>
+                              )}
+                              {athlete.status === 'pending' && (
+                                <button
+                                  onClick={() => activateAthlete(athlete.id)}
+                                  className="w-full text-left px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-green-50 dark:hover:bg-green-900/20 group flex items-center"
+                                >
+                                  <CheckCircle className="h-4 w-4 mr-3 text-green-500 flex-shrink-0" />
+                                  <span className="whitespace-nowrap">Activate</span>
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Show loading indicator */}
+                      {(activatingAthleteId === athlete.id || updatingAthleteId === athlete.id) && (
+                        <div className="ml-2">
+                          <div className="h-3 w-3 rounded-full border-2 border-t-transparent border-blue-500 animate-spin"></div>
+                        </div>
+                      )}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                     {new Date(athlete.joined_at).toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <Link
-                      to={`/coach/athletes/${athlete.id}`}
-                      className="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300"
-                    >
-                      View Profile
-                    </Link>
                   </td>
                 </tr>
               ))}

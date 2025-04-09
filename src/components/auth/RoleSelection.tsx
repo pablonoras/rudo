@@ -1,3 +1,10 @@
+/**
+ * src/components/auth/RoleSelection.tsx
+ * 
+ * Component for selecting user role (coach or athlete).
+ * Updated to direct athletes directly to sign in instead of coach search.
+ */
+
 import { ArrowLeft, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -77,7 +84,7 @@ const RoleSelection = () => {
                 </div>
                 <h2 className="text-2xl font-bold mb-2 text-center">I'm an Athlete</h2>
                 <p className="text-gray-400 mb-6 text-center">
-                  Find your coach, view workouts, and log your results
+                  Sign in with Google, find a coach, and view your workouts
                 </p>
                 <div className="flex justify-center">
                   <button className="inline-flex items-center bg-blue-600/30 text-blue-200 px-4 py-2 rounded-lg group-hover:bg-blue-600/50 transition-colors">

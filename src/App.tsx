@@ -5,6 +5,8 @@
  * The app now has two distinct flows:
  * 1. Main application with actual data (starting without any pre-loaded data)
  * 2. Demo mode with sample data for testing and demos
+ * 
+ * Updated athlete workflow to direct to sign in first before finding a coach.
  */
 
 import { Navigate, Route, Routes } from 'react-router-dom';
@@ -15,7 +17,6 @@ import { LanguageProvider, ModalProvider, ProfileProvider } from './contexts';
 // Auth components
 import AthleteSignIn from './components/auth/AthleteSignIn';
 import AuthCallback from './components/auth/AuthCallback';
-import CoachSearch from './components/auth/CoachSearch';
 import CoachSignIn from './components/auth/CoachSignIn';
 import LoginSuccess from './components/auth/LoginSuccess';
 import ProtectedRoute from './components/auth/ProtectedRoute';
@@ -32,6 +33,7 @@ import { ProgramDashboard } from './pages/coach/ProgramDashboard';
 
 // Athlete pages
 import { AthleteDashboard } from './pages/athlete/Dashboard';
+import { FindCoach } from './pages/athlete/FindCoach';
 
 // Demo components
 import DemoInitializer from './components/DemoInitializer';
@@ -47,7 +49,6 @@ function App() {
             <Routes>
               <Route path="/" element={<LandingPage />} />
               <Route path="/choose-role" element={<RoleSelection />} />
-              <Route path="/role-selection" element={<CoachSearch />} />
               <Route path="/athlete-signin" element={<AthleteSignIn />} />
               <Route path="/athlete-signin/:coachName" element={<AthleteSignIn />} />
               <Route path="/coach-signin" element={<CoachSignIn />} />
@@ -100,6 +101,7 @@ function App() {
                     <Layout>
                       <Routes>
                         <Route path="/" element={<AthleteDashboard />} />
+                        <Route path="/find-coach" element={<FindCoach />} />
                       </Routes>
                     </Layout>
                   </ProtectedRoute>
