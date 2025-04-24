@@ -23,6 +23,8 @@ const translations = {
   en: {
     // Navbar
     'signin': 'Sign In',
+    'signin.athlete': 'Athlete',
+    'signin.coach': 'Coach',
     
     // Hero section
     'hero.title': 'Your Box Deserves a First-Class Digital Experience',
@@ -59,6 +61,8 @@ const translations = {
   es: {
     // Navbar
     'signin': 'Iniciar Sesión',
+    'signin.athlete': 'Atleta',
+    'signin.coach': 'Coach',
     
     // Hero section
     'hero.title': 'Tu Box Merece una Experiencia Digital de Primer Nivel',
