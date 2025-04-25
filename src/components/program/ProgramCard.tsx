@@ -1,16 +1,16 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
 import {
-  Calendar,
-  Users,
-  MoreVertical,
-  Archive,
-  Eye,
-  Edit2,
-  Trash2,
-  CheckCircle,
+    Archive,
+    Calendar,
+    CheckCircle,
+    Eye,
+    MoreVertical,
+    RefreshCw,
+    Trash2,
+    Users
 } from 'lucide-react';
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import type { Program, ProgramStatus } from '../../lib/workout';
 
 interface ProgramCardProps {
@@ -21,6 +21,10 @@ interface ProgramCardProps {
 
 export function ProgramCard({ program, onStatusChange, onDelete }: ProgramCardProps) {
   const [showMenu, setShowMenu] = useState(false);
+  
+  // Log the program's athlete assignments to debug
+  console.log(`Program ${program.name} has ${program.assignedTo.athletes.length} assigned athletes:`, 
+               program.assignedTo.athletes);
 
   const getStatusColor = (status: ProgramStatus) => {
     const colors = {
@@ -89,6 +93,18 @@ export function ProgramCard({ program, onStatusChange, onDelete }: ProgramCardPr
                       Archive Program
                     </button>
                   )}
+                  {program.status === 'archived' && (
+                    <button
+                      onClick={() => {
+                        onStatusChange('draft');
+                        setShowMenu(false);
+                      }}
+                      className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 w-full text-left"
+                    >
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Revert to Draft
+                    </button>
+                  )}
                   <Link
                     to={`/coach/program/${program.id}`}
                     className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
@@ -124,8 +140,7 @@ export function ProgramCard({ program, onStatusChange, onDelete }: ProgramCardPr
           <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
             <Users className="h-4 w-4 mr-1" />
             <span>
-              {program.assignedTo.athletes.length + program.assignedTo.teams.length}{' '}
-              assigned
+              {program.assignedTo.athletes.length} assigned
             </span>
           </div>
         </div>

@@ -1,25 +1,25 @@
-import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
 import {
-  format,
-  startOfWeek,
-  addDays,
-  parseISO,
-  isWithinInterval,
-  isSameDay,
+    addDays,
+    format,
+    isSameDay,
+    isWithinInterval,
+    parseISO,
+    startOfWeek,
 } from 'date-fns';
 import {
-  Calendar as CalendarIcon,
-  ChevronLeft,
-  ChevronRight,
-  Plus,
-  Send,
-  Save,
-  ArrowLeft,
+    ArrowLeft,
+    Calendar as CalendarIcon,
+    ChevronLeft,
+    ChevronRight,
+    Plus,
+    Save,
+    Send,
 } from 'lucide-react';
-import { useWorkoutStore } from '../../lib/workout';
-import { SessionForm } from '../../components/session/SessionForm';
+import { useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { SessionBlock } from '../../components/session/SessionBlock';
+import { SessionForm } from '../../components/session/SessionForm';
+import { useWorkoutStore } from '../../lib/workout';
 
 interface PublishConfirmModalProps {
   onConfirm: (shouldAssign: boolean) => void;
@@ -86,11 +86,23 @@ export function ProgramCalendar() {
 
   const handlePublish = async (shouldAssign: boolean) => {
     if (!programId) return;
-    updateProgramStatus(programId, 'published');
-    if (shouldAssign) {
-      navigate(`/coach/program/${programId}/assign`);
+    
+    try {
+      // First update the program status
+      await updateProgramStatus(programId, 'published');
+      
+      if (shouldAssign) {
+        // Navigate to assignment page
+        navigate(`/coach/program/${programId}/assign`);
+      } else {
+        // Just go back to programs list
+        navigate('/coach/programs');
+      }
+    } catch (error) {
+      console.error('Error publishing program:', error);
+    } finally {
+      setShowPublishModal(false);
     }
-    setShowPublishModal(false);
   };
 
   const weekDays = Array.from({ length: 7 }, (_, i) => {

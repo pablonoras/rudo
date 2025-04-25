@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { differenceInDays } from 'date-fns';
 import { Plus } from 'lucide-react';
-import { useWorkoutStore, type ProgramStatus } from '../../lib/workout';
+import { useEffect, useState } from 'react';
 import { ProgramCard } from '../../components/program/ProgramCard';
 import { ProgramFilters } from '../../components/program/ProgramFilters';
 import { ProgramSearch } from '../../components/program/ProgramSearch';
+import { useWorkoutStore } from '../../lib/workout';
 
 export function ProgramDashboard() {
   const {
@@ -13,6 +14,7 @@ export function ProgramDashboard() {
     updateProgramStatus,
     programFilter,
     setProgramFilter,
+    fetchPrograms,
   } = useWorkoutStore();
   const [isCreating, setIsCreating] = useState(false);
   const [newProgramName, setNewProgramName] = useState('');
@@ -20,24 +22,47 @@ export function ProgramDashboard() {
   const [endDate, setEndDate] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Fetch programs when component mounts
+  useEffect(() => {
+    console.log('ProgramDashboard: Fetching programs on mount');
+    fetchPrograms().then(() => {
+      console.log('ProgramDashboard: Programs loaded successfully');
+    }).catch(error => {
+      console.error('ProgramDashboard: Error fetching programs:', error);
+    });
+  }, [fetchPrograms]);
+
   const handleCreateProgram = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newProgramName || !startDate || !endDate) return;
+
+    // Calculate number of weeks based on dates
+    const daysDiff = differenceInDays(new Date(endDate), new Date(startDate));
+    const weekCount = Math.ceil(daysDiff / 7);
 
     createProgram({
       name: newProgramName,
       startDate,
       endDate,
       status: 'draft',
-      weekCount: 0,
+      weekCount,
       days: {},
-      assignedTo: { athletes: [], teams: [] },
+      assignedTo: { athletes: [] },
     });
 
     setIsCreating(false);
     setNewProgramName('');
     setStartDate('');
     setEndDate('');
+  };
+
+  // Add handler for deleting programs
+  const handleDeleteProgram = async (programId: string) => {
+    try {
+      await deleteProgram(programId);
+    } catch (error) {
+      console.error('Failed to delete program:', error);
+    }
   };
 
   const programsList = Object.values(programs);
@@ -104,7 +129,7 @@ export function ProgramDashboard() {
               key={program.id}
               program={program}
               onStatusChange={(status) => updateProgramStatus(program.id, status)}
-              onDelete={() => deleteProgram(program.id)}
+              onDelete={() => handleDeleteProgram(program.id)}
             />
           ))}
         </div>
