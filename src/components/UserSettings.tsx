@@ -22,6 +22,7 @@ import { signOut } from '../lib/supabase';
 
 export function UserSettings() {
   const [isOpen, setIsOpen] = useState(false);
+  const [imgError, setImgError] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const { profile, loading } = useProfile();
@@ -37,9 +38,20 @@ export function UserSettings() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Reset image error state when profile changes
+  useEffect(() => {
+    if (profile) {
+      setImgError(false);
+    }
+  }, [profile]);
+
   const handleSignOut = async () => {
     await signOut();
     navigate('/');
+  };
+
+  const handleImageError = () => {
+    setImgError(true);
   };
 
   // Truncate email if too long for display
@@ -65,11 +77,12 @@ export function UserSettings() {
           aria-label="User menu"
         >
           <div className="h-8 w-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center overflow-hidden">
-            {profile?.avatar_url ? (
+            {profile?.avatar_url && !imgError ? (
               <img 
                 src={profile.avatar_url} 
                 alt={profile.full_name || 'User'} 
                 className="h-full w-full object-cover"
+                onError={handleImageError}
               />
             ) : (
               <User className="h-5 w-5 text-gray-500 dark:text-gray-400" />
@@ -82,12 +95,28 @@ export function UserSettings() {
       {isOpen && (
         <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50">
           <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-              {profile?.full_name || 'User'}
-            </p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-              {profile?.email || 'No email available'}
-            </p>
+            <div className="flex items-center space-x-3 mb-2">
+              <div className="h-10 w-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center overflow-hidden">
+                {profile?.avatar_url && !imgError ? (
+                  <img 
+                    src={profile.avatar_url} 
+                    alt={profile.full_name || 'User'} 
+                    className="h-full w-full object-cover"
+                    onError={handleImageError}
+                  />
+                ) : (
+                  <User className="h-6 w-6 text-gray-500 dark:text-gray-400" />
+                )}
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                  {profile?.full_name || 'User'}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                  {profile?.email || 'No email available'}
+                </p>
+              </div>
+            </div>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
               Role: {profile?.role || 'Unknown'}
             </p>

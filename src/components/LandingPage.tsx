@@ -1,5 +1,4 @@
 import {
-  ArrowRight,
   ChevronDown,
   Dumbbell,
   MessageSquare,
@@ -65,7 +64,7 @@ const MobileNav = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }
         isOpen ? 'translate-y-0' : 'translate-y-full'
       }`}
     >
-      <div className="absolute inset-0 bg-[#0A0A0A] bg-opacity-95 backdrop-blur-lg">
+      <div className="absolute inset-0 bg-[#161616] bg-opacity-95 backdrop-blur-lg">
         <div className="flex flex-col h-full p-6">
           <div className="flex justify-between items-center mb-8">
             <div className="flex items-center gap-3">
@@ -121,7 +120,7 @@ const BubbleHeader = ({ onOpenMobileNav }: { onOpenMobileNav: () => void }) => {
         <div className="relative">
           <div className="absolute inset-0 bg-gradient-to-r from-[#8A2BE2]/20 via-[#4169E1]/20 to-[#8A2BE2]/20 rounded-2xl blur-xl animate-pulse"></div>
           
-          <div className={`relative bg-black/30 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden transition-all duration-300 ${
+          <div className={`relative bg-[#161616]/50 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden transition-all duration-300 ${
             isScrolled ? 'shadow-lg shadow-black/20' : ''
           }`}>
             <div className="flex items-center justify-between p-4">
@@ -174,20 +173,68 @@ const LandingPage = () => {
   const { t } = useLanguage();
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] text-white relative overflow-hidden">
-      {/* Background effects */}
+    <div className="min-h-screen bg-[#161616] text-white relative overflow-hidden">
+      {/* Background effects - lowest z-index */}
       <div 
-        className="fixed inset-0 z-0 opacity-50"
+        className="fixed inset-0 z-0 opacity-70"
         style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
-          filter: 'contrast(150%) brightness(50%)'
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
+          filter: 'contrast(165%) brightness(65%)'
         }}
       />
 
-      <div className="fixed inset-0 z-0">
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-[#8A2BE2] rounded-full filter blur-[128px] opacity-20" />
-        <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-[#4169E1] rounded-full filter blur-[128px] opacity-20" />
+      <div className="fixed inset-0 z-1 bg-[#1A1A1A] bg-opacity-80">
+        <div className="absolute -top-48 -right-48 w-[800px] h-[800px] bg-gradient-to-br from-[#8A2BE2]/20 to-[#4169E1]/20 rounded-full filter blur-[160px] opacity-20 animate-[pulse_15s_ease-in-out_infinite]" />
+        <div className="absolute -bottom-48 -left-48 w-[800px] h-[800px] bg-gradient-to-tl from-[#4169E1]/20 to-[#8A2BE2]/20 rounded-full filter blur-[160px] opacity-20 animate-[pulse_20s_ease-in-out_infinite]" />
+        <div className="absolute top-1/4 left-1/4 w-[200px] h-[200px] bg-[#8A2BE2]/15 rounded-full filter blur-[80px] opacity-10 animate-[pulse_12s_ease-in-out_infinite]" />
+        <div className="absolute bottom-1/4 right-1/3 w-[300px] h-[300px] bg-[#4169E1]/15 rounded-full filter blur-[100px] opacity-10 animate-[pulse_15s_ease-in-out_infinite_1s]" />
+        
+        {/* Subtle animated shapes */}
+        <div className="absolute top-1/2 left-1/3 w-2 h-2 rounded-full bg-[#8A2BE2]/40 animate-ping" style={{ animationDuration: '4s', animationDelay: '0.5s' }}></div>
+        <div className="absolute top-1/3 right-1/4 w-2 h-2 rounded-full bg-[#4169E1]/40 animate-ping" style={{ animationDuration: '6s', animationDelay: '1s' }}></div>
+        <div className="absolute bottom-1/3 left-1/2 w-1 h-1 rounded-full bg-white/30 animate-ping" style={{ animationDuration: '3s', animationDelay: '1.5s' }}></div>
       </div>
+      
+      {/* Pixelated grid patterns */}
+      <div className="fixed inset-0 z-1 pointer-events-none">
+        {/* Small pixel grid - creates the pixelated effect */}
+        <div 
+          className="absolute inset-0 opacity-[0.2]"
+          style={{
+            backgroundImage: `linear-gradient(to right, rgba(255,255,255,0.08) 1px, transparent 1px), 
+                             linear-gradient(to bottom, rgba(255,255,255,0.08) 1px, transparent 1px)`,
+            backgroundSize: '4px 4px'
+          }}
+        />
+        
+        {/* Medium grid for texture */}
+        <div 
+          className="absolute inset-0 opacity-[0.12]"
+          style={{
+            backgroundImage: `linear-gradient(to right, rgba(255,255,255,0.1) 1px, transparent 1px), 
+                             linear-gradient(to bottom, rgba(255,255,255,0.1) 1px, transparent 1px)`,
+            backgroundSize: '16px 16px'
+          }}
+        />
+        
+        {/* Larger grid for structure */}
+        <div 
+          className="absolute inset-0 opacity-[0.06]"
+          style={{
+            backgroundImage: `linear-gradient(to right, rgba(255,255,255,0.15) 1px, transparent 1px), 
+                             linear-gradient(to bottom, rgba(255,255,255,0.15) 1px, transparent 1px)`,
+            backgroundSize: '80px 80px'
+          }}
+        />
+      </div>
+
+      {/* Vignette effect - on top of background but below content */}
+      <div 
+        className="fixed inset-0 z-2 pointer-events-none"
+        style={{
+          background: 'radial-gradient(circle at center, transparent 40%, rgba(0,0,0,0.35) 100%)'
+        }}
+      />
 
       <MobileNav isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
 
@@ -220,16 +267,28 @@ const LandingPage = () => {
                 </div>
 
                 <div className="space-y-4">
-                  <Link 
-                    to="/choose-role"
-                    className="group relative w-full sm:w-auto inline-block"
-                  >
-                    <div className="absolute -inset-0.5 bg-gradient-to-r from-[#8A2BE2] to-[#4169E1] rounded-full blur opacity-60 group-hover:opacity-100 transition duration-500"></div>
-                    <span className="relative w-full sm:w-auto bg-[#0A0A0A]/90 text-white px-6 sm:px-8 py-4 rounded-full font-bold tracking-wide flex items-center justify-center gap-3 border border-white/10 hover:border-white/20 transition-all duration-500 group-hover:bg-[#0A0A0A]/70">
-                      RESERVA TU ACCESO
-                      <ArrowRight className="w-5 h-5 transition-transform duration-500 group-hover:translate-x-1" strokeWidth={2} />
-                    </span>
-                  </Link>
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <Link 
+                      to="/athlete-signin"
+                      className="group relative w-full sm:w-auto inline-block"
+                    >
+                      <div className="absolute -inset-0.5 bg-gradient-to-r from-[#4169E1] to-[#8A2BE2] rounded-full blur opacity-60 group-hover:opacity-100 transition duration-500"></div>
+                      <span className="relative w-full sm:w-auto bg-[#161616]/90 text-white px-6 sm:px-8 py-4 rounded-full font-bold tracking-wide flex items-center justify-center gap-3 border border-white/10 hover:border-white/20 transition-all duration-500 group-hover:bg-[#161616]/70">
+                        ATLETA
+                        <User className="w-5 h-5 transition-transform duration-300" strokeWidth={2} />
+                      </span>
+                    </Link>
+                    <Link 
+                      to="/coach-signin"
+                      className="group relative w-full sm:w-auto inline-block"
+                    >
+                      <div className="absolute -inset-0.5 bg-gradient-to-r from-[#8A2BE2] to-[#4169E1] rounded-full blur opacity-60 group-hover:opacity-100 transition duration-500"></div>
+                      <span className="relative w-full sm:w-auto bg-[#161616]/90 text-white px-6 sm:px-8 py-4 rounded-full font-bold tracking-wide flex items-center justify-center gap-3 border border-white/10 hover:border-white/20 transition-all duration-500 group-hover:bg-[#161616]/70">
+                        COACH
+                        <UserCog className="w-5 h-5 transition-transform duration-300" strokeWidth={2} />
+                      </span>
+                    </Link>
+                  </div>
                   <p className="text-sm text-gray-500 font-medium text-center sm:text-left">
                     Acceso anticipado para los primeros en la lista
                   </p>
@@ -244,9 +303,19 @@ const LandingPage = () => {
                     <img 
                       src="https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=1000&q=80"
                       alt="RUDO Interface"
-                      className="absolute inset-0 w-full h-full object-cover opacity-40 mix-blend-overlay"
+                      className="absolute inset-0 w-full h-full object-cover opacity-30 mix-blend-overlay"
                     />
-                    <div className="absolute inset-0 bg-[#0A0A0A]/60 backdrop-blur-md"></div>
+                    <div className="absolute inset-0 bg-[#161616]/60 backdrop-blur-md"></div>
+                    
+                    {/* Pixelated overlay for preview panel */}
+                    <div 
+                      className="absolute inset-0 opacity-[0.15] pointer-events-none"
+                      style={{
+                        backgroundImage: `linear-gradient(to right, rgba(255,255,255,0.08) 1px, transparent 1px), 
+                                       linear-gradient(to bottom, rgba(255,255,255,0.08) 1px, transparent 1px)`,
+                        backgroundSize: '4px 4px'
+                      }}
+                    />
                     
                     <div className="relative h-full p-8 flex flex-col">
                       <div className="h-2 w-24 bg-white/10 rounded-full mb-4"></div>

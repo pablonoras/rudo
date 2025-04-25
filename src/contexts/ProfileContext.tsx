@@ -30,8 +30,20 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const fetchProfile = async () => {
     try {
       setLoading(true);
+      setError(null); // Clear any previous errors
       const profileData = await getCurrentProfile();
-      setProfile(profileData);
+      
+      if (profileData) {
+        // Ensure we have a valid profile with required fields
+        const sanitizedProfile: Profile = {
+          ...profileData,
+          // Ensure avatar_url is undefined rather than null or empty string for cleaner handling
+          avatar_url: profileData.avatar_url || undefined
+        };
+        setProfile(sanitizedProfile);
+      } else {
+        setProfile(null);
+      }
     } catch (err) {
       console.error('Error fetching profile:', err);
       setError(err instanceof Error ? err : new Error('Failed to fetch profile'));

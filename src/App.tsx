@@ -20,7 +20,6 @@ import AuthCallback from './components/auth/AuthCallback';
 import CoachSignIn from './components/auth/CoachSignIn';
 import LoginSuccess from './components/auth/LoginSuccess';
 import ProtectedRoute from './components/auth/ProtectedRoute';
-import RoleSelection from './components/auth/RoleSelection';
 import LandingPage from './components/LandingPage';
 
 // Coach pages
@@ -48,7 +47,6 @@ function App() {
           <ModalProvider>
             <Routes>
               <Route path="/" element={<LandingPage />} />
-              <Route path="/choose-role" element={<RoleSelection />} />
               <Route path="/athlete-signin" element={<AthleteSignIn />} />
               <Route path="/athlete-signin/:coachName" element={<AthleteSignIn />} />
               <Route path="/coach-signin" element={<CoachSignIn />} />

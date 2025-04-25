@@ -42,7 +42,7 @@ const AuthCallback = () => {
             
             // Wait 5 seconds and then redirect to role selection page
             setTimeout(() => {
-              navigate('/choose-role');
+              navigate('/');
             }, 5000);
             
             return;
@@ -97,7 +97,7 @@ const AuthCallback = () => {
               // Check if this is a role change error
               if (profileError.message && profileError.message.includes('Role change')) {
                 setError('You cannot change your role from coach to athlete. Please use your existing coach account.');
-                setTimeout(() => navigate('/choose-role'), 5000);
+                setTimeout(() => navigate('/'), 5000);
                 return;
               }
             }
@@ -120,7 +120,7 @@ const AuthCallback = () => {
                 // Check if this is a role conflict error
                 if (coachAthleteError.message && coachAthleteError.message.includes('coach cannot be added as an athlete')) {
                   setError('You cannot join as an athlete because you already have a coach account.');
-                  setTimeout(() => navigate('/choose-role'), 5000);
+                  setTimeout(() => navigate('/'), 5000);
                   return;
                 }
               }
@@ -148,7 +148,7 @@ const AuthCallback = () => {
             navigate('/coach/');
           }
         } else {
-          navigate('/choose-role');
+          navigate('/');
         }
       } catch (error: any) {
         console.error('Error in auth callback:', error);
@@ -159,9 +159,9 @@ const AuthCallback = () => {
             error.message.includes('coach cannot be added') || 
             error.message.includes('athlete cannot create'))) {
           setError(error.message);
-          setTimeout(() => navigate('/choose-role'), 5000);
+          setTimeout(() => navigate('/'), 5000);
         } else {
-          navigate('/choose-role');
+          navigate('/');
         }
       }
     };
