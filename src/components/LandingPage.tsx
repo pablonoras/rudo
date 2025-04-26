@@ -247,11 +247,11 @@ const LandingPage = () => {
               <div className="flex flex-col justify-center space-y-8 sm:space-y-12">
                 <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight leading-[1.1]">
                   <span className="bg-gradient-to-r from-[#8A2BE2] to-[#4169E1] bg-clip-text text-transparent">
-                    ENTRENA.
+                    {t('hero.titleLine1')}
                   </span>
                   <br />
                   <span className="text-white">
-                    NO ADMINISTRES.
+                    {t('hero.titleLine2')}
                   </span>
                 </h1>
 

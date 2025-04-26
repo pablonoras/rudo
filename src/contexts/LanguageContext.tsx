@@ -27,7 +27,8 @@ const translations = {
     'signin.coach': 'Coach',
     
     // Hero section
-    'hero.title': 'Your Box Deserves a First-Class Digital Experience',
+    'hero.titleLine1': 'Coach smarter.',
+    'hero.titleLine2': 'Manage less.',
     'hero.subtitle': 'Because we know that the true spirit of CrossFit is in the community, not in spreadsheets.',
     'hero.cta': 'Discover RUDO',
     
@@ -65,7 +66,8 @@ const translations = {
     'signin.coach': 'Coach',
     
     // Hero section
-    'hero.title': 'Tu Box Merece una Experiencia Digital de Primer Nivel',
+    'hero.titleLine1': 'Programa.',
+    'hero.titleLine2': 'Gestiona menos.',
     'hero.subtitle': 'Porque sabemos que el verdadero espíritu del CrossFit está en la comunidad, no en las hojas de cálculo.',
     'hero.cta': 'Descubre RUDO',
     
