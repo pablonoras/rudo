@@ -19,9 +19,7 @@ export type ProgramStatus = 'draft' | 'published' | 'archived';
 export interface Session {
   id: string;
   name: string;
-  type: SessionType;
-  duration: number;
-  startTime?: string;
+  description?: string;
   workouts: WorkoutBlock[];
   createdAt: string;
   updatedAt: string;
@@ -33,6 +31,7 @@ export interface WorkoutBlock {
   type: WorkoutType;
   format?: WorkoutFormat;
   description: string;
+  color?: string;
   timeLimit?: number;
   rounds?: number;
   interval?: number;
@@ -42,6 +41,8 @@ export interface WorkoutBlock {
   notes?: string;
   createdAt: string;
   updatedAt: string;
+  isNew?: boolean;
+  wasEdited?: boolean;
 }
 
 export interface DayProgram {
@@ -338,14 +339,130 @@ export const useWorkoutStore = create<WorkoutStore>((set) => ({
   duplicateWeek: (_programId, _fromDate) => {
     console.warn('duplicateWeek is not implemented yet.');
   },
-  addSession: (_programId, _date, _session) => {
-    console.warn('addSession is not implemented yet.');
+  addSession: (programId, date, session) => {
+    set((state) => {
+      // Get existing program data
+      const program = state.programs[programId];
+      if (!program) return state;
+      
+      // Check if this date already exists in the program's days
+      const existingDay = program.days[date];
+      const newSession = {
+        ...session,
+        id: crypto.randomUUID(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      
+      if (existingDay) {
+        // Add session to existing day
+        return {
+          programs: {
+            ...state.programs,
+            [programId]: {
+              ...program,
+              days: {
+                ...program.days,
+                [date]: {
+                  ...existingDay,
+                  sessions: [...existingDay.sessions, newSession],
+                },
+              },
+            },
+          },
+        };
+      } else {
+        // Create new day with this session
+        return {
+          programs: {
+            ...state.programs,
+            [programId]: {
+              ...program,
+              days: {
+                ...program.days,
+                [date]: {
+                  id: crypto.randomUUID(),
+                  date,
+                  sessions: [newSession],
+                },
+              },
+            },
+          },
+        };
+      }
+    });
   },
-  updateSession: (_programId, _date, _sessionId, _updates) => {
-    console.warn('updateSession is not implemented yet.');
+  updateSession: (programId, date, sessionId, updates) => {
+    set((state) => {
+      // Get existing program and days data
+      const program = state.programs[programId];
+      if (!program) return state;
+      
+      // Check if the day exists in the program
+      const day = program.days[date];
+      if (!day) return state;
+      
+      // Find the session to update
+      const sessionIndex = day.sessions.findIndex(s => s.id === sessionId);
+      if (sessionIndex === -1) return state;
+      
+      // Create new array with updated session
+      const updatedSessions = [...day.sessions];
+      updatedSessions[sessionIndex] = {
+        ...updatedSessions[sessionIndex],
+        ...updates,
+        updatedAt: new Date().toISOString()
+      };
+      
+      // Return updated state
+      return {
+        programs: {
+          ...state.programs,
+          [programId]: {
+            ...program,
+            days: {
+              ...program.days,
+              [date]: {
+                ...day,
+                sessions: updatedSessions
+              }
+            }
+          }
+        }
+      };
+    });
   },
-  deleteSession: (_programId, _date, _sessionId) => {
-    console.warn('deleteSession is not implemented yet.');
+  deleteSession: (programId, date, sessionId) => {
+    set((state) => {
+      // Get existing program and days data
+      const program = state.programs[programId];
+      if (!program) return state;
+      
+      // Check if the day exists in the program
+      const day = program.days[date];
+      if (!day) return state;
+      
+      // Filter out the session to delete
+      const filteredSessions = day.sessions.filter(s => s.id !== sessionId);
+      
+      // If no sessions left for this day, we could remove the day entirely
+      // or keep an empty day (chosen to keep the day for simplicity)
+      return {
+        programs: {
+          ...state.programs,
+          [programId]: {
+            ...program,
+            days: {
+              ...program.days,
+              [date]: {
+                ...day,
+                sessions: filteredSessions
+              }
+            }
+          }
+        }
+      };
+    });
   },
   assignProgram: async (programId, athletes, message) => {
     console.log('Assigning program to athletes:', programId, athletes);
@@ -466,3 +583,61 @@ export function initializeWithSampleData() {
   // No sample data initialization - demo data removed
   console.log('Sample data initialization skipped - demo data removed');
 }
+
+// Save a workout to the workouts table
+export const saveWorkout = async (
+  sessionId: string,
+  workout: {
+    description: string;
+    color: string;
+    notes?: string;
+  }
+) => {
+  console.log('Saving workout to Supabase...', { sessionId, workout });
+  
+  try {
+    const { data, error } = await supabase
+      .from('workouts')
+      .insert({
+        session_id: sessionId,
+        description: workout.description,
+        color: workout.color,
+        notes: workout.notes || null
+      })
+      .select();
+    
+    if (error) {
+      console.error('Error saving workout:', error);
+      throw new Error('Failed to save workout');
+    }
+    
+    console.log('Successfully saved workout:', data);
+    return data[0];
+  } catch (error) {
+    console.error('Error in saveWorkout:', error);
+    throw error;
+  }
+};
+
+// Delete a workout from the workouts table
+export const deleteWorkout = async (workoutId: string) => {
+  console.log('Deleting workout from Supabase...', workoutId);
+  
+  try {
+    const { error } = await supabase
+      .from('workouts')
+      .delete()
+      .eq('workout_id', workoutId);
+    
+    if (error) {
+      console.error('Error deleting workout:', error);
+      throw new Error('Failed to delete workout');
+    }
+    
+    console.log('Successfully deleted workout');
+    return true;
+  } catch (error) {
+    console.error('Error in deleteWorkout:', error);
+    throw error;
+  }
+};
