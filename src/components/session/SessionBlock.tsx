@@ -8,6 +8,7 @@ import {
     Trash2
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useModal } from '../../contexts/ModalContext';
 import type { Session, WorkoutBlock } from '../../lib/workout';
 import { MenuPortal } from '../MenuPortal';
@@ -27,6 +28,12 @@ const getWorkoutColorClass = (color?: string) => {
   return colors[color.toLowerCase()] || 'border-gray-400 bg-gray-50 dark:bg-gray-900/20';
 };
 
+// Function to truncate text
+const truncateText = (text: string, maxLength: number = 60) => {
+  if (!text || text.length <= maxLength) return text;
+  return text.substring(0, maxLength) + '...';
+};
+
 interface SessionBlockProps {
   session: Session;
   onUpdate: (updates: Partial<Session>) => void;
@@ -36,6 +43,8 @@ interface SessionBlockProps {
   onEditWorkout?: (workoutId: string, updates: Partial<WorkoutBlock>) => void;
   onDeleteWorkout?: (workoutId: string) => void;
   onDuplicateWorkout?: (workoutId: string) => void;
+  onExpandWorkout?: (workout: WorkoutBlock, sessionId: string) => void;
+  compactMode?: boolean;
 }
 
 interface WorkoutActionButtonProps {
@@ -96,6 +105,8 @@ export function SessionBlock({
   onEditWorkout,
   onDeleteWorkout,
   onDuplicateWorkout,
+  onExpandWorkout,
+  compactMode,
 }: SessionBlockProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
@@ -119,7 +130,9 @@ export function SessionBlock({
         !activeMenuButton.contains(clickedElement) && 
         (!menuElement || !menuElement.contains(clickedElement))
       ) {
-        setActiveWorkoutMenu(null);
+        setTimeout(() => {
+          setActiveWorkoutMenu(null);
+        }, 100);
       }
     };
 
@@ -263,7 +276,7 @@ export function SessionBlock({
             </h3>
             {session.description && (
               <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                {session.description}
+                {truncateText(session.description)}
               </p>
             )}
           </div>
@@ -308,15 +321,24 @@ export function SessionBlock({
             {session.workouts.map((workout) => (
               <div
                 key={workout.id}
-                onClick={() => toggleWorkout(workout.id)}
+                onClick={(e) => {
+                  if (compactMode && onExpandWorkout) {
+                    e.stopPropagation();
+                    onExpandWorkout(workout, session.id);
+                  } else {
+                    toggleWorkout(workout.id);
+                  }
+                }}
                 className={`group relative rounded-lg border-l-4 ${getWorkoutColorClass(workout.color)} p-3 cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50`}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
                     <p className="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap font-mono">
-                      {workout.description}
+                      {compactMode 
+                        ? truncateText(workout.description, 35) 
+                        : truncateText(workout.description)}
                     </p>
-                    {expandedWorkouts.has(workout.id) && (
+                    {expandedWorkouts.has(workout.id) && !compactMode && (
                       <WorkoutDetails workout={workout} />
                     )}
                   </div>
@@ -325,16 +347,22 @@ export function SessionBlock({
                     <button
                       ref={el => workoutMenuRefs.current[workout.id] = el}
                       onClick={(e) => handleWorkoutMenuClick(e, workout.id)}
-                      className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full opacity-100 group-hover:opacity-100 transition-opacity"
+                      className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full opacity-100 transition-opacity bg-gray-50 dark:bg-gray-700/50"
                     >
                       <MoreVertical className="h-4 w-4 text-gray-500 dark:text-gray-400" />
                     </button>
 
-                    {activeWorkoutMenu === workout.id && (
+                    {activeWorkoutMenu === workout.id && createPortal(
                       <div 
-                        className="absolute z-50 left-1/2 transform -translate-x-1/2 top-7 w-24 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-0.5 text-xs"
+                        className="fixed z-[9999] shadow-xl border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 py-0.5 text-xs w-24"
                         onClick={(e) => e.stopPropagation()}
                         data-workout-menu={workout.id}
+                        style={{ 
+                          position: 'absolute',
+                          top: `${workoutMenuRefs.current[workout.id]?.getBoundingClientRect().bottom + window.scrollY + 5}px`,
+                          left: `${workoutMenuRefs.current[workout.id]?.getBoundingClientRect().left + window.scrollX - 10}px`,
+                          filter: 'drop-shadow(0 4px 3px rgb(0 0 0 / 0.07)) drop-shadow(0 2px 2px rgb(0 0 0 / 0.06))'
+                        }}
                       >
                         {getWorkoutMenuItems(workout).map((item) => (
                           <button
@@ -349,7 +377,8 @@ export function SessionBlock({
                             <span className="ml-1">{item.label}</span>
                           </button>
                         ))}
-                      </div>
+                      </div>,
+                      document.body
                     )}
                   </div>
                 </div>
