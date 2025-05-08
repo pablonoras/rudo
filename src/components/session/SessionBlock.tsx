@@ -28,12 +28,6 @@ const getWorkoutColorClass = (color?: string) => {
   return colors[color.toLowerCase()] || 'border-gray-400 bg-gray-50 dark:bg-gray-900/20';
 };
 
-// Function to truncate text
-const truncateText = (text: string, maxLength: number = 60) => {
-  if (!text || text.length <= maxLength) return text;
-  return text.substring(0, maxLength) + '...';
-};
-
 interface SessionBlockProps {
   session: Session;
   onUpdate: (updates: Partial<Session>) => void;
@@ -43,8 +37,6 @@ interface SessionBlockProps {
   onEditWorkout?: (workoutId: string, updates: Partial<WorkoutBlock>) => void;
   onDeleteWorkout?: (workoutId: string) => void;
   onDuplicateWorkout?: (workoutId: string) => void;
-  onExpandWorkout?: (workout: WorkoutBlock, sessionId: string) => void;
-  compactMode?: boolean;
 }
 
 interface WorkoutActionButtonProps {
@@ -105,8 +97,6 @@ export function SessionBlock({
   onEditWorkout,
   onDeleteWorkout,
   onDuplicateWorkout,
-  onExpandWorkout,
-  compactMode,
 }: SessionBlockProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
@@ -276,7 +266,7 @@ export function SessionBlock({
             </h3>
             {session.description && (
               <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                {truncateText(session.description)}
+                {session.description}
               </p>
             )}
           </div>
@@ -321,24 +311,15 @@ export function SessionBlock({
             {session.workouts.map((workout) => (
               <div
                 key={workout.id}
-                onClick={(e) => {
-                  if (compactMode && onExpandWorkout) {
-                    e.stopPropagation();
-                    onExpandWorkout(workout, session.id);
-                  } else {
-                    toggleWorkout(workout.id);
-                  }
-                }}
+                onClick={() => toggleWorkout(workout.id)}
                 className={`group relative rounded-lg border-l-4 ${getWorkoutColorClass(workout.color)} p-3 cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50`}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
                     <p className="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap font-mono">
-                      {compactMode 
-                        ? truncateText(workout.description, 35) 
-                        : truncateText(workout.description)}
+                      {workout.description}
                     </p>
-                    {expandedWorkouts.has(workout.id) && !compactMode && (
+                    {expandedWorkouts.has(workout.id) && (
                       <WorkoutDetails workout={workout} />
                     )}
                   </div>

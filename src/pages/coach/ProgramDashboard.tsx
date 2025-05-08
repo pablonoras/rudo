@@ -1,7 +1,9 @@
 import { differenceInDays } from 'date-fns';
 import { Plus } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { ProgramAssignmentManager } from '../../components/program/ProgramAssignmentManager';
 import { ProgramCard } from '../../components/program/ProgramCard';
+import { ProgramEditModal } from '../../components/program/ProgramEditModal';
 import { ProgramFilters } from '../../components/program/ProgramFilters';
 import { ProgramSearch } from '../../components/program/ProgramSearch';
 import { useWorkoutStore } from '../../lib/workout';
@@ -15,12 +17,16 @@ export function ProgramDashboard() {
     programFilter,
     setProgramFilter,
     fetchPrograms,
+    updateProgramInDatabase,
+    unassignProgramAthlete,
   } = useWorkoutStore();
   const [isCreating, setIsCreating] = useState(false);
   const [newProgramName, setNewProgramName] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [editingProgramId, setEditingProgramId] = useState<string | null>(null);
+  const [managingAssignmentsProgramId, setManagingAssignmentsProgramId] = useState<string | null>(null);
 
   // Fetch programs when component mounts
   useEffect(() => {
@@ -65,6 +71,41 @@ export function ProgramDashboard() {
     }
   };
 
+  // Add handler for editing programs
+  const handleEditProgram = (programId: string) => {
+    setEditingProgramId(programId);
+  };
+
+  // Add handler for saving program edits
+  const handleSaveProgramEdit = async (updates: { name: string, startDate: string, endDate: string, weekCount: number }) => {
+    if (!editingProgramId) return;
+    
+    try {
+      await updateProgramInDatabase(editingProgramId, updates);
+      setEditingProgramId(null);
+    } catch (error) {
+      console.error('Failed to update program:', error);
+      throw error; // Re-throw to allow modal to handle the error
+    }
+  };
+
+  // Add handler for managing program assignments
+  const handleManageAssignments = (programId: string) => {
+    setManagingAssignmentsProgramId(programId);
+  };
+
+  // Add handler for unassigning athletes
+  const handleUnassignAthlete = async (athleteId: string) => {
+    if (!managingAssignmentsProgramId) return;
+    
+    try {
+      await unassignProgramAthlete(managingAssignmentsProgramId, athleteId);
+    } catch (error) {
+      console.error('Failed to unassign athlete:', error);
+      throw error; // Re-throw to allow modal to handle the error
+    }
+  };
+
   const programsList = Object.values(programs);
   
   // Filter programs based on search query and status
@@ -81,6 +122,12 @@ export function ProgramDashboard() {
     published: programsList.filter((p) => p.status === 'published').length,
     archived: programsList.filter((p) => p.status === 'archived').length,
   };
+
+  // Get the program being edited
+  const programBeingEdited = editingProgramId ? programs[editingProgramId] : null;
+  
+  // Get the program being managed for assignments
+  const programBeingManaged = managingAssignmentsProgramId ? programs[managingAssignmentsProgramId] : null;
 
   return (
     <div className="space-y-6">
@@ -130,6 +177,8 @@ export function ProgramDashboard() {
               program={program}
               onStatusChange={(status) => updateProgramStatus(program.id, status)}
               onDelete={() => handleDeleteProgram(program.id)}
+              onEdit={() => handleEditProgram(program.id)}
+              onManageAssignments={() => handleManageAssignments(program.id)}
             />
           ))}
         </div>
@@ -214,6 +263,24 @@ export function ProgramDashboard() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Program Edit Modal */}
+      {programBeingEdited && (
+        <ProgramEditModal
+          program={programBeingEdited}
+          onClose={() => setEditingProgramId(null)}
+          onSave={handleSaveProgramEdit}
+        />
+      )}
+
+      {/* Program Assignment Manager Modal */}
+      {programBeingManaged && (
+        <ProgramAssignmentManager
+          program={programBeingManaged}
+          onClose={() => setManagingAssignmentsProgramId(null)}
+          onUnassign={handleUnassignAthlete}
+        />
       )}
     </div>
   );

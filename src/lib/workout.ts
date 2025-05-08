@@ -83,6 +83,8 @@ interface WorkoutStore {
   // Program Management
   createProgram: (program: Omit<Program, 'id' | 'createdAt' | 'updatedAt'>) => Promise<string>;
   updateProgram: (programId: string, updates: Partial<Program>) => void;
+  updateProgramDetails: (programId: string, updates: { name?: string, weekCount?: number, startDate?: string, endDate?: string }) => Promise<void>;
+  updateProgramInDatabase: (programId: string, updates: { name?: string, weekCount?: number, startDate?: string, endDate?: string }) => Promise<void>;
   deleteProgram: (programId: string) => Promise<void>;
   selectProgram: (programId: string | null) => void;
   updateProgramStatus: (programId: string, status: ProgramStatus) => Promise<void>;
@@ -108,6 +110,7 @@ interface WorkoutStore {
     athletes: string[],
     message?: string
   ) => void;
+  unassignProgramAthlete: (programId: string, athleteId: string) => Promise<void>;
 }
 
 export const useWorkoutStore = create<WorkoutStore>((set) => ({
@@ -173,6 +176,72 @@ export const useWorkoutStore = create<WorkoutStore>((set) => ({
         },
       },
     })),
+
+  updateProgramDetails: async (programId, updates) => {
+    console.log('Updating program details...', programId, updates);
+    const { data: updated, error } = await supabase
+      .from('programs')
+      .update(updates)
+      .eq('id', programId)
+      .select()
+      .single();
+    if (error || !updated) {
+      console.error('Error updating program details:', error);
+      return;
+    }
+    set((state) => ({
+      programs: {
+        ...state.programs,
+        [programId]: {
+          ...state.programs[programId],
+          ...updates,
+          updatedAt: updated.updated_at,
+        },
+      },
+    }));
+  },
+
+  updateProgramInDatabase: async (programId, updates) => {
+    console.log('Updating program details in database...', programId, updates);
+    
+    // Map frontend field names to database field names
+    const dbUpdates: any = {};
+    if (updates.name !== undefined) dbUpdates.name = updates.name;
+    if (updates.weekCount !== undefined) dbUpdates.duration_weeks = updates.weekCount;
+    if (updates.startDate !== undefined) dbUpdates.start_date = updates.startDate;
+    if (updates.endDate !== undefined) dbUpdates.end_date = updates.endDate;
+    
+    console.log('Mapped updates for database:', dbUpdates);
+    
+    const { data: updated, error } = await supabase
+      .from('programs')
+      .update(dbUpdates)
+      .eq('id', programId)
+      .select()
+      .single();
+      
+    if (error || !updated) {
+      console.error('Error updating program details in database:', error);
+      return;
+    }
+    
+    console.log('Program updated in database:', updated);
+    
+    // Update the local state with frontend field names
+    set((state) => ({
+      programs: {
+        ...state.programs,
+        [programId]: {
+          ...state.programs[programId],
+          name: updates.name ?? state.programs[programId].name,
+          weekCount: updates.weekCount ?? state.programs[programId].weekCount,
+          startDate: updates.startDate ?? state.programs[programId].startDate,
+          endDate: updates.endDate ?? state.programs[programId].endDate,
+          updatedAt: updated.updated_at,
+        },
+      },
+    }));
+  },
 
   deleteProgram: async (programId) => {
     console.log('Deleting program from Supabase...', programId);
@@ -572,6 +641,51 @@ export const useWorkoutStore = create<WorkoutStore>((set) => ({
       });
     } catch (error) {
       console.error('Error in assignProgram:', error);
+      throw error; // Re-throw to allow the calling component to handle it
+    }
+  },
+  unassignProgramAthlete: async (programId, athleteId) => {
+    console.log('Unassigning athlete from program:', programId, athleteId);
+    
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        console.error('No authenticated user found.', userError);
+        return;
+      }
+      
+      console.log('Current user ID:', user.id);
+      
+      // Remove the athlete from the program_assignments table
+      const { error: removeError } = await supabase
+        .from('program_assignments')
+        .delete()
+        .eq('program_id', programId)
+        .eq('athlete_id', athleteId);
+      
+      if (removeError) {
+        console.error('Error removing athlete from program:', removeError);
+        return;
+      }
+      
+      // Update local state to reflect the unassignment
+      set(state => {
+        const updatedProgram = { 
+          ...state.programs[programId],
+          assignedTo: {
+            athletes: state.programs[programId].assignedTo.athletes.filter(id => id !== athleteId)
+          }
+        };
+        
+        return {
+          programs: {
+            ...state.programs,
+            [programId]: updatedProgram
+          }
+        };
+      });
+    } catch (error) {
+      console.error('Error in unassignProgramAthlete:', error);
       throw error; // Re-throw to allow the calling component to handle it
     }
   },

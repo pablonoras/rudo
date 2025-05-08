@@ -7,7 +7,6 @@
 
 import { format, parseISO } from 'date-fns';
 import {
-    BarChart2,
     Calendar,
     ChevronRight,
     Clock,
@@ -336,22 +335,6 @@ export function CoachDashboard() {
             </Link>
           </div>
         )}
-      </div>
-
-      {/* Recent Activity - Will be implemented when data is available */}
-      <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">
-            Recent Activity
-          </h2>
-        </div>
-        <div className="p-6 flex flex-col items-center justify-center text-center py-12">
-          <BarChart2 className="h-12 w-12 text-gray-400 dark:text-gray-500 mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-1">No activity yet</h3>
-          <p className="text-gray-500 dark:text-gray-400 max-w-md">
-            Your recent activity will appear here once you start creating programs and adding athletes.
-          </p>
-        </div>
       </div>
     </div>
   );

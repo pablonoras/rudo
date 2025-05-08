@@ -3,10 +3,12 @@ import {
     Archive,
     Calendar,
     CheckCircle,
+    Edit2,
     Eye,
     MoreVertical,
     RefreshCw,
     Trash2,
+    UserMinus,
     Users
 } from 'lucide-react';
 import { useState } from 'react';
@@ -17,15 +19,13 @@ interface ProgramCardProps {
   program: Program;
   onStatusChange: (status: ProgramStatus) => void;
   onDelete: () => void;
+  onEdit?: () => void;
+  onManageAssignments?: () => void;
 }
 
-export function ProgramCard({ program, onStatusChange, onDelete }: ProgramCardProps) {
+export function ProgramCard({ program, onStatusChange, onDelete, onEdit, onManageAssignments }: ProgramCardProps) {
   const [showMenu, setShowMenu] = useState(false);
   
-  // Log the program's athlete assignments to debug
-  console.log(`Program ${program.name} has ${program.assignedTo.athletes.length} assigned athletes:`, 
-               program.assignedTo.athletes);
-
   const getStatusColor = (status: ProgramStatus) => {
     const colors = {
       draft: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
@@ -69,6 +69,30 @@ export function ProgramCard({ program, onStatusChange, onDelete }: ProgramCardPr
             {showMenu && (
               <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 z-10">
                 <div className="py-1">
+                  {onEdit && (
+                    <button
+                      onClick={() => {
+                        onEdit();
+                        setShowMenu(false);
+                      }}
+                      className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 w-full text-left"
+                    >
+                      <Edit2 className="h-4 w-4 mr-2" />
+                      Edit Program
+                    </button>
+                  )}
+                  {onManageAssignments && (
+                    <button
+                      onClick={() => {
+                        onManageAssignments();
+                        setShowMenu(false);
+                      }}
+                      className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 w-full text-left"
+                    >
+                      <UserMinus className="h-4 w-4 mr-2" />
+                      Manage Assignments
+                    </button>
+                  )}
                   {program.status === 'draft' && (
                     <button
                       onClick={() => {
