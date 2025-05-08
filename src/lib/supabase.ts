@@ -39,6 +39,28 @@ export async function getCurrentProfile(): Promise<Profile | null> {
     .eq('id', user.id)
     .single();
 
+  if (profile) {
+    // Ensure avatar_url is a valid URL or set to undefined
+    if (profile.avatar_url) {
+      try {
+        // Basic URL validation
+        new URL(profile.avatar_url);
+      } catch (e) {
+        // If URL is invalid, clear it
+        console.warn('Invalid avatar URL:', profile.avatar_url);
+        profile.avatar_url = undefined;
+      }
+    }
+
+    // If no avatar_url in profile but exists in user metadata, use that
+    if (!profile.avatar_url && user.user_metadata) {
+      profile.avatar_url = 
+        user.user_metadata.avatar_url || 
+        user.user_metadata.picture || 
+        undefined;
+    }
+  }
+
   return profile;
 }
 

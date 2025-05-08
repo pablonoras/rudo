@@ -41,11 +41,11 @@ const CoachSignIn = () => {
       
       <div className="relative z-10 container mx-auto px-4 py-8">
         <button
-          onClick={() => navigate('/choose-role')}
+          onClick={() => navigate('/')}
           className="inline-flex items-center text-gray-400 hover:text-white transition-colors"
         >
           <ArrowLeft className="w-5 h-5 mr-2" />
-          Back to Role Selection
+          Back to Home
         </button>
       </div>
 
@@ -63,14 +63,6 @@ const CoachSignIn = () => {
                   Sign in with your Google account to access your dashboard and manage your athletes.
                 </p>
                 
-                <div className="max-w-xs mx-auto">
-                  <img 
-                    src="https://images.unsplash.com/photo-1544216717-3bbf52512659?auto=format&fit=crop&w=400&q=80" 
-                    alt="Coach instructing athlete" 
-                    className="w-full h-48 object-cover rounded-lg mb-8 opacity-80"
-                  />
-                </div>
-
                 <button
                   onClick={handleCoachSignIn}
                   className="w-full bg-white text-black hover:bg-purple-600 hover:text-white font-bold py-4 px-6 rounded-lg transition-all duration-300 flex items-center justify-center"

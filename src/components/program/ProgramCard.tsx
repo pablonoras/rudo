@@ -1,27 +1,31 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
 import {
-  Calendar,
-  Users,
-  MoreVertical,
-  Archive,
-  Eye,
-  Edit2,
-  Trash2,
-  CheckCircle,
+    Archive,
+    Calendar,
+    CheckCircle,
+    Edit2,
+    Eye,
+    MoreVertical,
+    RefreshCw,
+    Trash2,
+    UserMinus,
+    Users
 } from 'lucide-react';
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import type { Program, ProgramStatus } from '../../lib/workout';
 
 interface ProgramCardProps {
   program: Program;
   onStatusChange: (status: ProgramStatus) => void;
   onDelete: () => void;
+  onEdit?: () => void;
+  onManageAssignments?: () => void;
 }
 
-export function ProgramCard({ program, onStatusChange, onDelete }: ProgramCardProps) {
+export function ProgramCard({ program, onStatusChange, onDelete, onEdit, onManageAssignments }: ProgramCardProps) {
   const [showMenu, setShowMenu] = useState(false);
-
+  
   const getStatusColor = (status: ProgramStatus) => {
     const colors = {
       draft: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
@@ -65,6 +69,30 @@ export function ProgramCard({ program, onStatusChange, onDelete }: ProgramCardPr
             {showMenu && (
               <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 z-10">
                 <div className="py-1">
+                  {onEdit && (
+                    <button
+                      onClick={() => {
+                        onEdit();
+                        setShowMenu(false);
+                      }}
+                      className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 w-full text-left"
+                    >
+                      <Edit2 className="h-4 w-4 mr-2" />
+                      Edit Program
+                    </button>
+                  )}
+                  {onManageAssignments && (
+                    <button
+                      onClick={() => {
+                        onManageAssignments();
+                        setShowMenu(false);
+                      }}
+                      className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 w-full text-left"
+                    >
+                      <UserMinus className="h-4 w-4 mr-2" />
+                      Manage Assignments
+                    </button>
+                  )}
                   {program.status === 'draft' && (
                     <button
                       onClick={() => {
@@ -87,6 +115,18 @@ export function ProgramCard({ program, onStatusChange, onDelete }: ProgramCardPr
                     >
                       <Archive className="h-4 w-4 mr-2" />
                       Archive Program
+                    </button>
+                  )}
+                  {program.status === 'archived' && (
+                    <button
+                      onClick={() => {
+                        onStatusChange('draft');
+                        setShowMenu(false);
+                      }}
+                      className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 w-full text-left"
+                    >
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Revert to Draft
                     </button>
                   )}
                   <Link
@@ -124,8 +164,7 @@ export function ProgramCard({ program, onStatusChange, onDelete }: ProgramCardPr
           <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
             <Users className="h-4 w-4 mr-1" />
             <span>
-              {program.assignedTo.athletes.length + program.assignedTo.teams.length}{' '}
-              assigned
+              {program.assignedTo.athletes.length} assigned
             </span>
           </div>
         </div>

@@ -1,24 +1,18 @@
-import { useState } from 'react';
-import { X, Upload, UserPlus, AlertCircle } from 'lucide-react';
+import { UserPlus, X } from 'lucide-react';
 import { ManualAthleteForm } from './ManualAthleteForm';
-import { BulkImportForm } from './BulkImportForm';
 
 interface AddAthleteModalProps {
   onClose: () => void;
-  onAdd: (athletes: any[]) => void;
+  onAdd: () => void;
 }
 
-type AddMethod = 'manual' | 'bulk';
-
 export function AddAthleteModal({ onClose, onAdd }: AddAthleteModalProps) {
-  const [method, setMethod] = useState<AddMethod>('manual');
-
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl">
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-            Add Athletes
+            Add Athlete
           </h2>
           <button
             onClick={onClose}
@@ -29,71 +23,18 @@ export function AddAthleteModal({ onClose, onAdd }: AddAthleteModalProps) {
         </div>
 
         <div className="p-4">
-          <div className="grid grid-cols-2 gap-4 mb-6">
-            <button
-              onClick={() => setMethod('manual')}
-              className={`p-4 rounded-lg border-2 ${
-                method === 'manual'
-                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                  : 'border-gray-200 dark:border-gray-700'
-              }`}
-            >
-              <UserPlus
-                className={`h-6 w-6 mx-auto mb-2 ${
-                  method === 'manual'
-                    ? 'text-blue-500'
-                    : 'text-gray-400 dark:text-gray-500'
-                }`}
-              />
-              <div
-                className={`text-sm font-medium ${
-                  method === 'manual'
-                    ? 'text-blue-700 dark:text-blue-300'
-                    : 'text-gray-900 dark:text-gray-100'
-                }`}
-              >
-                Add Manually
-              </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                Add athletes one by one with detailed information
-              </p>
-            </button>
-
-            <button
-              onClick={() => setMethod('bulk')}
-              className={`p-4 rounded-lg border-2 ${
-                method === 'bulk'
-                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                  : 'border-gray-200 dark:border-gray-700'
-              }`}
-            >
-              <Upload
-                className={`h-6 w-6 mx-auto mb-2 ${
-                  method === 'bulk'
-                    ? 'text-blue-500'
-                    : 'text-gray-400 dark:text-gray-500'
-                }`}
-              />
-              <div
-                className={`text-sm font-medium ${
-                  method === 'bulk'
-                    ? 'text-blue-700 dark:text-blue-300'
-                    : 'text-gray-900 dark:text-gray-100'
-                }`}
-              >
-                Bulk Import
-              </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                Import multiple athletes using CSV/Excel
-              </p>
-            </button>
+          <div className="flex items-center mb-4">
+            <UserPlus className="h-5 w-5 text-blue-500 mr-2" />
+            <h3 className="text-sm font-medium text-blue-700 dark:text-blue-300">
+              Add New Athlete
+            </h3>
           </div>
+          
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            Add an athlete to your coaching roster. They will receive an invite email to join your platform.
+          </p>
 
-          {method === 'manual' ? (
-            <ManualAthleteForm onAdd={onAdd} onCancel={onClose} />
-          ) : (
-            <BulkImportForm onImport={onAdd} onCancel={onClose} />
-          )}
+          <ManualAthleteForm onAdd={onAdd} onCancel={onClose} />
         </div>
       </div>
     </div>

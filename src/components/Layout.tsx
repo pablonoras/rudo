@@ -1,7 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
-import { useState } from 'react';
-import { ThemeToggle } from './ThemeToggle';
 import { GlobalSearch } from './GlobalSearch';
+import { ThemeToggle } from './ThemeToggle';
 import { UserSettings } from './UserSettings';
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -9,8 +8,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const isCoach = location.pathname.startsWith('/coach');
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
-      <nav className="border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950">
+    <div className="min-h-screen bg-gradient-to-br from-gray-100 to-white dark:from-[#161616] dark:to-[#1A1A1A] text-gray-900 dark:text-white transition-colors">
+      <nav className="border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-[#1A1A1A]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center">

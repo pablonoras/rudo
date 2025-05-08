@@ -1,6 +1,6 @@
+import { differenceInDays, format } from 'date-fns';
+import { Calendar, Plus, Users } from 'lucide-react';
 import { useState } from 'react';
-import { format } from 'date-fns';
-import { Plus, Calendar, Users } from 'lucide-react';
 import { useWorkoutStore } from '../../lib/workout';
 
 export function ProgramSelector() {
@@ -10,14 +10,20 @@ export function ProgramSelector() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
-  const handleCreateProgram = (e: React.FormEvent) => {
+  const handleCreateProgram = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newProgramName || !startDate || !endDate) return;
 
-    createProgram({
+    // Compute number of weeks based on dates
+    const daysDiff = differenceInDays(new Date(endDate), new Date(startDate));
+    const weekCount = Math.ceil(daysDiff / 7);
+
+    await createProgram({
       name: newProgramName,
       startDate,
       endDate,
+      status: 'draft',
+      weekCount,
       days: {},
       assignedTo: { athletes: [], teams: [] },
     });

@@ -1,8 +1,8 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
-import { Session, WorkoutBlock } from '../lib/workout';
+import { createContext, ReactNode, useContext, useState } from 'react';
 import { SessionForm } from '../components/session/SessionForm';
-import { WorkoutForm } from '../components/workout/WorkoutForm';
 import { BlockEditor } from '../components/workout/BlockEditor';
+import { WorkoutForm } from '../components/workout/WorkoutForm';
+import { Session, WorkoutBlock } from '../lib/workout';
 
 type ModalContextType = {
   showSessionForm: (props: SessionFormProps) => void;
@@ -59,18 +59,30 @@ export function ModalProvider({ children }: { children: ReactNode }) {
         <SessionForm
           {...currentModal.props}
           onClose={closeModal}
+          onSave={(data) => {
+            currentModal.props.onSave(data);
+            closeModal();
+          }}
         />
       )}
       {currentModal?.type === 'workout' && (
         <WorkoutForm
           {...currentModal.props}
           onClose={closeModal}
+          onSave={(data) => {
+            currentModal.props.onSave(data);
+            closeModal();
+          }}
         />
       )}
       {currentModal?.type === 'block' && (
         <BlockEditor
           {...currentModal.props}
           onClose={closeModal}
+          onSave={(block) => {
+            currentModal.props.onSave(block);
+            closeModal();
+          }}
         />
       )}
     </ModalContext.Provider>

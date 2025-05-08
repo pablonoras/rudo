@@ -14,10 +14,14 @@
     --foreground: 210 40% 98%;
     --border: 217.2 32.6% 17.5%;
   }
+  
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
 }
 
-@layer base {
-  body {
-    @apply bg-background text-foreground;
+@layer utilities {
+  .text-shadow {
+    text-shadow: 0 2px 4px rgba(0,0,0,0.1);
   }
 }

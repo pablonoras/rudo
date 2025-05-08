@@ -1,49 +1,36 @@
-import { useState } from 'react';
-import { X, Clock } from 'lucide-react';
-import type { SessionType } from '../../lib/workout';
+import { X } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 interface SessionFormProps {
   onClose: () => void;
   onSave: (session: {
     name: string;
-    type: SessionType;
-    duration: number;
-    startTime?: string;
+    description?: string;
   }) => void;
   title: string;
   initialData?: {
     name: string;
-    type: SessionType;
-    duration: number;
-    startTime?: string;
+    description?: string;
   };
 }
 
 export function SessionForm({ onClose, onSave, title, initialData }: SessionFormProps) {
   const [name, setName] = useState(initialData?.name || '');
-  const [type, setType] = useState<SessionType>(initialData?.type || 'CrossFit');
-  const [duration, setDuration] = useState(initialData?.duration || 60);
-  const [startTime, setStartTime] = useState(initialData?.startTime || '');
-  const [isCustom, setIsCustom] = useState(false);
-  const [customType, setCustomType] = useState('');
+  const [description, setDescription] = useState(initialData?.description || '');
+
+  useEffect(() => {
+    if (initialData) {
+      setName(initialData.name || '');
+      setDescription(initialData.description || '');
+    }
+  }, [initialData]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave({
       name,
-      type: isCustom ? customType as SessionType : type,
-      duration,
-      startTime: startTime || undefined,
+      description: description || undefined,
     });
-  };
-
-  const handleTypeChange = (selectedType: string) => {
-    if (selectedType === 'Custom') {
-      setIsCustom(true);
-    } else {
-      setIsCustom(false);
-      setType(selectedType as SessionType);
-    }
   };
 
   return (
@@ -71,74 +58,22 @@ export function SessionForm({ onClose, onSave, title, initialData }: SessionForm
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-100 sm:text-sm px-3 py-2"
-              placeholder="e.g., Morning CrossFit"
+              placeholder="e.g., Morning Workout"
               required
             />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Session Type
+              Description
             </label>
-            <select
-              value={isCustom ? 'Custom' : type}
-              onChange={(e) => handleTypeChange(e.target.value)}
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={3}
               className="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-100 sm:text-sm px-3 py-2"
-            >
-              <option value="CrossFit">CrossFit</option>
-              <option value="Olympic Weightlifting">Olympic Weightlifting</option>
-              <option value="Powerlifting">Powerlifting</option>
-              <option value="Endurance">Endurance</option>
-              <option value="Gymnastics">Gymnastics</option>
-              <option value="Recovery">Recovery</option>
-              <option value="Competition Prep">Competition Prep</option>
-              <option value="Skills & Drills">Skills & Drills</option>
-              <option value="Custom">Custom</option>
-            </select>
-          </div>
-
-          {isCustom && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Custom Type
-              </label>
-              <input
-                type="text"
-                value={customType}
-                onChange={(e) => setCustomType(e.target.value)}
-                className="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-100 sm:text-sm px-3 py-2"
-                placeholder="Enter custom session type"
-                required={isCustom}
-              />
-            </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Duration (minutes)
-              </label>
-              <input
-                type="number"
-                value={duration}
-                onChange={(e) => setDuration(parseInt(e.target.value))}
-                min="15"
-                step="15"
-                className="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-100 sm:text-sm px-3 py-2"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Start Time (optional)
-              </label>
-              <input
-                type="time"
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-                className="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-100 sm:text-sm px-3 py-2"
-              />
-            </div>
+              placeholder="Session description (optional)"
+            />
           </div>
 
           <div className="flex justify-end space-x-3 pt-4">
