@@ -2,7 +2,12 @@
  * src/pages/coach/Dashboard.tsx
  * 
  * This file contains the actual Coach Dashboard that will display real data from Supabase.
- * Currently shows an empty state that will be populated as the user adds programs and athletes.
+ * Added invitation code management functionality that allows coaches to:
+ * - View their unique invitation link
+ * - Copy the link to clipboard
+ * - Regenerate a new code (invalidating old links)
+ * - Disable the invitation code
+ * - Manually edit the code
  */
 
 import { format, parseISO } from 'date-fns';
@@ -10,14 +15,22 @@ import {
     Calendar,
     ChevronRight,
     Clock,
+    Copy,
+    Edit,
     FilePlus,
-    Plus,
+    Link,
+    Loader2,
     PlusCircle,
+    RefreshCw,
+    Shield,
+    ShieldOff,
+    User,
     UserPlus,
     Users,
+    X
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link as RouterLink } from 'react-router-dom';
 import { useProfile } from '../../contexts/ProfileContext';
 import { supabase } from '../../lib/supabase';
 import { useWorkoutStore } from '../../lib/workout';
@@ -32,10 +45,17 @@ interface Athlete {
 }
 
 export function CoachDashboard() {
-  const { profile } = useProfile();
+  const { profile, refreshProfile } = useProfile();
   const { programs, fetchPrograms } = useWorkoutStore();
   const [athletes, setAthletes] = useState<Athlete[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Invite code related states
+  const [isEditingCode, setIsEditingCode] = useState(false);
+  const [newInviteCode, setNewInviteCode] = useState('');
+  const [inviteCodeAction, setInviteCodeAction] = useState<'idle' | 'generating' | 'saving' | 'disabling'>('idle');
+  const [copySuccess, setCopySuccess] = useState(false);
+  const [inviteCodeError, setInviteCodeError] = useState<string | null>(null);
 
   // Get greeting based on time of day
   const getGreeting = () => {
@@ -47,6 +67,154 @@ export function CoachDashboard() {
 
   // Get coach name from profile
   const coachName = profile?.full_name || 'Coach';
+  
+  // Generate the invite link
+  const getInviteLink = () => {
+    if (!profile?.invite_code) return '';
+    return `${window.location.origin}/athlete-signup?code=${profile.invite_code}`;
+  };
+  
+  // Copy the invite link to clipboard
+  const copyInviteLink = async () => {
+    const link = getInviteLink();
+    if (!link) return;
+    
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy link', err);
+    }
+  };
+  
+  // Generate a random invite code (lowercase alphanumeric, 10 chars)
+  const generateRandomCode = () => {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let result = '';
+    for (let i = 0; i < 10; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  };
+  
+  // Regenerate a new invite code
+  const regenerateInviteCode = async () => {
+    if (!profile) return;
+    
+    try {
+      setInviteCodeAction('generating');
+      setInviteCodeError(null);
+      
+      // Generate a new random code client-side
+      const newCode = generateRandomCode();
+      
+      const { error } = await supabase
+        .from('profiles')
+        .update({ invite_code: newCode })
+        .eq('id', profile.id);
+      
+      if (error) {
+        // Handle unique constraint violation
+        if (error.code === '23505') {
+          // Try again with a different random code
+          setTimeout(() => regenerateInviteCode(), 100);
+          return;
+        }
+        throw error;
+      }
+      
+      // Refresh the profile to get the new code
+      await refreshProfile();
+    } catch (err) {
+      console.error('Error regenerating invite code:', err);
+      setInviteCodeError('Failed to regenerate code. Please try again.');
+    } finally {
+      setInviteCodeAction('idle');
+    }
+  };
+  
+  // Disable the invite code
+  const disableInviteCode = async () => {
+    if (!profile) return;
+    
+    try {
+      setInviteCodeAction('disabling');
+      setInviteCodeError(null);
+      
+      const { error } = await supabase
+        .from('profiles')
+        .update({ invite_code: null })
+        .eq('id', profile.id);
+      
+      if (error) throw error;
+      
+      // Refresh the profile
+      await refreshProfile();
+    } catch (err) {
+      console.error('Error disabling invite code:', err);
+      setInviteCodeError('Failed to disable code. Please try again.');
+    } finally {
+      setInviteCodeAction('idle');
+    }
+  };
+  
+  // Save a custom invite code
+  const saveInviteCode = async () => {
+    if (!profile || !newInviteCode.trim()) return;
+    
+    // Validate the invite code format - lowercase, no spaces
+    const cleanCode = newInviteCode.trim().toLowerCase();
+    if (!/^[a-z0-9]+$/.test(cleanCode)) {
+      setInviteCodeError('Code must contain only lowercase letters and numbers without spaces.');
+      return;
+    }
+    
+    try {
+      setInviteCodeAction('saving');
+      setInviteCodeError(null);
+      
+      const { error } = await supabase
+        .from('profiles')
+        .update({ invite_code: cleanCode })
+        .eq('id', profile.id);
+      
+      if (error) {
+        // Check for unique constraint violation
+        if (error.code === '23505') {
+          setInviteCodeError('This code is already in use. Please choose a different one.');
+          return;
+        }
+        throw error;
+      }
+      
+      // Refresh the profile and exit edit mode
+      await refreshProfile();
+      setIsEditingCode(false);
+      setNewInviteCode('');
+    } catch (err) {
+      console.error('Error saving invite code:', err);
+      setInviteCodeError('Failed to save code. Please try again.');
+    } finally {
+      setInviteCodeAction('idle');
+    }
+  };
+  
+  // Handle starting code edit
+  const startEditingCode = () => {
+    if (profile?.invite_code) {
+      setNewInviteCode(profile.invite_code);
+    }
+    setIsEditingCode(true);
+    setInviteCodeError(null);
+  };
+  
+  // Cancel code editing
+  const cancelEditingCode = () => {
+    setIsEditingCode(false);
+    setNewInviteCode('');
+    setInviteCodeError(null);
+  };
   
   // Fetch athletes assigned to this coach
   const fetchAthletes = async () => {
@@ -150,11 +318,150 @@ export function CoachDashboard() {
         </p>
       </div>
 
+      {/* Invitation Code */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Athlete Invitation</h2>
+        
+        {inviteCodeError && (
+          <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200 rounded-md text-sm">
+            {inviteCodeError}
+          </div>
+        )}
+        
+        {isEditingCode ? (
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="inviteCode" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Custom Invitation Code
+              </label>
+              <div className="flex items-center space-x-2">
+                <input
+                  id="inviteCode"
+                  type="text"
+                  value={newInviteCode}
+                  onChange={(e) => setNewInviteCode(e.target.value.toLowerCase().replace(/\s/g, ''))}
+                  className="flex-1 rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                  placeholder="Enter custom code"
+                  disabled={inviteCodeAction !== 'idle'}
+                />
+                <button
+                  onClick={saveInviteCode}
+                  disabled={inviteCodeAction !== 'idle' || !newInviteCode.trim()}
+                  className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {inviteCodeAction === 'saving' ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    'Save'
+                  )}
+                </button>
+                <button
+                  onClick={cancelEditingCode}
+                  disabled={inviteCodeAction !== 'idle'}
+                  className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md shadow-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                Use lowercase letters and numbers only. This code will be part of your invite link.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {profile?.invite_code ? (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Your Invitation Link
+                  </label>
+                  <div className="flex items-center">
+                    <div className="flex-1 bg-gray-50 dark:bg-gray-700 rounded-l-md border border-r-0 border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 overflow-hidden overflow-ellipsis whitespace-nowrap">
+                      {getInviteLink()}
+                    </div>
+                    <button
+                      onClick={copyInviteLink}
+                      className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-r-md shadow-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    >
+                      {copySuccess ? (
+                        <span className="text-green-600 dark:text-green-400">Copied!</span>
+                      ) : (
+                        <Copy className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Share this link with your athletes to invite them to join your team.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={startEditingCode}
+                    disabled={inviteCodeAction !== 'idle'}
+                    className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 text-xs font-medium rounded-md shadow-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  >
+                    <Edit className="h-3 w-3 mr-1" />
+                    Edit Code
+                  </button>
+                  <button
+                    onClick={regenerateInviteCode}
+                    disabled={inviteCodeAction !== 'idle'}
+                    className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 text-xs font-medium rounded-md shadow-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  >
+                    {inviteCodeAction === 'generating' ? (
+                      <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                    ) : (
+                      <RefreshCw className="h-3 w-3 mr-1" />
+                    )}
+                    Regenerate Code
+                  </button>
+                  <button
+                    onClick={disableInviteCode}
+                    disabled={inviteCodeAction !== 'idle'}
+                    className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 text-xs font-medium rounded-md shadow-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  >
+                    {inviteCodeAction === 'disabling' ? (
+                      <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                    ) : (
+                      <ShieldOff className="h-3 w-3 mr-1" />
+                    )}
+                    Disable Code
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-4">
+                <Shield className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                <p className="text-gray-700 dark:text-gray-300 mb-4">No active invitation code</p>
+                <button
+                  onClick={regenerateInviteCode}
+                  disabled={inviteCodeAction !== 'idle'}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  {inviteCodeAction === 'generating' ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Link className="h-4 w-4 mr-2" />
+                      Generate Invite Code
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* Quick Actions */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
         <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Link
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <RouterLink
             to="/coach/programs"
             className="flex items-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
           >
@@ -163,17 +470,27 @@ export function CoachDashboard() {
               <h3 className="font-medium text-gray-900 dark:text-gray-100">Create Program</h3>
               <p className="text-sm text-gray-500 dark:text-gray-400">Build workout templates</p>
             </div>
-          </Link>
-          <Link
+          </RouterLink>
+          <RouterLink
             to="/coach/athletes"
             className="flex items-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors"
           >
             <UserPlus className="h-6 w-6 text-green-600 dark:text-green-400 mr-3" />
             <div>
-              <h3 className="font-medium text-gray-900 dark:text-gray-100">Add Athletes</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Invite people to join</p>
+              <h3 className="font-medium text-gray-900 dark:text-gray-100">Manage Athletes</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">View and approve athletes</p>
             </div>
-          </Link>
+          </RouterLink>
+          <RouterLink
+            to="/coach/account"
+            className="flex items-center p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors"
+          >
+            <User className="h-6 w-6 text-purple-600 dark:text-purple-400 mr-3" />
+            <div>
+              <h3 className="font-medium text-gray-900 dark:text-gray-100">Account Settings</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Manage your profile</p>
+            </div>
+          </RouterLink>
         </div>
       </div>
 
@@ -184,13 +501,13 @@ export function CoachDashboard() {
             <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">
               Your Programs
             </h2>
-            <Link
+            <RouterLink
               to="/coach/programs"
               className="flex items-center text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300"
             >
               <PlusCircle className="h-4 w-4 mr-1" />
               New Program
-            </Link>
+            </RouterLink>
           </div>
         </div>
         
@@ -201,7 +518,7 @@ export function CoachDashboard() {
         ) : programList.length > 0 ? (
           <div className="divide-y divide-gray-200 dark:divide-gray-700">
             {programList.map((program) => (
-              <Link
+              <RouterLink
                 key={program.id}
                 to={`/coach/program/${program.id}`}
                 className="block px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/50"
@@ -228,15 +545,15 @@ export function CoachDashboard() {
                     <ChevronRight className="h-5 w-5 text-gray-400" />
                   </div>
                 </div>
-              </Link>
+              </RouterLink>
             ))}
             {programList.length < Object.values(programs).length && (
-              <Link 
+              <RouterLink 
                 to="/coach/programs"
                 className="block px-6 py-3 text-center text-sm text-blue-600 dark:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-700/50"
               >
                 View all programs
-              </Link>
+              </RouterLink>
             )}
           </div>
         ) : (
@@ -246,93 +563,13 @@ export function CoachDashboard() {
             <p className="text-gray-500 dark:text-gray-400 max-w-md mb-6">
               Create your first workout program to start assigning to your athletes and teams.
             </p>
-            <Link
+            <RouterLink
               to="/coach/programs"
               className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800"
             >
-              <Plus className="h-4 w-4 mr-2" />
+              <PlusCircle className="h-4 w-4 mr-2" />
               Create Program
-            </Link>
-          </div>
-        )}
-      </div>
-
-      {/* Athletes */}
-      <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">
-              Your Athletes
-            </h2>
-            <Link
-              to="/coach/athletes"
-              className="flex items-center text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300"
-            >
-              <PlusCircle className="h-4 w-4 mr-1" />
-              Add Athletes
-            </Link>
-          </div>
-        </div>
-        
-        {loading ? (
-          <div className="p-6 text-center">
-            <p className="text-gray-500 dark:text-gray-400">Loading athletes...</p>
-          </div>
-        ) : athletes.length > 0 ? (
-          <div className="divide-y divide-gray-200 dark:divide-gray-700">
-            {athletes.slice(0, 5).map((athlete) => (
-              <Link
-                key={athlete.id}
-                to={`/coach/athletes/${athlete.id}`}
-                className="block px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/50"
-              >
-                <div className="flex items-center">
-                  <div className="flex-shrink-0 h-10 w-10">
-                    {athlete.avatar_url ? (
-                      <img
-                        className="h-10 w-10 rounded-full"
-                        src={athlete.avatar_url}
-                        alt={`${athlete.full_name}'s avatar`}
-                      />
-                    ) : (
-                      <div className="h-10 w-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-                        <Users className="h-5 w-5 text-gray-500 dark:text-gray-400" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="ml-4 flex-1">
-                    <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                      {athlete.full_name}
-                    </h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">{athlete.email}</p>
-                  </div>
-                  <ChevronRight className="h-5 w-5 text-gray-400" />
-                </div>
-              </Link>
-            ))}
-            {athletes.length > 5 && (
-              <Link 
-                to="/coach/athletes"
-                className="block px-6 py-3 text-center text-sm text-blue-600 dark:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-700/50"
-              >
-                View all athletes
-              </Link>
-            )}
-          </div>
-        ) : (
-          <div className="p-6 flex flex-col items-center justify-center text-center py-12">
-            <Users className="h-12 w-12 text-gray-400 dark:text-gray-500 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-1">No athletes yet</h3>
-            <p className="text-gray-500 dark:text-gray-400 max-w-md mb-6">
-              Add athletes to your roster to start assigning programs and tracking their progress.
-            </p>
-            <Link
-              to="/coach/athletes"
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 dark:focus:ring-offset-gray-800"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Athletes
-            </Link>
+            </RouterLink>
           </div>
         )}
       </div>

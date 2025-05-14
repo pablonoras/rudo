@@ -1,12 +1,12 @@
 import {
-  ChevronDown,
-  Dumbbell,
-  MessageSquare,
-  Trophy,
-  User,
-  UserCog,
-  Users,
-  X
+    ChevronDown,
+    Dumbbell,
+    MessageSquare,
+    Trophy,
+    User,
+    UserCog,
+    Users,
+    X
 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
