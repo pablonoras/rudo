@@ -2,17 +2,14 @@
  * src/pages/athlete/Dashboard.tsx
  * 
  * Athlete Dashboard main page showing workouts and program information.
- * Updated to include a link to the Find a Coach page and display current coach status.
- * Fixed to properly detect and display active coach connections.
- * Fixed the Supabase query to correctly join coach_athletes and profiles tables.
- * Added support for managing multiple coaches and unsubscribing from coaches.
- * Fixed unsubscribe functionality with improved error handling.
+ * Updated to remove find-coach functionality and display pending coach approval message.
+ * Athletes now join coaches exclusively through invitation links.
  */
 
-import { addDays, format, isToday, parseISO, subDays } from 'date-fns';
-import { Calendar, CheckCircle, ChevronLeft, ChevronRight, ExternalLink, MoreHorizontal, PlusCircle, Users, X } from 'lucide-react';
+import { addDays, format, isToday, subDays } from 'date-fns';
+import { Calendar, CheckCircle, ChevronLeft, ChevronRight, ClockIcon, MoreHorizontal, User, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link as RouterLink } from 'react-router-dom';
 import { useProfile } from '../../contexts/ProfileContext';
 import { supabase } from '../../lib/supabase';
 import { useWorkoutStore } from '../../lib/workout';
@@ -84,6 +81,10 @@ export function AthleteDashboard() {
   const [unsubscribingCoach, setUnsubscribingCoach] = useState<string | null>(null);
   const [showCoachActions, setShowCoachActions] = useState<{[key: string]: boolean}>({});
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  
+  // Pending coach invitation state
+  const [pendingCoachName, setPendingCoachName] = useState<string | null>(null);
+  const [hasPendingInvite, setHasPendingInvite] = useState(false);
 
   // Mock assigned program for demonstration
   const assignedProgram = Object.values(programs)[0];
@@ -119,6 +120,56 @@ export function AthleteDashboard() {
       
       console.log('Coach connections data:', data);
       setCoachConnections(data || []);
+      
+      // Check if we have a pending coach invitation from localStorage
+      const storedCoachName = localStorage.getItem('pendingCoachName');
+      const hasPendingStatus = localStorage.getItem('pendingJoinStatus') === 'true';
+      const pendingCoachId = localStorage.getItem('pendingCoachId');
+      
+      console.log('Pending coach data from localStorage:', { 
+        storedCoachName, 
+        hasPendingStatus, 
+        pendingCoachId 
+      });
+      
+      // Only show the pending message if we don't already have this coach in our connections
+      if (storedCoachName && hasPendingStatus && pendingCoachId) {
+        // Check if this coach relationship is now active or no longer pending
+        const coachRelationship = data?.find(conn => 
+          conn.coach_id === pendingCoachId
+        );
+        
+        console.log('Found coach relationship:', coachRelationship);
+        
+        if (coachRelationship) {
+          if (coachRelationship.status === 'active') {
+            // Coach has approved the request, clear localStorage
+            console.log('Coach has approved the request, clearing localStorage');
+            localStorage.removeItem('pendingCoachName');
+            localStorage.removeItem('pendingCoachId');
+            localStorage.removeItem('pendingJoinStatus');
+            setHasPendingInvite(false);
+            setPendingCoachName(null);
+          } else if (coachRelationship.status === 'pending') {
+            // Still pending, show the message
+            setPendingCoachName(storedCoachName);
+            setHasPendingInvite(true);
+          } else {
+            // Status is something else (declined, etc.), clear localStorage
+            localStorage.removeItem('pendingCoachName');
+            localStorage.removeItem('pendingCoachId');
+            localStorage.removeItem('pendingJoinStatus');
+            setHasPendingInvite(false);
+            setPendingCoachName(null);
+          }
+        } else {
+          // Coach relationship not found in database but exists in localStorage
+          // This could happen if the relationship was deleted or if the localStorage is stale
+          // Show the message anyway, it will be cleared on next refresh if not valid
+          setPendingCoachName(storedCoachName);
+          setHasPendingInvite(true);
+        }
+      }
     } catch (err) {
       console.error('Error fetching coach connections:', err);
     } finally {
@@ -133,6 +184,19 @@ export function AthleteDashboard() {
     }
   }, [profile]);
 
+  // Add a useEffect to check localStorage when component mounts
+  useEffect(() => {
+    // Check if we have a pending coach invitation from localStorage
+    const storedCoachName = localStorage.getItem('pendingCoachName');
+    const hasPendingStatus = localStorage.getItem('pendingJoinStatus') === 'true';
+    
+    if (storedCoachName && hasPendingStatus) {
+      setPendingCoachName(storedCoachName);
+      setHasPendingInvite(true);
+      console.log('Found pending coach invitation in localStorage:', storedCoachName);
+    }
+  }, []); // Empty dependency array means this runs once on mount
+
   const dateStr = format(selectedDate, 'yyyy-MM-dd');
   const dayWorkouts = assignedProgram?.days[dateStr]?.workouts || [];
   
@@ -141,7 +205,7 @@ export function AthleteDashboard() {
   const pendingCoaches = coachConnections.filter(conn => conn.status === 'pending');
   
   const hasActiveCoach = activeCoaches.length > 0;
-  const hasPendingRequest = pendingCoaches.length > 0;
+  const hasPendingRequest = pendingCoaches.length > 0 || hasPendingInvite;
   
   const toggleCoachActions = (coachId: string) => {
     setShowCoachActions(prev => ({
@@ -157,19 +221,6 @@ export function AthleteDashboard() {
     try {
       setUnsubscribingCoach(connectionId);
       console.log(`Attempting to unsubscribe from coach with connection ID: ${connectionId}`);
-      
-      // Get connection details first for logging
-      const { data: connection, error: getError } = await supabase
-        .from('coach_athletes')
-        .select('*')
-        .eq('id', connectionId)
-        .single();
-        
-      if (getError) {
-        console.error('Error getting coach connection details:', getError);
-      } else {
-        console.log('Connection details before update:', connection);
-      }
       
       // Update the coach_athletes record to set status to 'inactive'
       const { data, error } = await supabase
@@ -202,278 +253,210 @@ export function AthleteDashboard() {
     }
   };
 
+  // Update the cleanup effect to not clear localStorage immediately
+  useEffect(() => {
+    // Don't clear localStorage values automatically
+    // We'll let the coach approval process handle this
+    // This ensures the message persists across page refreshes
+  }, [hasPendingInvite, pendingCoachName]);
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-          {isToday(selectedDate) ? "Today's Workouts" : format(selectedDate, 'MMMM d, yyyy')}
+          {isToday(selectedDate) ? 'Today\'s Workouts' : format(selectedDate, 'MMMM d, yyyy')}
         </h1>
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={() => navigateDay('prev')}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full"
+        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+          Your scheduled training for the day.
+        </p>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Quick Actions</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-1 gap-4">
+          <RouterLink
+            to="/athlete/account"
+            className="flex items-center p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors"
           >
-            <ChevronLeft className="h-5 w-5" />
-          </button>
-          <button
-            onClick={() => setSelectedDate(new Date())}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full"
-            title="Go to today"
-          >
-            <Calendar className="h-5 w-5" />
-          </button>
-          <button
-            onClick={() => navigateDay('next')}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full"
-          >
-            <ChevronRight className="h-5 w-5" />
-          </button>
+            <User className="h-6 w-6 text-purple-600 dark:text-purple-400 mr-3" />
+            <div>
+              <h3 className="font-medium text-gray-900 dark:text-gray-100">Account Settings</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Manage your profile</p>
+            </div>
+          </RouterLink>
         </div>
       </div>
 
-      {/* Coach Connection Card */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center">
-            <Users className="h-5 w-5 text-purple-500 mr-2" />
-            <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">
-              My Coaches
-            </h2>
+      {/* Pending Coach Invitation Message */}
+      {hasPendingInvite && pendingCoachName && (
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <ClockIcon className="h-5 w-5 text-blue-400" aria-hidden="true" />
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-blue-800 dark:text-blue-300">
+                Waiting for coach approval
+              </h3>
+              <div className="mt-2 text-sm text-blue-700 dark:text-blue-400">
+                <p>
+                  You've joined <strong>{pendingCoachName}</strong>. Waiting for coach approval.
+                </p>
+              </div>
+            </div>
           </div>
-          {hasActiveCoach && (
-            <Link
-              to="/athlete/find-coach"
-              className="inline-flex items-center text-sm font-medium text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-300 p-1 rounded-md hover:bg-purple-50 dark:hover:bg-purple-900/20"
-              title="Add another coach"
-            >
-              <PlusCircle className="h-4 w-4 mr-1" />
-              Add Coach
-            </Link>
-          )}
         </div>
-        
-        {errorMessage && (
-          <div className="mt-2 p-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm rounded border border-red-200 dark:border-red-800">
-            {errorMessage}
-          </div>
-        )}
+      )}
+
+      {/* Coach Connections Section */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">Your Coaches</h2>
+        </div>
         
         {isLoadingCoach ? (
-          <p className="mt-2 text-gray-500 dark:text-gray-400">Loading coach information...</p>
-        ) : hasActiveCoach ? (
-          <div className="mt-3 space-y-3">
-            {activeCoaches.map(conn => (
-              <div key={conn.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 group">
-                <div className="flex items-center">
-                  {conn.coach?.avatar_url ? (
-                    <img 
-                      src={conn.coach.avatar_url} 
-                      alt={conn.coach.full_name} 
-                      className="w-10 h-10 rounded-full mr-3"
-                    />
-                  ) : (
-                    <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center mr-3">
-                      <span className="text-purple-600 font-semibold">
-                        {conn.coach?.full_name.substring(0, 1)}
-                      </span>
-                    </div>
-                  )}
-                  <div>
-                    <p className="font-medium text-gray-900 dark:text-gray-100">
-                      {conn.coach?.full_name}
-                    </p>
-                    <p className="text-sm text-green-600 dark:text-green-400">
-                      Active Coach
-                    </p>
-                  </div>
-                </div>
-                
-                {/* Menu for coach actions */}
-                <div className="relative">
-                  <button 
-                    onClick={() => toggleCoachActions(conn.id)}
-                    className="p-2 opacity-0 group-hover:opacity-100 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-opacity"
-                  >
-                    <MoreHorizontal className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-                  </button>
-                  
-                  {showCoachActions[conn.id] && (
-                    <div className="absolute right-0 mt-1 w-48 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 p-1 z-10">
-                      <button
-                        onClick={() => unsubscribeFromCoach(conn.id)}
-                        disabled={unsubscribingCoach === conn.id}
-                        className="w-full text-left px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md flex items-center"
-                      >
-                        {unsubscribingCoach === conn.id ? (
-                          <span className="flex items-center">
-                            <div className="h-3 w-3 mr-2 rounded-full border-2 border-t-transparent border-red-400 animate-spin"></div>
-                            Unsubscribing...
-                          </span>
-                        ) : (
-                          <>
-                            <X className="h-3.5 w-3.5 mr-2" />
-                            Unsubscribe
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-            
-            {pendingCoaches.length > 0 && (
-              <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Pending Requests</h3>
-                {pendingCoaches.map(conn => (
-                  <div key={conn.id} className="flex items-center mt-2 bg-gray-50 dark:bg-gray-700/50 p-2 rounded">
-                    <div className="w-8 h-8 bg-yellow-100 dark:bg-yellow-900/30 rounded-full flex items-center justify-center mr-2">
-                      <span className="text-yellow-600 dark:text-yellow-400 font-semibold">
-                        {conn.coach?.full_name.substring(0, 1)}
-                      </span>
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-900 dark:text-gray-100">
-                        {conn.coach?.full_name}
-                      </p>
-                      <p className="text-xs text-yellow-600 dark:text-yellow-400">
-                        Request Pending
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => unsubscribeFromCoach(conn.id)}
-                      disabled={unsubscribingCoach === conn.id}
-                      className="p-1 text-gray-400 hover:text-red-500 rounded"
-                      title="Cancel request"
-                    >
-                      {unsubscribingCoach === conn.id ? (
-                        <div className="h-4 w-4 rounded-full border-2 border-t-transparent border-gray-400 animate-spin"></div>
-                      ) : (
-                        <X className="h-4 w-4" />
-                      )}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-            
-            <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
-              <Link
-                to="/athlete/find-coach"
-                className="inline-flex items-center text-sm font-medium text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-300"
-              >
-                Find More Coaches
-                <ExternalLink className="ml-1 h-3 w-3" />
-              </Link>
-            </div>
-          </div>
-        ) : hasPendingRequest ? (
-          <div className="mt-3">
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              You have pending coach requests. Coaches will review your requests and accept them soon.
-            </p>
-            <div className="mt-2">
-              {pendingCoaches.map(conn => (
-                <div key={conn.id} className="flex items-center mt-2 bg-gray-50 dark:bg-gray-700/50 p-2 rounded">
-                  <div className="w-8 h-8 bg-yellow-100 dark:bg-yellow-900/30 rounded-full flex items-center justify-center mr-2">
-                    <span className="text-yellow-600 dark:text-yellow-400 font-semibold">
-                      {conn.coach?.full_name.substring(0, 1)}
-                    </span>
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-medium text-gray-900 dark:text-gray-100">
-                      {conn.coach?.full_name}
-                    </p>
-                    <p className="text-xs text-yellow-600 dark:text-yellow-400">
-                      Request Pending
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => unsubscribeFromCoach(conn.id)}
-                    disabled={unsubscribingCoach === conn.id}
-                    className="p-1 text-gray-400 hover:text-red-500 rounded"
-                    title="Cancel request"
-                  >
-                    {unsubscribingCoach === conn.id ? (
-                      <div className="h-4 w-4 rounded-full border-2 border-t-transparent border-gray-400 animate-spin"></div>
-                    ) : (
-                      <X className="h-4 w-4" />
-                    )}
-                  </button>
-                </div>
-              ))}
-            </div>
-            <div className="mt-4">
-              <Link
-                to="/athlete/find-coach"
-                className="inline-flex items-center text-sm font-medium text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-300"
-              >
-                Find More Coaches
-                <ExternalLink className="ml-1 h-3 w-3" />
-              </Link>
-            </div>
+          <div className="p-6 text-center">
+            <p className="text-gray-500 dark:text-gray-400">Loading coach information...</p>
           </div>
         ) : (
-          <div className="mt-3">
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-              You are not connected with any coach yet. Find a coach to get personalized workouts and tracking.
-            </p>
-            <Link 
-              to="/athlete/find-coach" 
-              className="inline-flex items-center text-sm font-medium text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-300"
-            >
-              Find a Coach
-              <ExternalLink className="ml-1 h-4 w-4" />
-            </Link>
+          <div className="divide-y divide-gray-200 dark:divide-gray-700">
+            {activeCoaches.length > 0 ? (
+              activeCoaches.map(connection => (
+                <div key={connection.id} className="p-4 flex items-center justify-between">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0 h-10 w-10">
+                      {connection.coach.avatar_url ? (
+                        <img
+                          className="h-10 w-10 rounded-full"
+                          src={connection.coach.avatar_url}
+                          alt={`${connection.coach.full_name}'s avatar`}
+                        />
+                      ) : (
+                        <div className="h-10 w-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                          <Users className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="ml-4">
+                      <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                        {connection.coach.full_name}
+                      </h3>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                          Active
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="relative">
+                    <button
+                      onClick={() => toggleCoachActions(connection.id)}
+                      className="p-1 rounded-full text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
+                    >
+                      <MoreHorizontal className="h-5 w-5" />
+                    </button>
+                    
+                    {showCoachActions[connection.id] && (
+                      <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 z-10">
+                        <div className="py-1">
+                          <button
+                            onClick={() => unsubscribeFromCoach(connection.id)}
+                            disabled={unsubscribingCoach === connection.id}
+                            className="block w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                          >
+                            {unsubscribingCoach === connection.id ? 'Unsubscribing...' : 'Unsubscribe'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))
+            ) : pendingCoaches.length > 0 ? (
+              pendingCoaches.map(connection => (
+                <div key={connection.id} className="p-4 flex items-center justify-between">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0 h-10 w-10">
+                      {connection.coach.avatar_url ? (
+                        <img
+                          className="h-10 w-10 rounded-full"
+                          src={connection.coach.avatar_url}
+                          alt={`${connection.coach.full_name}'s avatar`}
+                        />
+                      ) : (
+                        <div className="h-10 w-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                          <Users className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="ml-4">
+                      <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                        {connection.coach.full_name}
+                      </h3>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                          Pending approval
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="p-6 text-center">
+                <p className="text-gray-500 dark:text-gray-400">
+                  You don't have any coaches yet. Ask a coach for their invitation link to join.
+                </p>
+              </div>
+            )}
           </div>
         )}
       </div>
 
-      {assignedProgram ? (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 mb-6">
-          <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">
-            {assignedProgram.name}
-          </h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            {format(parseISO(assignedProgram.startDate), 'MMM d')} -{' '}
-            {format(parseISO(assignedProgram.endDate), 'MMM d, yyyy')}
-          </p>
+      {/* Date Navigation */}
+      <div className="flex items-center justify-between">
+        <button
+          onClick={() => navigateDay('prev')}
+          className="p-2 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+        >
+          <ChevronLeft className="h-5 w-5" />
+        </button>
+        
+        <div className="flex items-center space-x-2">
+          <Calendar className="h-5 w-5 text-gray-400" />
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            {format(selectedDate, 'MMMM d, yyyy')}
+          </span>
         </div>
-      ) : (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8 text-center">
-          <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
-            No Active Program
-          </h3>
-          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-            {hasActiveCoach 
-              ? "You don't have any assigned programs yet."
-              : "Connect with a coach to get assigned programs and workouts."}
-          </p>
-          {!hasActiveCoach && !hasPendingRequest && (
-            <Link 
-              to="/athlete/find-coach" 
-              className="mt-4 inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700"
-            >
-              Find a Coach
-            </Link>
-          )}
-        </div>
-      )}
+        
+        <button
+          onClick={() => navigateDay('next')}
+          className="p-2 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+        >
+          <ChevronRight className="h-5 w-5" />
+        </button>
+      </div>
 
-      {dayWorkouts.length > 0 ? (
-        <div className="space-y-4">
-          {dayWorkouts.map((workout) => (
-            <WorkoutCard key={workout.id} workout={workout} />
-          ))}
-        </div>
-      ) : (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 text-center">
-          <p className="text-gray-500 dark:text-gray-400">
-            No workouts scheduled for this day
-          </p>
-        </div>
-      )}
+      {/* Workouts */}
+      <div className="space-y-4">
+        {dayWorkouts.length > 0 ? (
+          dayWorkouts.map((workout: any, index: number) => (
+            <WorkoutCard key={index} workout={workout} />
+          ))
+        ) : (
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 text-center">
+            <Calendar className="h-12 w-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-1">No workouts scheduled</h3>
+            <p className="text-gray-500 dark:text-gray-400 mb-4">
+              {hasActiveCoach
+                ? "You don't have any workouts scheduled for this day."
+                : "Join a coach to get personalized workout programs."}
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

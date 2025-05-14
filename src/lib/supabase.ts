@@ -25,8 +25,10 @@ export interface Profile {
   full_name: string;
   email: string;
   avatar_url?: string;
+  invite_code?: string;
   created_at: string;
   updated_at: string;
+  email_verified?: boolean;
 }
 
 export async function getCurrentProfile(): Promise<Profile | null> {
@@ -59,6 +61,9 @@ export async function getCurrentProfile(): Promise<Profile | null> {
         user.user_metadata.picture || 
         undefined;
     }
+    
+    // Add email verification status from auth user
+    profile.email_verified = user.email_confirmed_at !== null;
   }
 
   return profile;
@@ -67,39 +72,100 @@ export async function getCurrentProfile(): Promise<Profile | null> {
 /**
  * Ensures a profile exists for the current user
  * This is important for OAuth sign-ins where profile creation might fail
+ * @param role The user role (coach or athlete)
+ * @param inviteCode Optional invite code (null for athletes, generated for coaches)
  */
-export async function ensureProfileExists(role: UserRole = 'coach'): Promise<boolean> {
+export async function ensureProfileExists(role: UserRole = 'coach', inviteCode?: string | null): Promise<boolean> {
   try {
     // Get current user
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return false;
     
+    console.log('Ensuring profile exists for user:', user.id, 'with role:', role);
+    
     // Check if profile exists
     const { data: existingProfile, error: fetchError } = await supabase
       .from('profiles')
-      .select('id')
+      .select('id, role')
       .eq('id', user.id)
       .maybeSingle();
     
-    if (fetchError) throw fetchError;
+    if (fetchError) {
+      console.error('Error checking for existing profile:', fetchError);
+    }
     
     // If profile already exists, we're done
-    if (existingProfile) return true;
+    if (existingProfile) {
+      console.log('Profile already exists:', existingProfile);
+      return true;
+    }
     
-    // Profile doesn't exist, create it
-    const { error: insertError } = await supabase.from('profiles').insert([
-      {
+    // Extract full name from metadata if available
+    const fullName = user.user_metadata?.full_name || user.user_metadata?.name || 'User';
+    const email = user.email || user.user_metadata?.email || '';
+    const avatarUrl = user.user_metadata?.avatar_url || user.user_metadata?.picture || null;
+    
+    console.log('Creating new profile with data:', { fullName, email, role });
+    
+    // Try direct insert first (more reliable)
+    const { error: insertError } = await supabase
+      .from('profiles')
+      .insert({
         id: user.id,
         role,
-        full_name: user.user_metadata.full_name || user.user_metadata.name || 'User',
-        email: user.email || user.user_metadata.email || '',
-        avatar_url: user.user_metadata.avatar_url || user.user_metadata.picture || null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      },
-    ]);
+        full_name: fullName,
+        email,
+        avatar_url: avatarUrl,
+      });
+      
+    if (insertError) {
+      console.error('Error with direct profile insert:', insertError);
+      
+      // Fall back to RPC method
+      console.log('Falling back to RPC method for profile creation');
+      const { error: rpcError } = await supabase.rpc(
+        'add_missing_profile',
+        {
+          user_id: user.id,
+          role,
+          full_name: fullName,
+          email,
+          avatar_url: avatarUrl
+        }
+      );
+      
+      if (rpcError) {
+        console.error('Error creating profile with RPC:', rpcError);
+        throw rpcError;
+      }
+    }
     
-    if (insertError) throw insertError;
+    // Verify the profile was created
+    const { data: verifyProfile } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', user.id)
+      .single();
+      
+    if (!verifyProfile) {
+      console.error('Profile verification failed - profile not created');
+      return false;
+    }
+    
+    console.log('Profile created successfully');
+    
+    // If this is a coach and invite code was provided, update the invite code
+    if (role === 'coach' && inviteCode) {
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ invite_code: inviteCode })
+        .eq('id', user.id);
+      
+      if (updateError) {
+        console.warn('Could not update invite code:', updateError);
+      }
+    }
+    
     return true;
   } catch (error) {
     console.error('Error ensuring profile exists:', error);
@@ -107,14 +173,21 @@ export async function ensureProfileExists(role: UserRole = 'coach'): Promise<boo
   }
 }
 
-export async function signUp(
+/**
+ * Sign up a new user with email and password
+ */
+export async function signUpWithEmail(
   email: string,
   password: string,
   role: UserRole,
-  fullName: string
+  firstName: string,
+  lastName: string,
+  inviteCode?: string
 ) {
   try {
-    // First, create the auth user
+    const fullName = `${firstName} ${lastName}`.trim();
+    
+    // Create the auth user
     const { data: { user }, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
@@ -130,30 +203,137 @@ export async function signUp(
       throw signUpError || new Error('Failed to create user');
     }
 
-    // Then, create the profile
-    const { error: profileError } = await supabase.from('profiles').insert([
-      {
+    console.log('User created successfully:', user.id);
+
+    // Create the profile directly with an INSERT instead of using RPC
+    // This ensures the profile exists before we try to create relationships
+    const { error: insertError } = await supabase
+      .from('profiles')
+      .insert({
         id: user.id,
         role,
         full_name: fullName,
         email,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      },
-    ]);
+        avatar_url: null,
+      });
 
-    if (profileError) {
-      throw profileError;
+    if (insertError) {
+      console.error('Error creating profile with direct insert:', insertError);
+      
+      // Fall back to the RPC method if direct insert fails
+      const { error: profileError } = await supabase.rpc(
+        'add_missing_profile',
+        {
+          user_id: user.id,
+          role,
+          full_name: fullName,
+          email,
+          avatar_url: null
+        }
+      );
+
+      if (profileError) {
+        console.error('Error creating profile with RPC fallback:', profileError);
+        throw profileError;
+      }
+    }
+    
+    console.log('Profile created successfully for user:', user.id);
+    
+    // For athletes with invite code, create the coach-athlete relationship
+    if (role === 'athlete' && inviteCode) {
+      try {
+        console.log('Processing invite code for new athlete:', inviteCode);
+        
+        // First verify the profile was actually created
+        const { data: profileCheck } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('id', user.id)
+          .single();
+          
+        if (!profileCheck) {
+          console.error('Profile verification failed - profile not found in database');
+          // Try one more time to create the profile
+          await supabase
+            .from('profiles')
+            .insert({
+              id: user.id,
+              role,
+              full_name: fullName,
+              email,
+              avatar_url: null,
+            });
+        } else {
+          console.log('Profile verified successfully');
+        }
+        
+        // Call the resolve_invite RPC
+        const { data: resolveResult, error: resolveError } = await supabase.rpc(
+          'resolve_invite', 
+          { 
+            code: inviteCode, 
+            athlete_user_id: user.id 
+          }
+        );
+        
+        if (resolveError) {
+          console.error('Error resolving invite code:', resolveError);
+          
+          // Try direct approach if RPC fails
+          const { data: coachData } = await supabase
+            .from('profiles')
+            .select('id, full_name')
+            .eq('invite_code', inviteCode)
+            .eq('role', 'coach')
+            .maybeSingle();
+            
+          if (coachData) {
+            console.log('Found coach via direct query:', coachData);
+            
+            // Create coach_athletes relationship manually
+            const { error: relationError } = await supabase
+              .from('coach_athletes')
+              .insert({
+                coach_id: coachData.id,
+                athlete_id: user.id,
+                status: 'pending'
+              });
+              
+            if (relationError) {
+              console.error('Error creating relationship:', relationError);
+            } else {
+              console.log('Successfully created relationship via fallback');
+              
+              // Store coach info in localStorage for use after email verification
+              localStorage.setItem('pendingCoachName', coachData.full_name);
+              localStorage.setItem('pendingCoachId', coachData.id);
+              localStorage.setItem('pendingJoinStatus', 'true');
+            }
+          }
+        } else if (!resolveResult?.success) {
+          console.error('Failed to resolve invite code:', resolveResult?.message);
+        } else {
+          // Store coach info in localStorage for use after email verification
+          localStorage.setItem('pendingCoachName', resolveResult.coach_name);
+          localStorage.setItem('pendingCoachId', resolveResult.coach_id);
+          localStorage.setItem('pendingJoinStatus', 'true');
+        }
+      } catch (error) {
+        console.error('Error processing invite code during signup:', error);
+      }
     }
 
-    // Finally, sign in the user
-    return signIn(email, password);
+    return { user, error: null };
   } catch (error) {
-    return { error };
+    return { user: null, error };
   }
 }
 
-export async function signIn(email: string, password: string) {
+/**
+ * Sign in a user with email and password
+ */
+export async function signInWithEmail(email: string, password: string) {
   try {
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
@@ -168,6 +348,92 @@ export async function signIn(email: string, password: string) {
   }
 }
 
+/**
+ * Send a password reset email
+ */
+export async function sendPasswordResetEmail(email: string) {
+  try {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+
+    if (error) throw error;
+    return { success: true, error: null };
+  } catch (error) {
+    return { success: false, error };
+  }
+}
+
+/**
+ * Update a user's password
+ */
+export async function updatePassword(password: string) {
+  try {
+    const { error } = await supabase.auth.updateUser({
+      password,
+    });
+
+    if (error) throw error;
+    return { success: true, error: null };
+  } catch (error) {
+    return { success: false, error };
+  }
+}
+
+/**
+ * Sign in with OAuth provider
+ */
+export async function signInWithOAuth(
+  provider: 'google',
+  role: UserRole,
+  redirectUrl: string,
+  inviteCode?: string
+) {
+  try {
+    // Construct redirect URL with role and optional invite code
+    let redirectTo = `${redirectUrl}?role=${role}`;
+    if (inviteCode) {
+      redirectTo += `&inviteCode=${encodeURIComponent(inviteCode)}`;
+    }
+    
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo,
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent',
+        },
+      },
+    });
+
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
+}
+
 export async function signOut() {
   return supabase.auth.signOut();
+}
+
+/**
+ * Legacy functions for backward compatibility
+ */
+export async function signUp(
+  email: string,
+  password: string,
+  role: UserRole,
+  fullName: string
+) {
+  const nameParts = fullName.split(' ');
+  const firstName = nameParts[0] || '';
+  const lastName = nameParts.slice(1).join(' ') || '';
+  
+  return signUpWithEmail(email, password, role, firstName, lastName);
+}
+
+export async function signIn(email: string, password: string) {
+  return signInWithEmail(email, password);
 }
