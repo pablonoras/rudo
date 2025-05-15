@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { GlobalSearch } from './GlobalSearch';
-import { ThemeToggle } from './ThemeToggle';
+import { ThemeToggle } from './ui/ThemeToggle';
 import { UserSettings } from './UserSettings';
 
 export function Layout({ children }: { children: React.ReactNode }) {

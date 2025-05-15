@@ -9,7 +9,7 @@ import { ArrowLeft } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { DemoUserSettings } from './DemoUserSettings';
 import { GlobalSearch } from './GlobalSearch';
-import { ThemeToggle } from './ThemeToggle';
+import { ThemeToggle } from './ui/ThemeToggle';
 
 export function DemoLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation();

@@ -16,13 +16,20 @@ import { MenuPortal } from '../MenuPortal';
 const getWorkoutColorClass = (color?: string) => {
   if (!color) return 'border-gray-400 bg-gray-50 dark:bg-gray-900/20';
   
+  // Check if the color is a hex value, rgb or hsl
+  if (color.startsWith('#') || color.startsWith('rgb') || color.startsWith('hsl')) {
+    // For hex/rgb/hsl values, we'll use inline styles instead of classes
+    return 'border-gray-400'; // Just add a border class, the bg color will be applied inline
+  }
+  
+  // For named colors, use our predefined classes
   const colors: Record<string, string> = {
-    red: 'border-red-400 bg-red-50 dark:bg-red-900/20',
-    blue: 'border-blue-400 bg-blue-50 dark:bg-blue-900/20',
-    green: 'border-green-400 bg-green-50 dark:bg-green-900/20',
-    yellow: 'border-yellow-400 bg-yellow-50 dark:bg-yellow-900/20',
-    purple: 'border-purple-400 bg-purple-50 dark:bg-purple-900/20',
-    orange: 'border-orange-400 bg-orange-50 dark:bg-orange-900/20',
+    red: 'border-red-300 bg-red-50 dark:bg-red-900/10',
+    blue: 'border-blue-300 bg-blue-50 dark:bg-blue-900/10',
+    green: 'border-green-300 bg-green-50 dark:bg-green-900/10',
+    yellow: 'border-yellow-300 bg-yellow-50 dark:bg-yellow-900/10',
+    purple: 'border-purple-300 bg-purple-50 dark:bg-purple-900/10',
+    orange: 'border-orange-300 bg-orange-50 dark:bg-orange-900/10',
   };
 
   return colors[color.toLowerCase()] || 'border-gray-400 bg-gray-50 dark:bg-gray-900/20';
@@ -313,6 +320,8 @@ export function SessionBlock({
                 key={workout.id}
                 onClick={() => toggleWorkout(workout.id)}
                 className={`group relative rounded-lg border-l-4 ${getWorkoutColorClass(workout.color)} p-3 cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50`}
+                style={workout.color && (workout.color.startsWith('#') || workout.color.startsWith('rgb') || workout.color.startsWith('hsl')) ? 
+                  { backgroundColor: workout.color, color: '#fff' } : undefined}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex-1">

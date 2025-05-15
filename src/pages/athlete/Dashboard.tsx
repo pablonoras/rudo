@@ -2,14 +2,15 @@
  * src/pages/athlete/Dashboard.tsx
  * 
  * Athlete Dashboard main page showing workouts and program information.
- * Updated to remove find-coach functionality and display pending coach approval message.
- * Athletes now join coaches exclusively through invitation links.
+ * Updated to include week navigation, assigned programs list, and display all assigned programs in the calendar.
+ * Athletes can view all their assigned programs and navigate through days of the week.
  */
 
 import { addDays, format, isToday, subDays } from 'date-fns';
-import { Calendar, CheckCircle, ChevronLeft, ChevronRight, ClockIcon, MoreHorizontal, User, Users } from 'lucide-react';
+import { Calendar, CheckCircle, ChevronLeft, ChevronRight, ClockIcon, MoreHorizontal, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Link as RouterLink } from 'react-router-dom';
+import { AssignedProgram, AssignedPrograms } from '../../components/athlete/AssignedPrograms';
+import { WeekNavigation } from '../../components/athlete/WeekNavigation';
 import { useProfile } from '../../contexts/ProfileContext';
 import { supabase } from '../../lib/supabase';
 import { useWorkoutStore } from '../../lib/workout';
@@ -28,29 +29,55 @@ type CoachConnection = {
 function WorkoutCard({ workout }: { workout: any }) {
   const [isCompleted, setIsCompleted] = useState(false);
 
-  const getTypeColor = (type: string) => {
+  // Check if we have a valid color value
+  const hasValidColor = workout.color && 
+    (workout.color.startsWith('#') || 
+     workout.color.startsWith('rgb') || 
+     workout.color.startsWith('hsl'));
+
+  // Get background color based on type if no direct color is provided
+  const getBackgroundColor = (type: string) => {
     const colors = {
-      warmup: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-      strength: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-      wod: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-      cooldown: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+      warmup: 'bg-yellow-50 dark:bg-yellow-900/10',
+      strength: 'bg-red-50 dark:bg-red-900/10',
+      wod: 'bg-blue-50 dark:bg-blue-900/10',
+      cooldown: 'bg-green-50 dark:bg-green-900/10',
     };
-    return colors[type as keyof typeof colors] || 'bg-gray-100 text-gray-800';
+    return colors[type as keyof typeof colors] || 'bg-gray-50 dark:bg-gray-800';
   };
 
+  // Get border color based on workout type
+  const getBorderColor = (type: string) => {
+    const colors = {
+      warmup: 'border-yellow-300 dark:border-yellow-800',
+      strength: 'border-red-300 dark:border-red-800',
+      wod: 'border-blue-300 dark:border-blue-800',
+      cooldown: 'border-green-300 dark:border-green-800',
+    };
+    return colors[type as keyof typeof colors] || 'border-gray-200 dark:border-gray-700';
+  };
+
+  // Create style object for direct color values
+  const cardStyle = hasValidColor ? {
+    backgroundColor: workout.color,
+    color: '#fff', // Use white text for better contrast on colored backgrounds
+  } : {};
+
+  console.log('Workout color:', workout.color, 'Type:', workout.type, 'Has valid color:', hasValidColor);
+
   return (
-    <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-sm border ${
-      isCompleted ? 'border-green-500 dark:border-green-400' : 'border-gray-200 dark:border-gray-700'
-    }`}>
+    <div 
+      className={`${!hasValidColor ? getBackgroundColor(workout.type) : ''} rounded-lg shadow-sm border ${
+        isCompleted ? 'border-green-500 dark:border-green-400' : getBorderColor(workout.type)
+      }`}
+      style={cardStyle}
+    >
       <div className="p-4">
         <div className="flex items-center justify-between mb-2">
           <div>
-            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
+            <h3 className={`text-lg font-medium ${hasValidColor ? '' : 'text-gray-900 dark:text-gray-100'}`}>
               {workout.name}
             </h3>
-            <span className={`text-xs px-2 py-0.5 rounded-full capitalize mt-1 inline-block ${getTypeColor(workout.type)}`}>
-              {workout.type}
-            </span>
           </div>
           <button
             onClick={() => setIsCompleted(!isCompleted)}
@@ -64,9 +91,18 @@ function WorkoutCard({ workout }: { workout: any }) {
           </button>
         </div>
         
-        <div className="mt-2 text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap">
+        <div className={`mt-2 text-sm ${hasValidColor ? '' : 'text-gray-600 dark:text-gray-400'} whitespace-pre-wrap`}>
           {workout.description}
         </div>
+        
+        {workout.notes && (
+          <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+            <h4 className={`text-sm font-medium ${hasValidColor ? '' : 'text-gray-700 dark:text-gray-300'} mb-1`}>Notes:</h4>
+            <p className={`text-sm ${hasValidColor ? '' : 'text-gray-600 dark:text-gray-400'} whitespace-pre-wrap`}>
+              {workout.notes}
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -86,8 +122,11 @@ export function AthleteDashboard() {
   const [pendingCoachName, setPendingCoachName] = useState<string | null>(null);
   const [hasPendingInvite, setHasPendingInvite] = useState(false);
 
-  // Mock assigned program for demonstration
-  const assignedProgram = Object.values(programs)[0];
+  // Assigned programs state
+  const [assignedPrograms, setAssignedPrograms] = useState<AssignedProgram[]>([]);
+  const [isLoadingPrograms, setIsLoadingPrograms] = useState(true);
+  const [selectedProgramId, setSelectedProgramId] = useState<string | null>(null);
+  const [dayWorkouts, setDayWorkouts] = useState<any[]>([]);
 
   const navigateDay = (direction: 'prev' | 'next') => {
     setSelectedDate(direction === 'prev' ? subDays(selectedDate, 1) : addDays(selectedDate, 1));
@@ -177,12 +216,195 @@ export function AthleteDashboard() {
     }
   };
 
+  // Fetch assigned programs for the athlete
+  const fetchAssignedPrograms = async () => {
+    if (!profile) return;
+    
+    try {
+      setIsLoadingPrograms(true);
+      console.log('Fetching assigned programs for athlete:', profile.id);
+      
+      // Step 1: Get all program assignments for this athlete
+      const { data: assignments, error: assignmentsError } = await supabase
+        .from('program_assignments')
+        .select('id, program_id, start_date, end_date')
+        .eq('athlete_id', profile.id);
+      
+      if (assignmentsError) {
+        console.error('Error fetching program assignments:', assignmentsError);
+        throw assignmentsError;
+      }
+      
+      console.log('Program assignments:', assignments);
+      
+      if (!assignments || assignments.length === 0) {
+        setAssignedPrograms([]);
+        setIsLoadingPrograms(false);
+        return;
+      }
+      
+      // Step 2: Get program details for each assignment
+      const programIds = assignments.map(a => a.program_id);
+      
+      const { data: programs, error: programsError } = await supabase
+        .from('programs')
+        .select(`
+          id, 
+          name, 
+          description, 
+          coach_id
+        `)
+        .in('id', programIds);
+      
+      if (programsError) {
+        console.error('Error fetching programs:', programsError);
+        throw programsError;
+      }
+      
+      console.log('Programs data:', programs);
+      
+      // Step 3: Get coach names for each program
+      const coachIds = programs.map(p => p.coach_id);
+      
+      const { data: coaches, error: coachesError } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', coachIds);
+      
+      if (coachesError) {
+        console.error('Error fetching coaches:', coachesError);
+        throw coachesError;
+      }
+      
+      console.log('Coaches data:', coaches);
+      
+      // Step 4: Combine all data
+      const formattedPrograms: AssignedProgram[] = assignments.map(assignment => {
+        const program = programs.find(p => p.id === assignment.program_id);
+        const coach = program ? coaches.find(c => c.id === program.coach_id) : null;
+        
+        return {
+          id: assignment.program_id,
+          name: program?.name || 'Unknown Program',
+          description: program?.description,
+          startDate: assignment.start_date,
+          endDate: assignment.end_date,
+          coachName: coach?.full_name || 'Unknown Coach'
+        };
+      });
+      
+      setAssignedPrograms(formattedPrograms);
+    } catch (err) {
+      console.error('Error fetching assigned programs:', err);
+    } finally {
+      setIsLoadingPrograms(false);
+    }
+  };
+
+  // Fetch workouts for the selected date and program
+  const fetchDayWorkouts = async () => {
+    if (!profile) return;
+    
+    try {
+      const dateStr = format(selectedDate, 'yyyy-MM-dd');
+      console.log('Fetching workouts for date:', dateStr);
+      console.log('Selected program ID:', selectedProgramId);
+      console.log('All assigned program IDs:', assignedPrograms.map(p => p.id));
+      
+      // Check if we have any assigned programs
+      if (assignedPrograms.length === 0) {
+        console.log('No assigned programs found, cannot fetch workouts');
+        setDayWorkouts([]);
+        return;
+      }
+      
+      // If a specific program is selected, only show workouts from that program
+      let query = supabase
+        .from('sessions')
+        .select(`
+          session_id,
+          name,
+          description,
+          program_id,
+          workouts(workout_id, description, color, notes)
+        `)
+        .eq('session_date', dateStr);
+      
+      if (selectedProgramId) {
+        console.log('Filtering by selected program:', selectedProgramId);
+        query = query.eq('program_id', selectedProgramId);
+      } else {
+        // Otherwise, show workouts from all assigned programs
+        const programIds = assignedPrograms.map(p => p.id);
+        if (programIds.length > 0) {
+          console.log('Filtering by all assigned programs:', programIds);
+          query = query.in('program_id', programIds);
+        }
+      }
+      
+      const { data, error } = await query;
+      
+      if (error) {
+        console.error('Error fetching day workouts:', error);
+        return;
+      }
+      
+      console.log('Day workouts data:', data);
+      
+      // Check if we have any sessions returned
+      if (!data || data.length === 0) {
+        console.log('No sessions found for this date');
+        setDayWorkouts([]);
+        return;
+      }
+      
+      // Check if each session has workouts
+      data.forEach(session => {
+        console.log(`Session ${session.name} has ${session.workouts?.length || 0} workouts`);
+      });
+      
+      // Transform the data to match the expected format
+      const workouts = data?.flatMap(session => {
+        if (!session.workouts || session.workouts.length === 0) {
+          console.log(`No workouts found for session: ${session.name}`);
+          return [];
+        }
+        
+        return session.workouts.map((workout: any) => {
+          console.log('Raw workout data:', workout);
+          return {
+            id: workout.workout_id,
+            name: session.name,
+            description: workout.description,
+            type: workout.color ? workout.color : 'wod', // Use color as type if available
+            color: workout.color, // Store the original color value
+            notes: workout.notes
+          };
+        });
+      }) || [];
+      
+      console.log('Transformed workouts:', workouts);
+      setDayWorkouts(workouts);
+    } catch (err) {
+      console.error('Error fetching day workouts:', err);
+      setDayWorkouts([]);
+    }
+  };
+
   // Fetch coach connections immediately when profile is available
   useEffect(() => {
     if (profile) {
       fetchCoachConnections();
+      fetchAssignedPrograms();
     }
   }, [profile]);
+
+  // Fetch workouts when date or selected program changes
+  useEffect(() => {
+    if (profile) {
+      fetchDayWorkouts();
+    }
+  }, [selectedDate, selectedProgramId, assignedPrograms]);
 
   // Add a useEffect to check localStorage when component mounts
   useEffect(() => {
@@ -197,16 +419,6 @@ export function AthleteDashboard() {
     }
   }, []); // Empty dependency array means this runs once on mount
 
-  const dateStr = format(selectedDate, 'yyyy-MM-dd');
-  const dayWorkouts = assignedProgram?.days[dateStr]?.workouts || [];
-  
-  // Check if athlete has an active coach or pending requests
-  const activeCoaches = coachConnections.filter(conn => conn.status === 'active');
-  const pendingCoaches = coachConnections.filter(conn => conn.status === 'pending');
-  
-  const hasActiveCoach = activeCoaches.length > 0;
-  const hasPendingRequest = pendingCoaches.length > 0 || hasPendingInvite;
-  
   const toggleCoachActions = (coachId: string) => {
     setShowCoachActions(prev => ({
       ...prev,
@@ -260,6 +472,15 @@ export function AthleteDashboard() {
     // This ensures the message persists across page refreshes
   }, [hasPendingInvite, pendingCoachName]);
 
+  const dateStr = format(selectedDate, 'yyyy-MM-dd');
+  
+  // Check if athlete has an active coach or pending requests
+  const activeCoaches = coachConnections.filter(conn => conn.status === 'active');
+  const pendingCoaches = coachConnections.filter(conn => conn.status === 'pending');
+  
+  const hasActiveCoach = activeCoaches.length > 0;
+  const hasPendingRequest = pendingCoaches.length > 0 || hasPendingInvite;
+
   return (
     <div className="space-y-6">
       <div>
@@ -271,22 +492,23 @@ export function AthleteDashboard() {
         </p>
       </div>
 
-      {/* Quick Actions */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-        <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-1 gap-4">
-          <RouterLink
-            to="/athlete/account"
-            className="flex items-center p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors"
-          >
-            <User className="h-6 w-6 text-purple-600 dark:text-purple-400 mr-3" />
-            <div>
-              <h3 className="font-medium text-gray-900 dark:text-gray-100">Account Settings</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Manage your profile</p>
-            </div>
-          </RouterLink>
+      {/* Assigned Programs */}
+      {isLoadingPrograms ? (
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 mb-4">
+          <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+            Assigned Programs
+          </h2>
+          <p className="text-gray-500 dark:text-gray-400 text-sm">
+            Loading your programs...
+          </p>
         </div>
-      </div>
+      ) : (
+        <AssignedPrograms 
+          programs={assignedPrograms} 
+          onSelectProgram={setSelectedProgramId} 
+          selectedProgramId={selectedProgramId} 
+        />
+      )}
 
       {/* Pending Coach Invitation Message */}
       {hasPendingInvite && pendingCoachName && (
@@ -414,6 +636,12 @@ export function AthleteDashboard() {
           </div>
         )}
       </div>
+
+      {/* Week Navigation (above calendar) */}
+      <WeekNavigation 
+        selectedDate={selectedDate} 
+        onSelectDate={setSelectedDate} 
+      />
 
       {/* Date Navigation */}
       <div className="flex items-center justify-between">

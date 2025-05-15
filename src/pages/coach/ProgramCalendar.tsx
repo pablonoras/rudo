@@ -1,26 +1,27 @@
 import {
     addDays,
-  format,
+    format,
     isSameDay,
     isWithinInterval,
     parseISO,
-  startOfWeek,
+    startOfWeek,
 } from 'date-fns';
 import {
     AlertTriangle,
     ArrowLeft,
     CalendarDays,
-  Calendar as CalendarIcon,
-  ChevronLeft,
-  ChevronRight,
+    Calendar as CalendarIcon,
+    ChevronLeft,
+    ChevronRight,
     LayoutGrid,
     List,
-  Plus,
+    Plus,
     Save
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
+import { WeekNavigation } from '../../components/coach/WeekNavigation';
 import { SessionBlock } from '../../components/session/SessionBlock';
 import { SessionForm } from '../../components/session/SessionForm';
 import { useModal } from '../../contexts/ModalContext';
@@ -964,11 +965,10 @@ export function ProgramCalendar() {
       </div>
 
         {viewMode === 'day' && (
-          <div className="px-4 pb-2 text-center">
-            <div className="text-lg font-medium text-gray-900 dark:text-gray-100">
-              {format(selectedDate, 'EEEE')}
-            </div>
-          </div>
+          <WeekNavigation 
+            selectedDate={selectedDate} 
+            onSelectDate={setSelectedDate} 
+          />
         )}
       </div>
 

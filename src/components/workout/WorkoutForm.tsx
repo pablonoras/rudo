@@ -2,12 +2,12 @@ import { Info, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 const COLOR_TAGS = [
-  { value: 'red', label: 'Red', class: 'bg-red-500' },
-  { value: 'blue', label: 'Blue', class: 'bg-blue-500' },
-  { value: 'green', label: 'Green', class: 'bg-green-500' },
-  { value: 'yellow', label: 'Yellow', class: 'bg-yellow-500' },
-  { value: 'purple', label: 'Purple', class: 'bg-purple-500' },
-  { value: 'orange', label: 'Orange', class: 'bg-orange-500' },
+  { value: '#FF9AA2', label: 'Red', class: 'bg-red-500' },
+  { value: '#A2D2FF', label: 'Blue', class: 'bg-blue-500' },
+  { value: '#B5EAD7', label: 'Green', class: 'bg-green-500' },
+  { value: '#FFDAC1', label: 'Orange', class: 'bg-orange-500' },
+  { value: '#FFE8B6', label: 'Yellow', class: 'bg-yellow-500' },
+  { value: '#C7CEEA', label: 'Purple', class: 'bg-purple-500' },
 ];
 
 interface WorkoutFormProps {
@@ -28,14 +28,14 @@ interface WorkoutFormProps {
 
 export function WorkoutForm({ initialData, onSave, onClose, title }: WorkoutFormProps) {
   const [description, setDescription] = useState(initialData?.description ?? '');
-  const [color, setColor] = useState(initialData?.color ?? 'blue');
+  const [color, setColor] = useState(initialData?.color ?? '#2196F3');
   const [notes, setNotes] = useState(initialData?.notes ?? '');
   
   // Update form data when initialData changes
   useEffect(() => {
     if (initialData) {
       setDescription(initialData.description ?? '');
-      setColor(initialData.color ?? 'blue');
+      setColor(initialData.color ?? '#2196F3');
       setNotes(initialData.notes ?? '');
     }
   }, [initialData]);
@@ -97,9 +97,16 @@ export function WorkoutForm({ initialData, onSave, onClose, title }: WorkoutForm
                 ))}
               </select>
               <div 
-                className={`absolute top-[2.1rem] left-[0.5rem] w-4 h-4 rounded-full pointer-events-none ${
-                  COLOR_TAGS.find(t => t.value === color)?.class
-                }`} 
+                style={{
+                  backgroundColor: color,
+                  width: '16px',
+                  height: '16px',
+                  borderRadius: '50%',
+                  position: 'absolute',
+                  top: '2.1rem',
+                  left: '0.5rem',
+                  pointerEvents: 'none'
+                }}
               />
             </div>
 

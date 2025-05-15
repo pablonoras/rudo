@@ -24,7 +24,6 @@ import {
     RefreshCw,
     Shield,
     ShieldOff,
-    User,
     UserPlus,
     Users,
     X
@@ -71,7 +70,7 @@ export function CoachDashboard() {
   // Generate the invite link
   const getInviteLink = () => {
     if (!profile?.invite_code) return '';
-    return `${window.location.origin}/athlete-signup?code=${profile.invite_code}`;
+    return `${window.location.origin}/register?code=${profile.invite_code}`;
   };
   
   // Copy the invite link to clipboard
@@ -460,7 +459,7 @@ export function CoachDashboard() {
       {/* Quick Actions */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
         <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <RouterLink
             to="/coach/programs"
             className="flex items-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
@@ -479,16 +478,6 @@ export function CoachDashboard() {
             <div>
               <h3 className="font-medium text-gray-900 dark:text-gray-100">Manage Athletes</h3>
               <p className="text-sm text-gray-500 dark:text-gray-400">View and approve athletes</p>
-            </div>
-          </RouterLink>
-          <RouterLink
-            to="/coach/account"
-            className="flex items-center p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors"
-          >
-            <User className="h-6 w-6 text-purple-600 dark:text-purple-400 mr-3" />
-            <div>
-              <h3 className="font-medium text-gray-900 dark:text-gray-100">Account Settings</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Manage your profile</p>
             </div>
           </RouterLink>
         </div>
