@@ -28,6 +28,7 @@ const UserProfile = ({ role }: UserProfileProps) => {
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [emailVerified, setEmailVerified] = useState(false);
   const [verificationSent, setVerificationSent] = useState(false);
+  const [isOAuthUser, setIsOAuthUser] = useState(false);
 
   useEffect(() => {
     const loadUserData = async () => {
@@ -43,6 +44,23 @@ const UserProfile = ({ role }: UserProfileProps) => {
         setUser(user);
         setEmail(user.email || '');
         setEmailVerified(user.email_confirmed_at !== null);
+        
+        // Check if user is OAuth user
+        const hasOAuthIdentities = user.identities && 
+          user.identities.some(identity => identity.provider !== 'email');
+        
+        const hasOAuthProvider = 
+          user.app_metadata?.provider && 
+          user.app_metadata.provider !== 'email';
+          
+        setIsOAuthUser(hasOAuthIdentities || hasOAuthProvider);
+        
+        console.log('User auth info in profile:', {
+          hasOAuthIdentities,
+          hasOAuthProvider,
+          identities: user.identities,
+          appMetadata: user.app_metadata
+        });
         
         // Get profile data
         const profile = await getCurrentProfile();
@@ -336,69 +354,77 @@ const UserProfile = ({ role }: UserProfileProps) => {
             </div>
           </form>
           
-          <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
-            <h3 className="text-base font-medium text-gray-900 dark:text-gray-100 mb-4">
-              Change Password
-            </h3>
-            
-            {passwordError && (
-              <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200 rounded-md text-sm">
-                {passwordError}
-              </div>
-            )}
-            
-            <form onSubmit={handlePasswordChange} className="space-y-4">
-              <div>
-                <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  New Password
-                </label>
-                <input
-                  id="newPassword"
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                  required
-                  minLength={8}
-                />
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  At least 8 characters required
-                </p>
-              </div>
+          {isOAuthUser ? (
+            <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+              <h3 className="text-base font-medium text-gray-900 dark:text-gray-100 mb-2">
+                Password Management
+              </h3>
+            </div>
+          ) : (
+            <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+              <h3 id="change-password" className="text-base font-medium text-gray-900 dark:text-gray-100 mb-4">
+                Change Password
+              </h3>
               
-              <div>
-                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Confirm New Password
-                </label>
-                <input
-                  id="confirmPassword"
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                  required
-                  minLength={8}
-                />
-              </div>
+              {passwordError && (
+                <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200 rounded-md text-sm">
+                  {passwordError}
+                </div>
+              )}
               
-              <div className="pt-4">
-                <button
-                  type="submit"
-                  disabled={isSaving}
-                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-                >
-                  {isSaving ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      Updating...
-                    </>
-                  ) : (
-                    'Update Password'
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
+              <form onSubmit={handlePasswordChange} className="space-y-4">
+                <div>
+                  <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    New Password
+                  </label>
+                  <input
+                    id="newPassword"
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                    required
+                    minLength={8}
+                  />
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    At least 8 characters required
+                  </p>
+                </div>
+                
+                <div>
+                  <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Confirm New Password
+                  </label>
+                  <input
+                    id="confirmPassword"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                    required
+                    minLength={8}
+                  />
+                </div>
+                
+                <div className="pt-4">
+                  <button
+                    type="submit"
+                    disabled={isSaving}
+                    className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                  >
+                    {isSaving ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        Updating...
+                      </>
+                    ) : (
+                      'Update Password'
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
         </div>
       </div>
     </div>
