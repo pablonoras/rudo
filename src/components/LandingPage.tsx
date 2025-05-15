@@ -71,12 +71,12 @@ const ComparisonRow = ({ problem, solution, icon: Icon, problemSubtext, solution
         <div className="flex items-start gap-4">
           <div className="p-3 bg-red-500/10 rounded-xl">
             <Icon className="w-6 h-6 text-red-400" />
-          </div>
+              </div>
           <div>
             <h3 className="text-xl font-bold mb-2 text-gray-200">{t(problem as TranslationKey)}</h3>
             <p className="text-gray-400">{t(problemSubtext as TranslationKey)}</p>
-          </div>
-        </div>
+              </div>
+            </div>
       </motion.div>
       
       <motion.div 
@@ -181,10 +181,10 @@ const LandingPage = () => {
                 animate={{ opacity: 1, y: 0 }}
                 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black tracking-tight leading-[1.1] sm:leading-none mb-6 px-4"
               >
-                {t('hero-title')}
-                <br className="hidden sm:block" />
+                {t('new-slogan-line1' as TranslationKey)}
+                <br />
                 <span className="bg-gradient-to-r from-[#8A2BE2] to-[#4169E1] bg-clip-text text-transparent">
-                  {t('hero-subtitle')}
+                  {t('new-slogan-line2' as TranslationKey)}
                 </span>
               </motion.h1>
               
@@ -203,7 +203,7 @@ const LandingPage = () => {
                 transition={{ delay: 0.4 }}
                 className="flex flex-col sm:flex-row gap-4 justify-center px-4"
               >
-                <button
+                <button 
                   onClick={() => setIsModalOpen(true)}
                   className="group relative inline-flex items-center justify-center w-full sm:w-auto"
                 >
@@ -235,9 +235,9 @@ const LandingPage = () => {
                 alt="RUDO Platform Interface"
                 className="w-full h-auto relative z-10"
               />
-            </div>
-          </div>
         </div>
+      </div>
+    </div>
 
         {/* Social Proof Section */}
         <div className="py-24">
@@ -281,8 +281,8 @@ const LandingPage = () => {
               <p className="text-xl text-gray-400">
                 {t('chaos-control')}
               </p>
-            </div>
-            
+      </div>
+      
             <div className="space-y-6">
               <ComparisonRow
                 problem="spreadsheet-problem"
@@ -317,7 +317,7 @@ const LandingPage = () => {
               />
             </div>
           </div>
-        </div>
+      </div>
 
         {/* Coach vs Athlete Section */}
         <div className="py-24">
@@ -326,8 +326,8 @@ const LandingPage = () => {
               <h2 className="text-3xl sm:text-4xl font-bold mb-4">
                 {t('both-sides')}
               </h2>
-            </div>
-            
+                </div>
+
             <div className="grid md:grid-cols-2 gap-8">
               <div className="p-8 bg-white/5 rounded-2xl border border-white/10">
                 <div className="flex items-center gap-3 mb-6">
@@ -351,7 +351,7 @@ const LandingPage = () => {
                   </li>
                 </ul>
               </div>
-              
+
               <div className="p-8 bg-white/5 rounded-2xl border border-white/10">
                 <div className="flex items-center gap-3 mb-6">
                   <div className="p-3 bg-[#4169E1]/20 rounded-xl">
@@ -446,7 +446,7 @@ const LandingPage = () => {
         <div className="text-center mb-6">
           <h2 className="text-2xl font-bold mb-2">{t('join-beta-title')}</h2>
           <p className="text-gray-400">{t('join-beta-subtitle')}</p>
-        </div>
+    </div>
         <WaitlistForm />
       </Modal>
     </>

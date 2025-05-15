@@ -59,10 +59,13 @@ export const translations = {
     'privacy-policy': 'Privacy Policy',
     'terms-of-service': 'Terms of Service',
     'built-in': 'Built in 🇦🇷 Powered by the RUDO team',
+    'new-slogan-line1': 'Coach Smarter.',
+    'new-slogan-line2': 'Manage Less.',
+    'new-slogan-line3': '',
 
     // Landing
-    'hero-title': 'Train athletes.',
-    'hero-subtitle': 'Not spreadsheets.',
+    'hero-title': 'Coach Smarter,',
+    'hero-subtitle': 'Manage Less',
     'hero-description': 'RUDO gives CrossFit coaches everything they need to program, track, and grow — without wasting hours managing chaos.',
     'request-access': 'Request Access to the Beta',
     'trusted-by': 'Already trusted by coaches programming for 300+ athletes',
@@ -204,10 +207,13 @@ export const translations = {
     'privacy-policy': 'Política de Privacidad',
     'terms-of-service': 'Términos de Servicio',
     'built-in': 'Hecho en 🇦🇷 Impulsado por el equipo RUDO',
+    'new-slogan-line1': 'Mas Coaching.',
+    'new-slogan-line2': 'Menos gestión.',
+    'new-slogan-line3': '',
 
     // Landing
-    'hero-title': 'Entrena atletas.',
-    'hero-subtitle': 'No hojas de cálculo.',
+    'hero-title': 'Mas Coaching,',
+    'hero-subtitle': 'Menos gestión',
     'hero-description': 'RUDO brinda a los entrenadores de CrossFit todo lo que necesitan para programar, hacer seguimiento y crecer, sin perder horas gestionando el caos.',
     'request-access': 'Solicitar Acceso a la Beta',
     'trusted-by': 'Ya confían en nosotros entrenadores que programan para más de 300 atletas',
