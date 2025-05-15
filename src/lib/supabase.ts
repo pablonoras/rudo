@@ -31,6 +31,44 @@ export interface Profile {
   email_verified?: boolean;
 }
 
+/**
+ * Validates an invite code to check if it belongs to a coach
+ * @param inviteCode The invite code to validate
+ * @returns Object with data (coach profile if valid) and error
+ */
+export async function validateInviteCode(inviteCode: string) {
+  try {
+    // Check if the invite code exists in the profiles table for a coach
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, full_name, email')
+      .eq('invite_code', inviteCode)
+      .eq('role', 'coach')
+      .single();
+
+    if (error) {
+      console.error('Error validating invite code:', error);
+      return { data: null, error };
+    }
+
+    if (!data) {
+      return { 
+        data: null, 
+        error: { message: 'Invalid invitation code. Please check and try again.' } 
+      };
+    }
+
+    // Code is valid, return the coach's profile
+    return { data, error: null };
+  } catch (error) {
+    console.error('Exception validating invite code:', error);
+    return { 
+      data: null, 
+      error: { message: 'An error occurred while validating the invitation code' } 
+    };
+  }
+}
+
 export async function getCurrentProfile(): Promise<Profile | null> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
@@ -385,15 +423,14 @@ export async function updatePassword(password: string) {
  */
 export async function signInWithOAuth(
   provider: 'google',
-  role: UserRole,
   redirectUrl: string,
   inviteCode?: string
 ) {
   try {
-    // Construct redirect URL with role and optional invite code
-    let redirectTo = `${redirectUrl}?role=${role}`;
+    // Construct redirect URL with optional invite code
+    let redirectTo = redirectUrl;
     if (inviteCode) {
-      redirectTo += `&inviteCode=${encodeURIComponent(inviteCode)}`;
+      redirectTo += `${redirectTo.includes('?') ? '&' : '?'}inviteCode=${encodeURIComponent(inviteCode)}`;
     }
     
     const { data, error } = await supabase.auth.signInWithOAuth({
@@ -424,14 +461,16 @@ export async function signOut() {
 export async function signUp(
   email: string,
   password: string,
-  role: UserRole,
-  fullName: string
+  role: UserRole = 'coach',
+  inviteCode?: string
 ) {
+  // Extract name from email if no name provided
+  const fullName = email.split('@')[0] || 'User';
   const nameParts = fullName.split(' ');
   const firstName = nameParts[0] || '';
   const lastName = nameParts.slice(1).join(' ') || '';
   
-  return signUpWithEmail(email, password, role, firstName, lastName);
+  return signUpWithEmail(email, password, role, firstName, lastName, inviteCode);
 }
 
 export async function signIn(email: string, password: string) {

@@ -7,7 +7,7 @@ const App: React.FC = () => {
       <Routes>
         <Route 
           path="/athlete-signup" 
-          element={<Navigate to={`/athlete-signin${window.location.search}`} replace />} 
+          element={<Navigate to={`/register${window.location.search}`} replace />} 
         />
       </Routes>
     </Router>

@@ -1,22 +1,14 @@
-import React from 'react';
-import { useLanguage } from '../contexts/LanguageContext';
+import { useI18n } from '../lib/i18n/context';
 
-const LanguageToggle: React.FC = () => {
-  const { language, setLanguage } = useLanguage();
-
-  const toggleLanguage = () => {
-    setLanguage(language === 'en' ? 'es' : 'en');
-  };
+const LanguageToggle = () => {
+  const { language, setLanguage } = useI18n();
 
   return (
     <button
-      onClick={toggleLanguage}
-      className="flex items-center justify-center px-2 py-1 rounded-md bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white text-sm transition-all duration-300 border border-white/20"
-      aria-label={`Switch to ${language === 'en' ? 'Spanish' : 'English'}`}
+      onClick={() => setLanguage(language === 'en' ? 'es' : 'en')}
+      className="px-2 py-1 text-sm text-gray-400 hover:text-white transition-colors"
     >
-      <span className={`mr-1 ${language === 'en' ? 'font-bold' : 'opacity-60'}`}>EN</span>
-      <span>/</span>
-      <span className={`ml-1 ${language === 'es' ? 'font-bold' : 'opacity-60'}`}>ES</span>
+      {language === 'en' ? 'ES' : 'EN'}
     </button>
   );
 };

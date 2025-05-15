@@ -2,28 +2,24 @@
  * src/components/auth/AuthCallback.tsx
  * 
  * Callback handler for authentication flows. 
- * Updated to implement:
+ * Implements:
  * 1. Email verification
  * 2. Password reset
- * 3. Athlete workflow checking for coach relationships
+ * 3. Role-agnostic redirection based on user profile
  */
 
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ensureProfileExists, supabase, updatePassword } from '../../lib/supabase';
+import { ensureProfileExists, getCurrentProfile, supabase, updatePassword } from '../../lib/supabase';
 
 const AuthCallback = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const role = searchParams.get('role');
-  const coachId = searchParams.get('coachId');
-  const coachName = searchParams.get('coachName');
   const inviteCode = searchParams.get('inviteCode');
-  const isNewCoach = searchParams.get('isNewCoach') === 'true';
   const isEmailVerification = searchParams.has('email-verification');
   const isPasswordReset = searchParams.has('type') && searchParams.get('type') === 'recovery';
   const [error, setError] = useState<string | null>(null);
-  const [isProcessing, setIsProcessing] = useState(true);
+  const [isProcessing, setIsSubmitting] = useState(true);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showResetForm, setShowResetForm] = useState(false);
@@ -54,19 +50,11 @@ const AuthCallback = () => {
               console.error('Error updating email verification status:', updateError);
             }
             
-            // Redirect based on role
-            if (role === 'coach') {
-              navigate('/coach/');
-            } else if (role === 'athlete') {
-              // Check for coach relationships
-              await checkAthleteCoachRelationships(session.user.id);
-            } else {
-              // Default to coach dashboard if no specific role
-              navigate('/coach/');
-            }
+            // Redirect based on role from profile
+            await redirectBasedOnRole(session.user.id);
           } else {
             // If no session, redirect to sign in
-            navigate('/');
+            navigate('/login');
           }
           return;
         }
@@ -75,7 +63,7 @@ const AuthCallback = () => {
         if (isPasswordReset) {
           // Show the password reset form
           setShowResetForm(true);
-          setIsProcessing(false);
+          setIsSubmitting(false);
           return;
         }
 
@@ -85,351 +73,101 @@ const AuthCallback = () => {
         if (sessionError) throw sessionError;
         
         if (session) {
-          // Check if user already has a profile with a different role
-          const { data: existingProfile } = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', session.user.id)
-            .maybeSingle();
-
-          // Handle role conflict (user trying to sign in with a different role)
-          if (existingProfile && 
-              ((existingProfile.role === 'coach' && role === 'athlete') || 
-               (existingProfile.role === 'athlete' && role === 'coach'))) {
-            setError(`You already have a ${existingProfile.role} account. You cannot switch between coach and athlete roles.`);
-            
-            // Wait 5 seconds and then redirect to role selection page
-            setTimeout(() => {
-              navigate('/');
-            }, 5000);
-            
-            return;
-          }
-
-          // Ensure a profile exists in the database for this user
-          // This is especially important for OAuth sign-ins
-          if (role === 'coach') {
-            console.log('Setting up coach profile...');
-            
-            // First ensure the profile exists
-            const profileCreated = await ensureProfileExists('coach');
-            
-            if (!profileCreated) {
-              console.error('Failed to create coach profile');
+          // Handle the OAuth sign-in with invite code if provided
+          if (inviteCode) {
+            await handleAthleteWithInviteCode(session.user.id, inviteCode);
+          } else {
+            // For all other cases, ensure profile exists and redirect based on role
+            // If user has no profile yet, create one with default role
+            const profile = await getCurrentProfile();
+            if (!profile) {
+              await ensureProfileExists('coach'); // Default role if none exists
             }
-            
-            // Update profile as coach
-            const { error: updateError } = await supabase
-              .from('profiles')
-              .update({ role: 'coach' })
-              .eq('id', session.user.id);
-            
-            if (updateError) {
-              console.error('Error updating profile role:', updateError);
-            }
-            
-            // No longer automatically creating teams for coaches
-            console.log('Coach profile set up, redirecting to dashboard');
-            
-            // Redirect to coach dashboard
-            navigate('/coach/');
-          } 
-          else if (role === 'athlete') {
-            console.log('Setting up athlete profile...');
-            
-            // First ensure the profile exists
-            const profileCreated = await ensureProfileExists('athlete', null); // Pass null for invite_code
-            
-            if (!profileCreated) {
-              console.error('Failed to create athlete profile');
-              
-              // Try direct insert as a fallback
-              try {
-                console.log('Attempting direct profile creation as fallback...');
-                const { data: { user } } = await supabase.auth.getUser();
-                
-                if (user) {
-                  const fullName = user.user_metadata?.full_name || user.user_metadata?.name || 'User';
-                  const email = user.email || user.user_metadata?.email || '';
-                  const avatarUrl = user.user_metadata?.avatar_url || user.user_metadata?.picture || null;
-                  
-                  const { error: insertError } = await supabase
-                    .from('profiles')
-                    .insert({
-                      id: user.id,
-                      role: 'athlete',
-                      full_name: fullName,
-                      email,
-                      avatar_url: avatarUrl,
-                    });
-                    
-                  if (insertError) {
-                    console.error('Direct profile creation failed:', insertError);
-                  } else {
-                    console.log('Direct profile creation succeeded');
-                  }
-                }
-              } catch (err) {
-                console.error('Error in fallback profile creation:', err);
-              }
-            }
-            
-            // Update profile as athlete with null invite_code
-            const { error: profileError } = await supabase
-              .from('profiles')
-              .update({ 
-                role: 'athlete',
-                invite_code: null  // Ensure athletes have no invite code
-              })
-              .eq('id', session.user.id);
-            
-            if (profileError) {
-              console.error('Error updating profile:', profileError);
-              // Check if this is a role change error
-              if (profileError.message && profileError.message.includes('Role change')) {
-                setError('You cannot change your role from coach to athlete. Please use your existing coach account.');
-                setTimeout(() => navigate('/'), 5000);
-                return;
-              }
-            }
-
-            // Handle invite code if provided from the URL
-            if (inviteCode) {
-              console.log('Processing invite code from URL:', inviteCode);
-              
-              // First verify the profile exists in the database
-              const { data: profileCheck } = await supabase
-                .from('profiles')
-                .select('id')
-                .eq('id', session.user.id)
-                .single();
-                
-              if (!profileCheck) {
-                console.error('Profile verification failed - profile not found in database');
-                // Try one more time to create the profile
-                const { data: { user } } = await supabase.auth.getUser();
-                if (user) {
-                  const fullName = user.user_metadata?.full_name || user.user_metadata?.name || 'User';
-                  const email = user.email || user.user_metadata?.email || '';
-                  const avatarUrl = user.user_metadata?.avatar_url || user.user_metadata?.picture || null;
-                  
-                  await supabase
-                    .from('profiles')
-                    .insert({
-                      id: user.id,
-                      role: 'athlete',
-                      full_name: fullName,
-                      email,
-                      avatar_url: avatarUrl,
-                    });
-                }
-              } else {
-                console.log('Profile verified successfully');
-              }
-              
-              try {
-                // Call the RPC function to resolve the invite code and create the relationship
-                console.log('Calling resolve_invite RPC with:', {
-                  code: inviteCode,
-                  athlete_user_id: session.user.id
-                });
-                
-                const { data: resolveResult, error: resolveError } = await supabase
-                  .rpc('resolve_invite', {
-                    code: inviteCode,
-                    athlete_user_id: session.user.id
-                  });
-                
-                console.log('RPC response:', { resolveResult, resolveError });
-                
-                if (resolveError) {
-                  console.error('Error resolving invite code:', resolveError);
-                  setError(`Error resolving invite code: ${resolveError.message}`);
-                  setTimeout(() => navigate('/athlete/'), 3000);
-                } else if (!resolveResult || !resolveResult.success) {
-                  console.error('Invalid invite code:', resolveResult?.message);
-                  
-                  // Try a direct query as a fallback
-                  console.log('Trying direct query as fallback...');
-                  const { data: coachData, error: coachError } = await supabase
-                    .from('profiles')
-                    .select('id, full_name')
-                    .eq('invite_code', inviteCode)
-                    .eq('role', 'coach')
-                    .maybeSingle();
-                    
-                  if (coachError) {
-                    console.error('Error in fallback query:', coachError);
-                  }
-                  
-                  if (coachData) {
-                    console.log('Found coach via direct query:', coachData);
-                    
-                    // Create coach_athletes relationship manually
-                    const { error: relationError } = await supabase
-                      .from('coach_athletes')
-                      .insert({
-                        coach_id: coachData.id,
-                        athlete_id: session.user.id,
-                        status: 'pending'
-                      });
-                      
-                    if (relationError) {
-                      console.error('Error creating relationship:', relationError);
-                    } else {
-                      console.log('Successfully created relationship via fallback');
-                      
-                      // Store coach information in localStorage for displaying the pending status
-                      localStorage.setItem('pendingCoachName', coachData.full_name);
-                      localStorage.setItem('pendingCoachId', coachData.id);
-                      localStorage.setItem('pendingJoinStatus', 'true');
-                      
-                      // Redirect to athlete dashboard
-                      navigate('/athlete/');
-                      return;
-                    }
-                  } else {
-                    // Try case-insensitive match as a last resort
-                    console.log('Trying case-insensitive match...');
-                    const { data: allCoaches } = await supabase
-                      .from('profiles')
-                      .select('id, full_name, invite_code')
-                      .eq('role', 'coach');
-                    
-                    const matchingCoach = allCoaches?.find(coach => 
-                      coach.invite_code && coach.invite_code.toLowerCase() === inviteCode.toLowerCase()
-                    );
-                    
-                    if (matchingCoach) {
-                      console.log('Found coach via case-insensitive match:', matchingCoach);
-                      
-                      // Create coach_athletes relationship manually
-                      const { error: relationError } = await supabase
-                        .from('coach_athletes')
-                        .insert({
-                          coach_id: matchingCoach.id,
-                          athlete_id: session.user.id,
-                          status: 'pending'
-                        });
-                        
-                      if (relationError) {
-                        console.error('Error creating relationship:', relationError);
-                      } else {
-                        console.log('Successfully created relationship via case-insensitive match');
-                        
-                        // Store coach information in localStorage for displaying the pending status
-                        localStorage.setItem('pendingCoachName', matchingCoach.full_name);
-                        localStorage.setItem('pendingCoachId', matchingCoach.id);
-                        localStorage.setItem('pendingJoinStatus', 'true');
-                        
-                        // Redirect to athlete dashboard
-                        navigate('/athlete/');
-                        return;
-                      }
-                    } else {
-                      setError(`Invalid invite code: ${resolveResult?.message || 'Unknown error'}`);
-                      setTimeout(() => navigate('/athlete/'), 3000);
-                    }
-                  }
-                } else {
-                  console.log('Successfully resolved invite code with result:', resolveResult);
-                  
-                  // Store coach information in localStorage for displaying the pending status
-                  localStorage.setItem('pendingCoachName', resolveResult.coach_name);
-                  localStorage.setItem('pendingCoachId', resolveResult.coach_id);
-                  localStorage.setItem('pendingJoinStatus', 'true');
-                  
-                  // Redirect to athlete dashboard
-                  navigate('/athlete/');
-                  return;
-                }
-              } catch (error) {
-                console.error('Error processing invite code:', error);
-                setError(`Error processing invite code: ${error instanceof Error ? error.message : 'Unknown error'}`);
-                setTimeout(() => navigate('/athlete/'), 3000);
-              }
-            }
-            // Legacy direct coach ID handling (to be phased out)
-            else if (coachId) {
-              console.log('Associating athlete with coach via ID (legacy)...');
-              
-              // Create coach_athletes record to associate athlete with coach
-              const { error: coachAthleteError } = await supabase
-                .from('coach_athletes')
-                .insert({
-                  coach_id: coachId,
-                  athlete_id: session.user.id,
-                  status: 'active'
-                });
-              
-              if (coachAthleteError) {
-                console.error('Error associating with coach:', coachAthleteError);
-                // Check if this is a role conflict error
-                if (coachAthleteError.message && coachAthleteError.message.includes('coach cannot be added as an athlete')) {
-                  setError('You cannot join as an athlete because you already have a coach account.');
-                  setTimeout(() => navigate('/'), 5000);
-                  return;
-                }
-              }
-              
-              // Store coach information in localStorage for future reference
-              if (coachName) {
-                localStorage.setItem('coachName', coachName);
-                localStorage.setItem('coachId', coachId);
-              }
-              
-              // Redirect to athlete dashboard
-              navigate('/athlete/');
-              return;
-            }
-            
-            // Check if the athlete has any coach relationship
-            await checkAthleteCoachRelationships(session.user.id);
-          }
-          else {
-            // Default to coach dashboard if no specific role
-            console.warn('No specific role provided, defaulting to coach role');
-            
-            const profileCreated = await ensureProfileExists('coach');
-            
-            if (!profileCreated) {
-              console.error('Failed to create default coach profile');
-            }
-            
-            navigate('/coach/');
+            await redirectBasedOnRole(session.user.id);
           }
         } else {
-          navigate('/');
+          navigate('/login');
         }
       } catch (error: any) {
         console.error('Error in auth callback:', error);
-        
-        // Check if this is a role-related error
-        if (error.message && (
-            error.message.includes('Role change') || 
-            error.message.includes('coach cannot be added') || 
-            error.message.includes('athlete cannot create'))) {
-          setError(error.message);
-          setTimeout(() => navigate('/'), 5000);
-        } else {
-          navigate('/');
-        }
+        setError(error.message || 'An error occurred during authentication');
+        setTimeout(() => navigate('/login'), 5000);
       } finally {
         if (!isPasswordReset) {
-          setIsProcessing(false);
+          setIsSubmitting(false);
         }
       }
     };
 
-    const checkAthleteCoachRelationships = async (athleteId: string) => {
-      // If we came from an invite link, we already processed the invite code
-      // Skip the invite code entry page and go directly to the dashboard
-      if (inviteCode) {
-        console.log('Came from invite link, redirecting directly to dashboard');
-        navigate('/athlete/');
-        return;
+    // Function to redirect based on user role from profile
+    const redirectBasedOnRole = async (userId: string) => {
+      try {
+        // Get the user's profile to determine their role
+        const profile = await getCurrentProfile();
+        
+        if (!profile) {
+          setError('Unable to retrieve user profile');
+          setTimeout(() => navigate('/login'), 3000);
+          return;
+        }
+        
+        // Redirect based on role
+        if (profile.role === 'coach') {
+          navigate('/coach');
+        } else if (profile.role === 'athlete') {
+          // For athletes, check if they have any coach relationships
+          await checkAthleteCoachRelationships(userId);
+        } else {
+          // Fallback to login if role is not recognized
+          navigate('/login');
+        }
+      } catch (error) {
+        console.error('Error determining user role:', error);
+        setError('An error occurred while accessing your account');
+        setTimeout(() => navigate('/login'), 3000);
       }
+    };
+
+    // Handle athlete registration with invite code
+    const handleAthleteWithInviteCode = async (userId: string, code: string) => {
+      console.log('Processing invite code for athlete:', code);
       
+      // Ensure profile exists as athlete since we have an invite code
+      await ensureProfileExists('athlete');
+      
+      try {
+        // Call the RPC function to resolve the invite code and create the relationship
+        const { data: resolveResult, error: resolveError } = await supabase
+          .rpc('resolve_invite', {
+            code,
+            athlete_user_id: userId
+          });
+        
+        if (resolveError) {
+          console.error('Error resolving invite code:', resolveError);
+          setError(`Error resolving invite code: ${resolveError.message}`);
+          setTimeout(() => navigate('/athlete'), 3000);
+        } else if (!resolveResult || !resolveResult.success) {
+          console.error('Invalid invite code:', resolveResult?.message);
+          setError('Invalid invitation code. Please try again.');
+          setTimeout(() => navigate('/invite-code-entry'), 3000);
+        } else {
+          // Store coach info in localStorage for use after email verification
+          localStorage.setItem('pendingCoachName', resolveResult.coach_name);
+          localStorage.setItem('pendingCoachId', resolveResult.coach_id);
+          localStorage.setItem('pendingJoinStatus', 'true');
+          
+          // Redirect to athlete dashboard
+          navigate('/athlete');
+        }
+      } catch (error: any) {
+        console.error('Error processing invite code:', error);
+        setError('An error occurred while processing your invitation code');
+        setTimeout(() => navigate('/login'), 3000);
+      }
+    };
+
+    const checkAthleteCoachRelationships = async (athleteId: string) => {
       // Check if the athlete has any coach relationship
       const { data: coachRelationships, error: relationshipError } = await supabase
         .from('coach_athletes')
@@ -445,7 +183,7 @@ const AuthCallback = () => {
       // Otherwise, redirect to the invite code entry page
       if (coachRelationships && coachRelationships.length > 0) {
         console.log('Athlete has existing coach relationships, redirecting to dashboard');
-        navigate('/athlete/');
+        navigate('/athlete');
       } else {
         console.log('Athlete has no coach relationships, redirecting to invite code entry');
         navigate('/invite-code-entry');
@@ -453,7 +191,7 @@ const AuthCallback = () => {
     };
 
     handleAuthCallback();
-  }, [navigate, role, coachId, coachName, inviteCode, isNewCoach, isEmailVerification, isPasswordReset]);
+  }, [navigate, inviteCode, isEmailVerification, isPasswordReset]);
 
   const handlePasswordReset = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -471,7 +209,7 @@ const AuthCallback = () => {
       return;
     }
 
-    setIsProcessing(true);
+    setIsSubmitting(true);
 
     try {
       const { success, error } = await updatePassword(password);
@@ -479,21 +217,21 @@ const AuthCallback = () => {
       if (error) {
         console.error('Error resetting password:', error);
         setErrorMessage(error.message || 'Failed to reset password. Please try again.');
-        setIsProcessing(false);
+        setIsSubmitting(false);
         return;
       }
       
       if (success) {
         setResetSuccess(true);
-        // Redirect to sign in after 3 seconds
+        // Redirect to login after 3 seconds
         setTimeout(() => {
-          navigate('/coach-signin');
+          navigate('/login');
         }, 3000);
       }
     } catch (error: any) {
       console.error('Error resetting password:', error);
       setErrorMessage(error.message || 'Failed to reset password. Please try again.');
-      setIsProcessing(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -582,7 +320,7 @@ const AuthCallback = () => {
           <div className="bg-red-900/50 border border-red-500 rounded-lg p-4 mb-4">
             <p>{error}</p>
           </div>
-          <p>Redirecting you back to the role selection page...</p>
+          <p>Redirecting you to the login page...</p>
         </div>
       ) : (
         <div className="relative z-10 animate-pulse flex flex-col items-center">
