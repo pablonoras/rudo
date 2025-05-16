@@ -73,15 +73,43 @@ const AuthCallback = () => {
         if (sessionError) throw sessionError;
         
         if (session) {
-          // Handle the OAuth sign-in with invite code if provided
-          if (inviteCode) {
+          // Check if we have user data in localStorage from OAuth sign-in
+          let role: UserRole = 'coach'; // Default to coach
+          try {
+            const storedUserData = localStorage.getItem('oauthUserData');
+            if (storedUserData) {
+              const userData = JSON.parse(storedUserData);
+              if (userData.role) {
+                role = userData.role as UserRole;
+              }
+              // Clear the stored data after using it
+              localStorage.removeItem('oauthUserData');
+            } else {
+              // Fallback to user metadata if available
+              const { data: { user } } = await supabase.auth.getUser();
+              if (user?.user_metadata?.role) {
+                role = user.user_metadata.role as UserRole;
+              }
+            }
+          } catch (e) {
+            console.error('Error parsing stored user data:', e);
+          }
+          
+          // Handle the OAuth sign-in differently based on role
+          if (role === 'coach') {
+            // For coaches, ensure profile exists and redirect to coach dashboard
+            // Never process invite codes for coaches
+            await ensureProfileExists('coach');
+            navigate('/coach');
+          } else if (inviteCode) {
+            // Only process invite code for athletes
             await handleAthleteWithInviteCode(session.user.id, inviteCode);
           } else {
             // For all other cases, ensure profile exists and redirect based on role
             // If user has no profile yet, create one with default role
             const profile = await getCurrentProfile();
             if (!profile) {
-              await ensureProfileExists('coach'); // Default role if none exists
+              await ensureProfileExists(role); // Use the role from stored data or metadata
             }
             await redirectBasedOnRole(session.user.id);
           }
@@ -113,12 +141,16 @@ const AuthCallback = () => {
         
         // Redirect based on role
         if (profile.role === 'coach') {
+          // Coaches always go to the coach dashboard
+          console.log('User is a coach, redirecting to coach dashboard');
           navigate('/coach');
         } else if (profile.role === 'athlete') {
           // For athletes, check if they have any coach relationships
+          console.log('User is an athlete, checking coach relationships');
           await checkAthleteCoachRelationships(userId);
         } else {
           // Fallback to login if role is not recognized
+          console.log('Unknown role, redirecting to login');
           navigate('/login');
         }
       } catch (error) {
@@ -168,6 +200,28 @@ const AuthCallback = () => {
     };
 
     const checkAthleteCoachRelationships = async (athleteId: string) => {
+      // Make sure we're only dealing with an athlete - this is crucial
+      const profile = await getCurrentProfile();
+      if (!profile) {
+        console.log('No profile found, redirecting to home');
+        navigate('/');
+        return;
+      }
+      
+      // If this is a coach, always redirect to coach dashboard
+      if (profile.role === 'coach') {
+        console.log('User is a coach, redirecting to coach dashboard');
+        navigate('/coach');
+        return;
+      }
+      
+      // Only proceed with athlete logic if the user is actually an athlete
+      if (profile.role !== 'athlete') {
+        console.log('Not an athlete, redirecting to home');
+        navigate('/');
+        return;
+      }
+      
       // Check if the athlete has any coach relationship
       const { data: coachRelationships, error: relationshipError } = await supabase
         .from('coach_athletes')

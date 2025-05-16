@@ -104,8 +104,8 @@ const AthleteInviteSignup = () => {
           setCoachName(coachInfo.coach_name);
           // Store coach name in session storage for use in the sign-in component
           sessionStorage.setItem('inviteCoachName', coachInfo.coach_name);
-          // Redirect to athlete sign-in with the invite code
-          navigate(`/athlete-signin?code=${inviteCode}`, { replace: true });
+          // Redirect to athlete registration with the invite code
+          navigate(`/register/athlete?code=${inviteCode}`, { replace: true });
         } else {
           console.error('No coach found for this invite code');
           setError('No coach found for this invitation code.');
@@ -146,16 +146,16 @@ const AthleteInviteSignup = () => {
                 Return to Home
               </button>
               <button 
-                onClick={() => navigate('/athlete-signin', { replace: true })}
+                onClick={() => navigate('/auth', { replace: true })}
                 className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
               >
-                Sign In as Athlete
+                Go to Sign In
               </button>
               <button 
-                onClick={() => navigate('/invite-code-entry', { replace: true })}
+                onClick={() => navigate('/register/athlete', { replace: true })}
                 className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
               >
-                Enter Invitation Code Manually
+                Register as Athlete
               </button>
             </div>
           </div>

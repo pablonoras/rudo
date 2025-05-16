@@ -80,8 +80,10 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, role }) => {
   if (!authorized) {
     // Redirect to the appropriate dashboard based on the user's actual role
     if (user.role === 'coach') {
+      // If a coach tries to access athlete routes, redirect to coach dashboard
       return <Navigate to="/coach" replace />;
     } else if (user.role === 'athlete') {
+      // If an athlete tries to access coach routes, redirect to athlete dashboard
       return <Navigate to="/athlete" replace />;
     } else {
       // If role is unknown, redirect to login

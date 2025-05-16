@@ -5,6 +5,7 @@ export const translations = {
     'how-it-works': 'How it Works',
     'faq': 'FAQ',
     'join-beta': 'Join the Beta',
+    'get-started': 'Get Started',
     
     // Auth
     'sign-in': 'Sign In',
@@ -20,12 +21,18 @@ export const translations = {
     'dont-have-account': "Don't have an account?",
     'welcome-back': 'Welcome Back',
     'sign-in-to-access': 'Sign in to access your account',
+    'sign-in-as-coach': 'Sign in as a coach to access your dashboard',
+    'sign-in-as-athlete': 'Sign in as an athlete to access your training',
     'back-to-home': 'Back to home',
     'create-account': 'Create Account',
     'creating-account': 'Creating Account...',
     'join-community': 'Join our community of athletes and coaches',
     'already-have-account': 'Already have an account?',
     'back-to-role-selection': 'Back to role selection',
+    'registration-successful': 'Registration Successful!',
+    'check-email-verification': 'Please check your email to verify your account.',
+    'go-to-login': 'Go to Login',
+    'choose-role-to-continue': 'Choose your role to continue with sign in or registration',
 
     // Registration steps
     'select-your-role': 'Select your role to get started',
@@ -153,6 +160,7 @@ export const translations = {
     'how-it-works': 'Cómo Funciona',
     'faq': 'Preguntas Frecuentes',
     'join-beta': 'Unirse a la Beta',
+    'get-started': 'Comenzar',
     
     // Auth
     'sign-in': 'Iniciar Sesión',
@@ -168,12 +176,18 @@ export const translations = {
     'dont-have-account': '¿No tienes una cuenta?',
     'welcome-back': 'Bienvenido de nuevo',
     'sign-in-to-access': 'Inicia sesión para acceder a tu cuenta',
+    'sign-in-as-coach': 'Inicia sesión como entrenador para acceder a tu panel',
+    'sign-in-as-athlete': 'Inicia sesión como atleta para acceder a tu entrenamiento',
     'back-to-home': 'Volver al inicio',
     'create-account': 'Crear Cuenta',
     'creating-account': 'Creando Cuenta...',
     'join-community': 'Únete a nuestra comunidad de atletas y entrenadores',
     'already-have-account': '¿Ya tienes una cuenta?',
     'back-to-role-selection': 'Volver a selección de rol',
+    'registration-successful': '¡Registro Exitoso!',
+    'check-email-verification': 'Por favor, revisa tu correo electrónico para verificar tu cuenta.',
+    'go-to-login': 'Ir a Iniciar Sesión',
+    'choose-role-to-continue': 'Elige tu rol para continuar con el inicio de sesión o registro',
 
     // Registration steps
     'select-your-role': 'Selecciona tu rol para comenzar',

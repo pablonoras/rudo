@@ -2,10 +2,11 @@
  * src/App.tsx
  * 
  * Main application component that sets up routing for the entire application.
- * Updated to implement a role-agnostic authentication flow:
- * 1. User signs in through a common login page
- * 2. System determines their role from their profile
- * 3. User is redirected to the appropriate dashboard based on their role
+ * Updated to implement a role-first authentication flow:
+ * 1. User selects their role (coach or athlete)
+ * 2. User chooses to login or register
+ * 3. System handles role-specific flows (e.g., invitation code for athletes)
+ * 4. User is redirected to the appropriate dashboard based on their role
  */
 
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
@@ -21,6 +22,7 @@ import ProtectedRoute from './components/auth/ProtectedRoute';
 import LandingPage from './components/LandingPage';
 import Login from './components/Login';
 import Register from './components/Register';
+import RoleSelection from './components/RoleSelection';
 
 // Coach pages
 import { CoachAccount } from './pages/coach/Account';
@@ -50,7 +52,7 @@ const RedirectWithParams = ({ to }: { to: string }) => {
   
   // If there's a 'code' parameter, redirect to register with the code
   if (searchParams.has('code')) {
-    return <Navigate to={`/register?code=${searchParams.get('code')}`} replace />;
+    return <Navigate to={`/register/athlete?code=${searchParams.get('code')}`} replace />;
   }
   
   // Otherwise, just redirect to the target path
@@ -64,13 +66,20 @@ function App() {
         <ModalProvider>
           <Routes>
             <Route path="/" element={<LandingPage />} />
-            <Route path="/login" element={<Login />} />
+            
+            {/* New role-first authentication flow */}
+            <Route path="/auth" element={<RoleSelection />} />
+            <Route path="/login/:role" element={<Login />} />
+            <Route path="/register/:role" element={<Register />} />
+            
+            {/* Legacy routes for backward compatibility */}
+            <Route path="/login" element={<Navigate to="/auth" replace />} />
             <Route path="/register" element={<Register />} />
             
             {/* Legacy route redirects */}
-            <Route path="/athlete-signin" element={<RedirectWithParams to="/login" />} />
-            <Route path="/athlete-signin/:coachName" element={<RedirectWithParams to="/login" />} />
-            <Route path="/coach-signin" element={<Navigate to="/login" replace />} />
+            <Route path="/athlete-signin" element={<RedirectWithParams to="/auth" />} />
+            <Route path="/athlete-signin/:coachName" element={<RedirectWithParams to="/auth" />} />
+            <Route path="/coach-signin" element={<Navigate to="/auth" replace />} />
             
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/login/success" element={<LoginSuccess />} />

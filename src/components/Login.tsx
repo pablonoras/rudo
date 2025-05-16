@@ -1,12 +1,13 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ArrowLeft, BarChart3, Dumbbell, MessageSquare, Users } from 'lucide-react';
+import { BarChart3, ChevronLeft, Dumbbell, MessageSquare, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { z } from 'zod';
 import { useI18n } from '../lib/i18n/context';
 import { getCurrentProfile, signIn, signInWithOAuth } from '../lib/supabase';
 import LanguageToggle from './LanguageToggle';
+import { UserRole } from './RoleSelection';
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email'),
@@ -19,18 +20,28 @@ const Login = () => {
   const { t } = useI18n();
   const navigate = useNavigate();
   const location = useLocation();
+  const { role } = useParams<{ role: string }>();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<UserRole | null>(null);
 
   useEffect(() => {
+    // Validate the role parameter
+    if (role && (role === 'coach' || role === 'athlete')) {
+      setUserRole(role as UserRole);
+    } else {
+      // If invalid role, redirect to role selection
+      navigate('/auth');
+    }
+
     // Check if there's a success message from registration
     if (location.state && location.state.message) {
       setSuccessMessage(location.state.message);
       // Clear the state to prevent showing the message on refresh
       window.history.replaceState({}, document.title);
     }
-  }, [location]);
+  }, [location, role, navigate]);
 
   const {
     register,
@@ -90,10 +101,18 @@ const Login = () => {
 
   const handleGoogleLogin = async () => {
     try {
-      // For OAuth login, we don't specify a role - we'll determine it after authentication
+      if (!userRole) {
+        setErrorMessage('Please select a role first');
+        return;
+      }
+
+      console.log('Starting Google login with role:', userRole);
+
+      // For OAuth login, we pass the selected role in the options
       await signInWithOAuth(
         'google',
-        `${window.location.origin}/auth/callback`
+        `${window.location.origin}/auth/callback`,
+        { data: { role: userRole } }
       );
       // Redirect will happen in the auth callback component
     } catch (error: any) {
@@ -102,18 +121,22 @@ const Login = () => {
     }
   };
 
+  const handleGoBack = () => {
+    navigate('/auth');
+  };
+
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-white flex">
       {/* Left Panel - Login Form */}
       <div className="w-full lg:w-1/2 p-8 flex flex-col">
         <div className="flex items-center justify-between mb-12">
-          <Link
-            to="/"
+          <button
+            onClick={handleGoBack}
             className="inline-flex items-center text-gray-400 hover:text-white transition-colors"
           >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            {t('back-to-home')}
-          </Link>
+            <ChevronLeft className="w-4 h-4 mr-2" />
+            {t('back-to-role-selection')}
+          </button>
           <LanguageToggle />
         </div>
 
@@ -126,7 +149,9 @@ const Login = () => {
         <div className="max-w-md w-full mx-auto flex-1 flex flex-col justify-center">
           <h1 className="text-3xl font-bold mb-2">{t('welcome-back')}</h1>
           <p className="text-gray-400 mb-8">
-            {t('sign-in-to-access')}
+            {userRole === 'coach' 
+              ? t('sign-in-as-coach') 
+              : t('sign-in-as-athlete')}
           </p>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -222,7 +247,7 @@ const Login = () => {
 
           <p className="text-center text-gray-400 text-sm mt-6">
             {t('dont-have-account')}{' '}
-            <Link to="/register" className="text-[#8A2BE2] hover:text-[#4169E1] transition-colors">
+            <Link to={`/register/${userRole}`} className="text-[#8A2BE2] hover:text-[#4169E1] transition-colors">
               {t('sign-up')}
             </Link>
           </p>

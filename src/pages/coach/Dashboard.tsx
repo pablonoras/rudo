@@ -70,7 +70,7 @@ export function CoachDashboard() {
   // Generate the invite link
   const getInviteLink = () => {
     if (!profile?.invite_code) return '';
-    return `${window.location.origin}/register?code=${profile.invite_code}`;
+    return `${window.location.origin}/register/athlete?code=${profile.invite_code}`;
   };
   
   // Copy the invite link to clipboard

@@ -424,19 +424,51 @@ export async function updatePassword(password: string) {
 export async function signInWithOAuth(
   provider: 'google',
   redirectUrl: string,
-  inviteCode?: string
+  inviteCodeOrOptions?: string | { redirectTo?: string; data?: Record<string, any> }
 ) {
   try {
-    // Construct redirect URL with optional invite code
-    let redirectTo = redirectUrl;
-    if (inviteCode) {
-      redirectTo += `${redirectTo.includes('?') ? '&' : '?'}inviteCode=${encodeURIComponent(inviteCode)}`;
+    // Determine if we're dealing with an invite code or options object
+    let inviteCode: string | undefined;
+    let userData: Record<string, any> | undefined;
+    let finalRedirectUrl = redirectUrl;
+    
+    console.log('signInWithOAuth called with provider:', provider);
+    
+    if (typeof inviteCodeOrOptions === 'string') {
+      inviteCode = inviteCodeOrOptions;
+      console.log('Using string invite code:', inviteCode);
+    } else if (inviteCodeOrOptions && typeof inviteCodeOrOptions === 'object') {
+      console.log('Using options object:', JSON.stringify(inviteCodeOrOptions));
+      
+      if (inviteCodeOrOptions.redirectTo) {
+        finalRedirectUrl = inviteCodeOrOptions.redirectTo;
+        console.log('Using custom redirect URL:', finalRedirectUrl);
+      }
+      
+      userData = inviteCodeOrOptions.data;
+      if (userData) {
+        console.log('User data provided:', JSON.stringify(userData));
+      }
     }
+    
+    // Construct redirect URL with optional invite code
+    if (inviteCode) {
+      finalRedirectUrl += `${finalRedirectUrl.includes('?') ? '&' : '?'}inviteCode=${encodeURIComponent(inviteCode)}`;
+      console.log('Final redirect URL with invite code:', finalRedirectUrl);
+    }
+    
+    // Store user data in localStorage to be retrieved in AuthCallback
+    if (userData) {
+      localStorage.setItem('oauthUserData', JSON.stringify(userData));
+      console.log('Stored user data in localStorage');
+    }
+    
+    console.log('Initiating OAuth sign-in with redirect to:', finalRedirectUrl);
     
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo,
+        redirectTo: finalRedirectUrl,
         queryParams: {
           access_type: 'offline',
           prompt: 'consent',
@@ -447,6 +479,7 @@ export async function signInWithOAuth(
     if (error) throw error;
     return { data, error: null };
   } catch (error) {
+    console.error('Error in signInWithOAuth:', error);
     return { data: null, error };
   }
 }

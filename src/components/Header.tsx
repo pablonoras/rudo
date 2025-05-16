@@ -70,7 +70,7 @@ const Header = () => {
               </button>
               <LanguageToggle />
               <Link
-                to="/login"
+                to="/auth"
                 className="text-sm text-gray-300 hover:text-white transition-colors flex items-center gap-1"
               >
                 <LogIn className="w-4 h-4" />
@@ -115,7 +115,7 @@ const Header = () => {
                   {t('faq')}
                 </button>
                 <Link
-                  to="/login"
+                  to="/auth"
                   className="text-sm text-gray-300 hover:text-white transition-colors flex items-center gap-1"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
