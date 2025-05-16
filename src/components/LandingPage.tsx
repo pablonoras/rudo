@@ -15,6 +15,7 @@ import {
   UsersRound
 } from 'lucide-react';
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useI18n } from '../lib/i18n/context';
 import Footer from './Footer';
 import Header from './Header';
@@ -203,6 +204,16 @@ const LandingPage = () => {
                 transition={{ delay: 0.4 }}
                 className="flex flex-col sm:flex-row gap-4 justify-center px-4"
               >
+                <Link 
+                  to="/auth"
+                  className="group relative inline-flex items-center justify-center w-full sm:w-auto"
+                >
+                  <div className="absolute -inset-0.5 bg-gradient-to-r from-[#4169E1] to-[#8A2BE2] rounded-full blur opacity-60 group-hover:opacity-100 transition duration-500"></div>
+                  <span className="relative px-8 py-4 bg-[#0A0A0A] text-white rounded-full font-bold tracking-wide flex items-center justify-center gap-3 border border-white/10 hover:border-white/20 transition-all duration-500 w-full sm:w-auto">
+                    {t('get-started')}
+                    <ArrowRight className="w-5 h-5 transition-transform duration-500 group-hover:translate-x-1" />
+                  </span>
+                </Link>
                 <button 
                   onClick={() => setIsModalOpen(true)}
                   className="group relative inline-flex items-center justify-center w-full sm:w-auto"
@@ -350,6 +361,15 @@ const LandingPage = () => {
                     <span>{t('look-pro')}</span>
                   </li>
                 </ul>
+                <div className="mt-6">
+                  <Link
+                    to="/auth"
+                    className="inline-flex items-center gap-2 text-[#8A2BE2] font-medium hover:underline"
+                  >
+                    {t('get-started')}
+                    <ArrowRight className="w-4 h-4" />
+                  </Link>
+                </div>
               </div>
 
               <div className="p-8 bg-white/5 rounded-2xl border border-white/10">
@@ -373,6 +393,15 @@ const LandingPage = () => {
                     <span>{t('track-progress')}</span>
                   </li>
                 </ul>
+                <div className="mt-6">
+                  <Link
+                    to="/auth"
+                    className="inline-flex items-center gap-2 text-[#4169E1] font-medium hover:underline"
+                  >
+                    {t('get-started')}
+                    <ArrowRight className="w-4 h-4" />
+                  </Link>
+                </div>
               </div>
             </div>
           </div>
@@ -422,16 +451,29 @@ const LandingPage = () => {
               {t('shape-future')}
             </p>
             
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className="group relative inline-flex items-center justify-center mx-auto"
-            >
-              <div className="absolute -inset-0.5 bg-gradient-to-r from-[#8A2BE2] to-[#4169E1] rounded-full blur opacity-60 group-hover:opacity-100 transition duration-500"></div>
-              <span className="relative px-8 py-4 bg-[#0A0A0A] text-white rounded-full font-bold tracking-wide flex items-center gap-3 border border-white/10 hover:border-white/20 transition-all duration-500">
-                {t('request-access')}
-                <ArrowRight className="w-5 h-5 transition-transform duration-500 group-hover:translate-x-1" />
-              </span>
-            </button>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link
+                to="/auth"
+                className="group relative inline-flex items-center justify-center mx-auto w-full sm:w-auto"
+              >
+                <div className="absolute -inset-0.5 bg-gradient-to-r from-[#4169E1] to-[#8A2BE2] rounded-full blur opacity-60 group-hover:opacity-100 transition duration-500"></div>
+                <span className="relative px-8 py-4 bg-[#0A0A0A] text-white rounded-full font-bold tracking-wide flex items-center gap-3 border border-white/10 hover:border-white/20 transition-all duration-500 w-full sm:w-auto">
+                  {t('get-started')}
+                  <ArrowRight className="w-5 h-5 transition-transform duration-500 group-hover:translate-x-1" />
+                </span>
+              </Link>
+              
+              <button
+                onClick={() => setIsModalOpen(true)}
+                className="group relative inline-flex items-center justify-center mx-auto w-full sm:w-auto"
+              >
+                <div className="absolute -inset-0.5 bg-gradient-to-r from-[#8A2BE2] to-[#4169E1] rounded-full blur opacity-60 group-hover:opacity-100 transition duration-500"></div>
+                <span className="relative px-8 py-4 bg-[#0A0A0A] text-white rounded-full font-bold tracking-wide flex items-center gap-3 border border-white/10 hover:border-white/20 transition-all duration-500 w-full sm:w-auto">
+                  {t('request-access')}
+                  <ArrowRight className="w-5 h-5 transition-transform duration-500 group-hover:translate-x-1" />
+                </span>
+              </button>
+            </div>
             
             <p className="text-sm text-gray-400 mt-6">
               {t('trusted-by')}

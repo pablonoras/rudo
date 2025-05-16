@@ -1,12 +1,13 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ArrowLeft, BarChart3, ChevronLeft, Dumbbell, MessageSquare, Users } from 'lucide-react';
+import { BarChart3, ChevronLeft, Dumbbell, MessageSquare } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { z } from 'zod';
 import { useI18n } from '../lib/i18n/context';
 import { signInWithOAuth, signUp, validateInviteCode } from '../lib/supabase';
 import LanguageToggle from './LanguageToggle';
+import { UserRole } from './RoleSelection';
 
 // Schema for email/password registration
 const registerSchema = z.object({
@@ -27,21 +28,22 @@ type RegisterFormData = z.infer<typeof registerSchema>;
 type InviteCodeFormData = z.infer<typeof inviteCodeSchema>;
 
 // Define registration steps
-type RegistrationStep = 'role-selection' | 'invite-code' | 'registration';
-type UserRole = 'coach' | 'athlete';
+type RegistrationStep = 'invite-code' | 'registration';
 
 const Register = () => {
   const { t } = useI18n();
   const navigate = useNavigate();
+  const { role } = useParams<{ role: string }>();
   const [searchParams] = useSearchParams();
   const codeFromUrl = searchParams.get('code');
   
-  const [currentStep, setCurrentStep] = useState<RegistrationStep>('role-selection');
+  const [currentStep, setCurrentStep] = useState<RegistrationStep>('registration');
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
   const [inviteCode, setInviteCode] = useState<string | null>(codeFromUrl);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isValidatingUrlCode, setIsValidatingUrlCode] = useState(false);
+  const [registrationSuccess, setRegistrationSuccess] = useState(false);
 
   // Form for email/password registration
   const {
@@ -64,51 +66,53 @@ const Register = () => {
     }
   });
 
-  // Check for invite code in URL when component mounts
+  // Initialize based on role parameter and URL code
   useEffect(() => {
-    const validateCodeFromUrl = async () => {
-      if (codeFromUrl) {
-        setIsValidatingUrlCode(true);
-        try {
-          // Validate the invite code from URL
-          const { data: validationResult, error } = await validateInviteCode(codeFromUrl);
-
-          if (error || !validationResult) {
-            setErrorMessage('Invalid invitation code in URL. Please check and try again.');
-            // Reset to role selection if code is invalid
-            setCurrentStep('role-selection');
-          } else {
-            // Valid code from URL - set as athlete and go to registration
-            setSelectedRole('athlete');
-            setInviteCode(codeFromUrl);
-            setCurrentStep('registration');
-          }
-        } catch (error: any) {
-          setErrorMessage(error.message || 'An error occurred while validating the invitation code');
-          setCurrentStep('role-selection');
-        } finally {
-          setIsValidatingUrlCode(false);
+    // Validate the role parameter
+    if (role && (role === 'coach' || role === 'athlete')) {
+      setSelectedRole(role as UserRole);
+      
+      // For athletes, check if we need to collect the invite code
+      if (role === 'athlete') {
+        if (codeFromUrl) {
+          validateCodeFromUrl();
+        } else {
+          setCurrentStep('invite-code');
         }
+      } else {
+        // Coaches go directly to registration
+        setCurrentStep('registration');
       }
-    };
-
-    validateCodeFromUrl();
-  }, [codeFromUrl]);
-
-  // Handle role selection
-  const handleRoleSelect = (role: UserRole) => {
-    setSelectedRole(role);
-    if (role === 'coach') {
-      // Coach goes directly to registration
-      setCurrentStep('registration');
-    } else if (role === 'athlete' && codeFromUrl) {
-      // If we already have a valid code from URL, go directly to registration
-      setCurrentStep('registration');
     } else {
-      // Athlete needs to enter invite code first
-      setCurrentStep('invite-code');
+      // If invalid role, redirect to role selection
+      navigate('/auth');
     }
-    setErrorMessage(null);
+  }, [role, navigate, codeFromUrl]);
+
+  // Validate invite code from URL
+  const validateCodeFromUrl = async () => {
+    if (!codeFromUrl) return;
+    
+    setIsValidatingUrlCode(true);
+    try {
+      // Validate the invite code from URL
+      const { data: validationResult, error } = await validateInviteCode(codeFromUrl);
+
+      if (error || !validationResult) {
+        setErrorMessage('Invalid invitation code in URL. Please check and try again.');
+        // Reset to invite code entry if code is invalid
+        setCurrentStep('invite-code');
+      } else {
+        // Valid code from URL - proceed to registration
+        setInviteCode(codeFromUrl);
+        setCurrentStep('registration');
+      }
+    } catch (error: any) {
+      setErrorMessage(error.message || 'An error occurred while validating the invitation code');
+      setCurrentStep('invite-code');
+    } finally {
+      setIsValidatingUrlCode(false);
+    }
   };
 
   // Handle invite code submission
@@ -148,7 +152,9 @@ const Register = () => {
         const { error } = await signUp(data.email, data.password, 'coach');
 
         if (error) {
-          setErrorMessage(error.message || 'An error occurred during registration');
+          setErrorMessage(typeof error === 'object' && 'message' in error 
+            ? error.message as string 
+            : 'An error occurred during registration');
           setIsSubmitting(false);
           return;
         }
@@ -157,14 +163,16 @@ const Register = () => {
         const { error } = await signUp(data.email, data.password, 'athlete', inviteCode);
 
         if (error) {
-          setErrorMessage(error.message || 'An error occurred during registration');
+          setErrorMessage(typeof error === 'object' && 'message' in error 
+            ? error.message as string 
+            : 'An error occurred during registration');
           setIsSubmitting(false);
           return;
         }
       }
 
-      // Registration successful, redirect to login
-      navigate('/login', { state: { message: 'Registration successful! Please check your email to verify your account.' } });
+      // Registration successful, show success screen
+      setRegistrationSuccess(true);
     } catch (error: any) {
       setErrorMessage(error.message || 'An error occurred during registration');
     } finally {
@@ -175,17 +183,34 @@ const Register = () => {
   // Handle Google OAuth registration
   const handleGoogleRegistration = async () => {
     try {
-      // For OAuth registration, we don't specify a role - we'll determine it after authentication
-      // But we still pass the invite code for athletes
+      console.log('Starting Google registration with role:', selectedRole);
+      
+      // For OAuth registration, we need to pass the selected role in the options
       if (selectedRole === 'athlete' && inviteCode) {
+        console.log('Athlete registration with invite code:', inviteCode);
+        
         // Athlete OAuth registration with invite code
         await signInWithOAuth(
           'google',
           `${window.location.origin}/auth/callback`,
-          inviteCode
+          { 
+            data: { role: 'athlete' },
+            redirectTo: `${window.location.origin}/auth/callback?inviteCode=${encodeURIComponent(inviteCode)}`
+          }
+        );
+      } else if (selectedRole) {
+        console.log('Registration with role:', selectedRole);
+        
+        // Coach or athlete OAuth registration without invite code
+        // Pass the role in the options to be used in AuthCallback
+        await signInWithOAuth(
+          'google',
+          `${window.location.origin}/auth/callback`,
+          { data: { role: selectedRole } }
         );
       } else {
-        // Coach or any other OAuth registration without invite code
+        // Fallback if no role is selected (should not happen)
+        console.log('No role selected, using default');
         await signInWithOAuth(
           'google',
           `${window.location.origin}/auth/callback`
@@ -197,18 +222,15 @@ const Register = () => {
     }
   };
 
-  // Go back to previous step
+  // Go back to previous step or role selection
   const handleGoBack = () => {
     if (currentStep === 'invite-code') {
-      setCurrentStep('role-selection');
-      setSelectedRole(null);
+      navigate('/auth');
     } else if (currentStep === 'registration' && selectedRole === 'athlete' && !codeFromUrl) {
       setCurrentStep('invite-code');
       setInviteCode(null);
-    } else if (currentStep === 'registration') {
-      setCurrentStep('role-selection');
-      setSelectedRole(null);
-      setInviteCode(codeFromUrl);
+    } else {
+      navigate('/auth');
     }
     setErrorMessage(null);
   };
@@ -225,28 +247,54 @@ const Register = () => {
     );
   }
 
+  // Show success screen after registration
+  if (registrationSuccess) {
+    return (
+      <div className="min-h-screen bg-[#0A0A0A] text-white flex items-center justify-center p-6 relative overflow-hidden">
+        {/* Background elements */}
+        <div className="absolute inset-0 bg-gradient-to-br from-[#8A2BE2]/5 to-[#4169E1]/5"></div>
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiMyMjIiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PHBhdGggZD0iTTM2IDM0aDR2MWgtNHYtMXptMC0yaDF2NWgtMXYtNXptLTUgMGg0djFoLTR2LTF6bTAgMmgxdjNoLTF2LTN6bS01LTRoM3YxaC0zdi0xem0wIDJoMXY2aC0xdi02em0tNS00aDR2MWgtNHYtMXptMCAyaDF2N2gtMXYtN3ptMjUtOGg0djFoLTR2LTF6bTAgMmgxdjVoLTF2LTV6bS01IDBo\
+NHYxaC00di0xem0wIDJoMXYzaC0xdi0zem0tNS00aDN2MWgtM3YtMXptMCAyaDF2NmgtMXYtNnptLTUtNGg0djFoLTR2LTF6bTAgMmgxdjdoLTF2LTd6Ii8+PC9nPjwvZz48L3N2Zz4=')] opacity-30"></div>
+        
+        <div className="max-w-md w-full relative animate-fadeIn">
+          <div className="flex items-center gap-3 mb-8 justify-center">
+            <div className="text-3xl font-black tracking-tighter bg-gradient-to-r from-[#8A2BE2] to-[#4169E1] bg-clip-text text-transparent animate-pulse">
+              RUDO
+            </div>
+          </div>
+          
+          <div className="bg-green-900/30 border border-green-500/50 rounded-lg p-8 text-center shadow-xl backdrop-blur-sm animate-slideUp">
+            <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-6 animate-scaleIn">
+              <svg className="w-10 h-10 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+              </svg>
+            </div>
+            <h2 className="text-3xl font-bold text-white mb-3">{t('registration-successful')}</h2>
+            <p className="text-green-100 mb-8 text-lg">{t('check-email-verification')}</p>
+            <button
+              onClick={() => navigate(`/login/${selectedRole}`)}
+              className="px-8 py-3 bg-gradient-to-r from-[#8A2BE2]/30 to-[#4169E1]/30 border border-white/10 text-white rounded-lg transition-all hover:from-[#8A2BE2]/40 hover:to-[#4169E1]/40 hover:shadow-lg font-medium"
+            >
+              {t('go-to-login')}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-white flex">
       {/* Left Panel - Registration Form */}
       <div className="w-full lg:w-1/2 p-8 flex flex-col">
         <div className="flex items-center justify-between mb-12">
-          {currentStep !== 'role-selection' ? (
-            <button
-              onClick={handleGoBack}
-              className="inline-flex items-center text-gray-400 hover:text-white transition-colors"
-            >
-              <ChevronLeft className="w-4 h-4 mr-2" />
-              {currentStep === 'invite-code' ? t('back-to-role-selection') : t('back-to-home')}
-            </button>
-          ) : (
-            <Link
-              to="/"
-              className="inline-flex items-center text-gray-400 hover:text-white transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              {t('back-to-home')}
-            </Link>
-          )}
+          <button
+            onClick={handleGoBack}
+            className="inline-flex items-center text-gray-400 hover:text-white transition-colors"
+          >
+            <ChevronLeft className="w-4 h-4 mr-2" />
+            {currentStep === 'invite-code' ? t('back-to-role-selection') : t('back-to-home')}
+          </button>
           <LanguageToggle />
         </div>
 
@@ -257,51 +305,6 @@ const Register = () => {
         </div>
 
         <div className="max-w-md w-full mx-auto flex-1 flex flex-col justify-center">
-          {/* Role Selection Step */}
-          {currentStep === 'role-selection' && (
-            <>
-              <h1 className="text-3xl font-bold mb-2">{t('create-account')}</h1>
-              <p className="text-gray-400 mb-8">
-                {t('select-your-role')}
-              </p>
-
-              <div className="space-y-4">
-                <button
-                  onClick={() => handleRoleSelect('coach')}
-                  className="w-full py-4 px-6 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors flex items-center justify-between"
-                >
-                  <div>
-                    <h3 className="text-lg font-medium">{t('coach-role')}</h3>
-                    <p className="text-gray-400 text-sm">{t('coach-role-description')}</p>
-                  </div>
-                  <div className="p-3 bg-[#8A2BE2]/20 rounded-full">
-                    <Users className="w-6 h-6 text-[#8A2BE2]" />
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => handleRoleSelect('athlete')}
-                  className="w-full py-4 px-6 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors flex items-center justify-between"
-                >
-                  <div>
-                    <h3 className="text-lg font-medium">{t('athlete-role')}</h3>
-                    <p className="text-gray-400 text-sm">{t('athlete-role-description')}</p>
-                  </div>
-                  <div className="p-3 bg-[#4169E1]/20 rounded-full">
-                    <Dumbbell className="w-6 h-6 text-[#4169E1]" />
-                  </div>
-                </button>
-              </div>
-
-              <p className="text-center text-gray-400 text-sm mt-8">
-                {t('already-have-account')}{' '}
-                <Link to="/login" className="text-[#8A2BE2] hover:text-[#4169E1] transition-colors">
-                  {t('sign-in')}
-                </Link>
-              </p>
-            </>
-          )}
-
           {/* Invite Code Step (Athletes only) */}
           {currentStep === 'invite-code' && (
             <>
@@ -437,15 +440,13 @@ const Register = () => {
             </>
           )}
 
-          {/* Always show login link at the bottom except in role selection */}
-          {currentStep !== 'role-selection' && (
-            <p className="text-center text-gray-400 text-sm mt-6">
-              {t('already-have-account')}{' '}
-              <Link to="/login" className="text-[#8A2BE2] hover:text-[#4169E1] transition-colors">
-                {t('sign-in')}
-              </Link>
-            </p>
-          )}
+          {/* Always show login link at the bottom */}
+          <p className="text-center text-gray-400 text-sm mt-6">
+            {t('already-have-account')}{' '}
+            <Link to={`/login/${selectedRole}`} className="text-[#8A2BE2] hover:text-[#4169E1] transition-colors">
+              {t('sign-in')}
+            </Link>
+          </p>
         </div>
       </div>
 
@@ -487,18 +488,6 @@ const Register = () => {
                 <h3 className="font-semibold mb-1">{t('feature-tracking-title')}</h3>
                 <p className="text-gray-400">
                   {t('feature-tracking-description')}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-4">
-              <div className="p-3 bg-white/5 rounded-lg">
-                <Users className="w-6 h-6 text-[#4169E1]" />
-              </div>
-              <div>
-                <h3 className="font-semibold mb-1">{t('feature-community-title')}</h3>
-                <p className="text-gray-400">
-                  {t('feature-community-description')}
                 </p>
               </div>
             </div>

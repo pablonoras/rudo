@@ -22,8 +22,20 @@ const InviteCodeEntry = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // If user is not logged in or is not an athlete, redirect to home
-    if (profile && profile.role !== 'athlete') {
+    // If user is not logged in, redirect to home
+    if (!profile) {
+      navigate('/');
+      return;
+    }
+    
+    // If user is a coach, redirect to coach dashboard
+    if (profile.role === 'coach') {
+      navigate('/coach');
+      return;
+    }
+    
+    // Only athletes should see this page
+    if (profile.role !== 'athlete') {
       navigate('/');
     }
   }, [profile, navigate]);
