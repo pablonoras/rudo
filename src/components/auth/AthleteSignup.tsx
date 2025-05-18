@@ -111,6 +111,14 @@ const AthleteSignup = () => {
     }
 
     try {
+      // Store selected role and invite code in localStorage to be retrieved during the OAuth process
+      localStorage.setItem('selectedRole', 'athlete');
+      // Store more detailed user data for the OAuth flow
+      localStorage.setItem('oauthUserData', JSON.stringify({
+        role: 'athlete',
+        inviteCode: inviteCode
+      }));
+      
       // Get the current domain
       const domain = window.location.origin;
       
@@ -124,8 +132,8 @@ const AthleteSignup = () => {
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
-          },
-        },
+          }
+        }
       });
 
       if (authError) {

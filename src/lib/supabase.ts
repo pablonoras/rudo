@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { AuthError, createClient } from '@supabase/supabase-js';
 import { Database } from './database.types';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -111,15 +111,23 @@ export async function getCurrentProfile(): Promise<Profile | null> {
  * Ensures a profile exists for the current user
  * This is important for OAuth sign-ins where profile creation might fail
  * @param role The user role (coach or athlete)
- * @param inviteCode Optional invite code (null for athletes, generated for coaches)
+ * @param inviteCode Optional invite code (null for coaches, code for athletes)
  */
-export async function ensureProfileExists(role: UserRole = 'coach', inviteCode?: string | null): Promise<boolean> {
+export async function ensureProfileExists(role?: UserRole, inviteCode?: string | null): Promise<boolean> {
   try {
     // Get current user
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return false;
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError) {
+      console.error('Error getting current user:', userError);
+      return false;
+    }
     
-    console.log('Ensuring profile exists for user:', user.id, 'with role:', role);
+    if (!user) {
+      console.error('No authenticated user found');
+      return false;
+    }
+    
+    console.log('Ensuring profile exists for user:', user.id);
     
     // Check if profile exists
     const { data: existingProfile, error: fetchError } = await supabase
@@ -132,40 +140,103 @@ export async function ensureProfileExists(role: UserRole = 'coach', inviteCode?:
       console.error('Error checking for existing profile:', fetchError);
     }
     
-    // If profile already exists, we're done
+    // If profile already exists, check if we need to update role
     if (existingProfile) {
       console.log('Profile already exists:', existingProfile);
+      
+      // If explicit role is provided and different from existing, update it
+      if (role && existingProfile.role !== role) {
+        console.log(`Updating user role from ${existingProfile.role} to ${role}`);
+        
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ role })
+          .eq('id', user.id);
+          
+        if (updateError) {
+          console.error('Error updating user role:', updateError);
+        }
+      }
+      
+      // If invite code provided for athlete, process it
+      if (inviteCode && (existingProfile.role === 'athlete' || role === 'athlete')) {
+        console.log('Processing invite code for existing athlete profile:', inviteCode);
+        await createCoachAthleteRelationship(inviteCode, user.id);
+      }
+      
       return true;
     }
     
-    // Extract full name from metadata if available
-    const fullName = user.user_metadata?.full_name || user.user_metadata?.name || 'User';
-    const email = user.email || user.user_metadata?.email || '';
-    const avatarUrl = user.user_metadata?.avatar_url || user.user_metadata?.picture || null;
+    // Determine the correct role to use, prioritizing:
+    // 1. Explicitly passed role parameter
+    // 2. Role from localStorage (for OAuth flows)
+    // 3. Role from user metadata
+    // 4. Default to 'athlete'
+    let finalRole: UserRole = 'athlete'; // Default fallback
     
-    console.log('Creating new profile with data:', { fullName, email, role });
+    // Check for role parameter
+    if (role) {
+      console.log('Using explicitly provided role:', role);
+      finalRole = role;
+    } else {
+      // Try to get role from localStorage
+      try {
+        const storedUserData = localStorage.getItem('oauthUserData');
+        if (storedUserData) {
+          const userData = JSON.parse(storedUserData);
+          if (userData.role) {
+            finalRole = userData.role as UserRole;
+            console.log('Using role from localStorage:', finalRole);
+            // Clear stored data after using it
+            localStorage.removeItem('oauthUserData');
+          }
+        }
+      } catch (e) {
+        console.error('Error parsing stored user data:', e);
+      }
+      
+      // If no role found in localStorage, check user metadata
+      if (finalRole === 'athlete' && user.user_metadata?.role) {
+        finalRole = user.user_metadata.role as UserRole;
+        console.log('Using role from user metadata:', finalRole);
+      }
+    }
+    
+    console.log('Final role to use for profile creation:', finalRole);
+    
+    // Extract user details from metadata
+    const fullName = user.user_metadata?.full_name || 
+                     user.user_metadata?.name || 
+                     (user.email ? user.email.split('@')[0] : 'User');
+    const email = user.email || user.user_metadata?.email || '';
+    const avatarUrl = user.user_metadata?.avatar_url || 
+                      user.user_metadata?.picture || 
+                      null;
+    
+    console.log('Creating new profile with data:', { fullName, email, role: finalRole });
+    
+    let profileCreated = false;
     
     // Try direct insert first (more reliable)
     const { error: insertError } = await supabase
       .from('profiles')
       .insert({
         id: user.id,
-        role,
+        role: finalRole,
         full_name: fullName,
         email,
-        avatar_url: avatarUrl,
+        avatar_url: avatarUrl
       });
-      
+    
     if (insertError) {
-      console.error('Error with direct profile insert:', insertError);
+      console.error('Error creating profile with direct insert:', insertError);
       
-      // Fall back to RPC method
-      console.log('Falling back to RPC method for profile creation');
+      // Fall back to the RPC method if direct insert fails
       const { error: rpcError } = await supabase.rpc(
         'add_missing_profile',
         {
           user_id: user.id,
-          role,
+          role: finalRole,
           full_name: fullName,
           email,
           avatar_url: avatarUrl
@@ -173,41 +244,85 @@ export async function ensureProfileExists(role: UserRole = 'coach', inviteCode?:
       );
       
       if (rpcError) {
-        console.error('Error creating profile with RPC:', rpcError);
-        throw rpcError;
+        console.error('Error creating profile with RPC fallback:', rpcError);
+        return false;
+      } else {
+        profileCreated = true;
       }
+    } else {
+      profileCreated = true;
     }
     
-    // Verify the profile was created
-    const { data: verifyProfile } = await supabase
+    // Verify profile was created
+    const { data: verifyProfile, error: verifyError } = await supabase
       .from('profiles')
-      .select('id')
+      .select('id, role')
       .eq('id', user.id)
-      .single();
-      
-    if (!verifyProfile) {
-      console.error('Profile verification failed - profile not created');
+      .maybeSingle();
+    
+    if (verifyError || !verifyProfile) {
+      console.error('Failed to verify profile creation:', verifyError || 'Profile not found');
       return false;
     }
     
-    console.log('Profile created successfully');
+    console.log('Profile created and verified successfully:', verifyProfile);
     
-    // If this is a coach and invite code was provided, update the invite code
-    if (role === 'coach' && inviteCode) {
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ invite_code: inviteCode })
-        .eq('id', user.id);
-      
-      if (updateError) {
-        console.warn('Could not update invite code:', updateError);
-      }
+    // For athletes with invite code, create the coach-athlete relationship
+    if (finalRole === 'athlete' && inviteCode) {
+      await createCoachAthleteRelationship(inviteCode, user.id);
     }
     
     return true;
-  } catch (error) {
-    console.error('Error ensuring profile exists:', error);
+  } catch (error: any) {
+    console.error('Error in ensureProfileExists:', error);
     return false;
+  }
+}
+
+/**
+ * Helper function to create coach-athlete relationship immediately during signup
+ * @param inviteCode The coach invite code
+ * @param athleteId The athlete's user ID
+ * @returns Success status, error message if any, and coach info if successful
+ */
+export async function createCoachAthleteRelationship(inviteCode: string, athleteId: string): Promise<{ 
+  success: boolean; 
+  error?: string;
+  coachName?: string;
+  coachId?: string;
+}> {
+  try {
+    console.log('Creating coach-athlete relationship with invite code:', inviteCode);
+    
+    // Use the resolve_invite RPC to handle the coach-athlete relationship
+    const { data: resolveResult, error: resolveError } = await supabase.rpc(
+      'resolve_invite', 
+      { 
+        code: inviteCode, 
+        athlete_user_id: athleteId 
+      }
+    );
+    
+    if (resolveError) {
+      console.error('Error resolving invite code:', resolveError);
+      return { success: false, error: resolveError.message };
+    }
+    
+    if (!resolveResult || !resolveResult.success) {
+      console.error('Failed to resolve invite code:', resolveResult);
+      return { success: false, error: 'Invalid coach invitation code' };
+    }
+    
+    console.log('Successfully created coach-athlete relationship with coach:', resolveResult.coach_name);
+    return { 
+      success: true,
+      coachName: resolveResult.coach_name,
+      coachId: resolveResult.coach_id
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error creating coach-athlete relationship';
+    console.error('Failed to create coach-athlete relationship:', errorMessage);
+    return { success: false, error: errorMessage };
   }
 }
 
@@ -225,7 +340,8 @@ export async function signUpWithEmail(
   try {
     const fullName = `${firstName} ${lastName}`.trim();
     
-    // Create the auth user
+    console.log(`Starting email sign-up for ${email} with role: ${role}`);
+    
     const { data: { user }, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
@@ -233,138 +349,39 @@ export async function signUpWithEmail(
         data: {
           role,
           full_name: fullName,
+          avatar_url: null,
+          signupMethod: 'email',
+          inviteCode: inviteCode || null
         },
       },
     });
 
-    if (signUpError || !user) {
-      throw signUpError || new Error('Failed to create user');
+    if (signUpError) {
+      throw signUpError;
     }
 
-    console.log('User created successfully:', user.id);
-
-    // Create the profile directly with an INSERT instead of using RPC
-    // This ensures the profile exists before we try to create relationships
-    const { error: insertError } = await supabase
-      .from('profiles')
-      .insert({
-        id: user.id,
-        role,
-        full_name: fullName,
-        email,
-        avatar_url: null,
-      });
-
-    if (insertError) {
-      console.error('Error creating profile with direct insert:', insertError);
-      
-      // Fall back to the RPC method if direct insert fails
-      const { error: profileError } = await supabase.rpc(
-        'add_missing_profile',
-        {
-          user_id: user.id,
-          role,
-          full_name: fullName,
-          email,
-          avatar_url: null
-        }
-      );
-
-      if (profileError) {
-        console.error('Error creating profile with RPC fallback:', profileError);
-        throw profileError;
-      }
+    if (!user) {
+      throw new Error('Failed to create user: No user data returned');
     }
+
+    console.log('Auth user created successfully:', user.id, 'with metadata:', user.user_metadata);
+    console.log('Profile will be created automatically by database trigger');
     
-    console.log('Profile created successfully for user:', user.id);
-    
-    // For athletes with invite code, create the coach-athlete relationship
+    // If this is an athlete with an invite code, create the coach-athlete relationship immediately
     if (role === 'athlete' && inviteCode) {
+      console.log('Creating coach-athlete relationship for athlete with invite code:', inviteCode);
       try {
-        console.log('Processing invite code for new athlete:', inviteCode);
-        
-        // First verify the profile was actually created
-        const { data: profileCheck } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('id', user.id)
-          .single();
-          
-        if (!profileCheck) {
-          console.error('Profile verification failed - profile not found in database');
-          // Try one more time to create the profile
-          await supabase
-            .from('profiles')
-            .insert({
-              id: user.id,
-              role,
-              full_name: fullName,
-              email,
-              avatar_url: null,
-            });
-        } else {
-          console.log('Profile verified successfully');
-        }
-        
-        // Call the resolve_invite RPC
-        const { data: resolveResult, error: resolveError } = await supabase.rpc(
-          'resolve_invite', 
-          { 
-            code: inviteCode, 
-            athlete_user_id: user.id 
-          }
-        );
-        
-        if (resolveError) {
-          console.error('Error resolving invite code:', resolveError);
-          
-          // Try direct approach if RPC fails
-          const { data: coachData } = await supabase
-            .from('profiles')
-            .select('id, full_name')
-            .eq('invite_code', inviteCode)
-            .eq('role', 'coach')
-            .maybeSingle();
-            
-          if (coachData) {
-            console.log('Found coach via direct query:', coachData);
-            
-            // Create coach_athletes relationship manually
-            const { error: relationError } = await supabase
-              .from('coach_athletes')
-              .insert({
-                coach_id: coachData.id,
-                athlete_id: user.id,
-                status: 'pending'
-              });
-              
-            if (relationError) {
-              console.error('Error creating relationship:', relationError);
-            } else {
-              console.log('Successfully created relationship via fallback');
-              
-              // Store coach info in localStorage for use after email verification
-              localStorage.setItem('pendingCoachName', coachData.full_name);
-              localStorage.setItem('pendingCoachId', coachData.id);
-              localStorage.setItem('pendingJoinStatus', 'true');
-            }
-          }
-        } else if (!resolveResult?.success) {
-          console.error('Failed to resolve invite code:', resolveResult?.message);
-        } else {
-          // Store coach info in localStorage for use after email verification
-          localStorage.setItem('pendingCoachName', resolveResult.coach_name);
-          localStorage.setItem('pendingCoachId', resolveResult.coach_id);
-          localStorage.setItem('pendingJoinStatus', 'true');
-        }
-      } catch (error) {
-        console.error('Error processing invite code during signup:', error);
+        await createCoachAthleteRelationship(inviteCode, user.id);
+      } catch (relationshipError) {
+        console.log('Note: Coach-athlete relationship will be created after email verification');
       }
     }
-
+    
     return { user, error: null };
   } catch (error) {
-    return { user: null, error };
+    const errorMessage = error instanceof AuthError ? error.message : 'An error occurred during sign up';
+    console.error('Error in signUpWithEmail:', errorMessage);
+    return { user: null, error: error instanceof Error ? error : new Error(errorMessage) };
   }
 }
 
@@ -429,7 +446,7 @@ export async function signInWithOAuth(
   try {
     // Determine if we're dealing with an invite code or options object
     let inviteCode: string | undefined;
-    let userData: Record<string, any> | undefined;
+    let userData: Record<string, any> = {};
     let finalRedirectUrl = redirectUrl;
     
     console.log('signInWithOAuth called with provider:', provider);
@@ -445,26 +462,45 @@ export async function signInWithOAuth(
         console.log('Using custom redirect URL:', finalRedirectUrl);
       }
       
-      userData = inviteCodeOrOptions.data;
-      if (userData) {
-        console.log('User data provided:', JSON.stringify(userData));
+      if (inviteCodeOrOptions.data) {
+        userData = inviteCodeOrOptions.data;
+        console.log('User data provided for OAuth:', JSON.stringify(userData));
       }
     }
+    
+    // Extract role from URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlRole = urlParams.get('role') as UserRole | null;
+    
+    // Determine role from various sources
+    const role = userData.role || urlRole || localStorage.getItem('selectedRole') as UserRole || 'athlete';
+    
+    // Ensure role is included in user data
+    userData.role = role;
+    console.log('Final role for OAuth sign-in:', role);
     
     // Construct redirect URL with optional invite code
     if (inviteCode) {
       finalRedirectUrl += `${finalRedirectUrl.includes('?') ? '&' : '?'}inviteCode=${encodeURIComponent(inviteCode)}`;
+      // Add invite code to user data as well for the database trigger
+      userData.inviteCode = inviteCode;
       console.log('Final redirect URL with invite code:', finalRedirectUrl);
     }
     
+    // Always add role to the redirect URL for redundancy
+    finalRedirectUrl += `${finalRedirectUrl.includes('?') ? '&' : '?'}role=${encodeURIComponent(role)}`;
+    console.log('Added role to redirect URL:', role);
+    
     // Store user data in localStorage to be retrieved in AuthCallback
-    if (userData) {
-      localStorage.setItem('oauthUserData', JSON.stringify(userData));
-      console.log('Stored user data in localStorage');
-    }
+    localStorage.setItem('oauthUserData', JSON.stringify(userData));
+    console.log('Stored user data in localStorage for OAuth flow:', JSON.stringify(userData));
     
     console.log('Initiating OAuth sign-in with redirect to:', finalRedirectUrl);
     
+    // Create options for the signInWithOAuth call
+    // Note: We can't directly pass the userData as "data" in the signInWithOAuth call
+    // because of TypeScript limitations, but we've stored it in localStorage
+    // and added it to the redirect URL to ensure it's available during the auth flow
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
@@ -472,8 +508,8 @@ export async function signInWithOAuth(
         queryParams: {
           access_type: 'offline',
           prompt: 'consent',
-        },
-      },
+        }
+      }
     });
 
     if (error) throw error;
@@ -508,4 +544,75 @@ export async function signUp(
 
 export async function signIn(email: string, password: string) {
   return signInWithEmail(email, password);
+}
+
+/**
+ * Redirects the user to the appropriate page based on their role
+ * @param userId Optional user ID (if not provided, will use the current session)
+ */
+export async function redirectBasedOnRole(userId?: string): Promise<void> {
+  try {
+    // Get the user's session if userId not provided
+    if (!userId) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        console.error('No active session found');
+        // Navigate to login if no session
+        window.location.href = '/login';
+        return;
+      }
+      userId = session.user.id;
+    }
+    
+    // Get the user's profile to determine their role
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('id, role')
+      .eq('id', userId)
+      .single();
+    
+    if (error || !profile) {
+      console.error('Error retrieving user profile:', error);
+      // Redirect to login if can't determine role
+      window.location.href = '/login';
+      return;
+    }
+    
+    console.log('Redirecting based on role:', profile.role);
+    
+    // Redirect based on role
+    if (profile.role === 'coach') {
+      // Coaches always go to the coach dashboard
+      window.location.href = '/coach';
+    } else if (profile.role === 'athlete') {
+      // For athletes, check if they have any coach relationships
+      const { data: coachRelationships, error: relationshipError } = await supabase
+        .from('coach_athletes')
+        .select('id, status')
+        .eq('athlete_id', userId)
+        .in('status', ['active', 'pending']);
+      
+      if (relationshipError) {
+        console.error('Error checking coach relationships:', relationshipError);
+      }
+      
+      // If athlete has any active or pending coach relationship, redirect to dashboard
+      // Otherwise, redirect to the invite code entry page
+      if (coachRelationships && coachRelationships.length > 0) {
+        console.log('Athlete has coach relationships, redirecting to dashboard');
+        window.location.href = '/athlete';
+      } else {
+        console.log('Athlete has no coach relationships, redirecting to invite code entry');
+        window.location.href = '/invite-code-entry';
+      }
+    } else {
+      // Fallback for unknown role
+      console.warn('Unknown user role:', profile.role);
+      window.location.href = '/login';
+    }
+  } catch (error) {
+    console.error('Error in redirectBasedOnRole:', error);
+    // Redirect to login page on any error
+    window.location.href = '/login';
+  }
 }

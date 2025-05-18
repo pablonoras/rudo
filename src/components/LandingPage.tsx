@@ -204,16 +204,6 @@ const LandingPage = () => {
                 transition={{ delay: 0.4 }}
                 className="flex flex-col sm:flex-row gap-4 justify-center px-4"
               >
-                <Link 
-                  to="/auth"
-                  className="group relative inline-flex items-center justify-center w-full sm:w-auto"
-                >
-                  <div className="absolute -inset-0.5 bg-gradient-to-r from-[#4169E1] to-[#8A2BE2] rounded-full blur opacity-60 group-hover:opacity-100 transition duration-500"></div>
-                  <span className="relative px-8 py-4 bg-[#0A0A0A] text-white rounded-full font-bold tracking-wide flex items-center justify-center gap-3 border border-white/10 hover:border-white/20 transition-all duration-500 w-full sm:w-auto">
-                    {t('get-started')}
-                    <ArrowRight className="w-5 h-5 transition-transform duration-500 group-hover:translate-x-1" />
-                  </span>
-                </Link>
                 <button 
                   onClick={() => setIsModalOpen(true)}
                   className="group relative inline-flex items-center justify-center w-full sm:w-auto"

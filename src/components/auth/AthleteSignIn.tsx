@@ -11,62 +11,39 @@
 
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { signInWithOAuth, supabase } from '../../lib/supabase';
+import { supabase } from '../../lib/supabase';
 import AuthScreen from './AuthScreen';
 
 const AthleteSignIn = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const inviteCode = searchParams.get('code');
+  const [inviteCode, setInviteCode] = useState<string | null>(searchParams.get('code'));
   const [coachName, setCoachName] = useState<string | null>(null);
 
+  // If invite code is provided, fetch coach info
   useEffect(() => {
+    if (!inviteCode) return;
+
     const fetchCoachInfo = async () => {
-      // Check if we have a coach name in session storage (from the invite signup page)
-      const storedCoachName = sessionStorage.getItem('inviteCoachName');
-      if (storedCoachName) {
-        setCoachName(storedCoachName);
-        return;
-      }
-      
-      // If we have an invite code but no coach name, try to fetch it directly
-      if (inviteCode && !coachName) {
-        try {
-          console.log('Fetching coach info for invite code:', inviteCode);
-          
-          // Try a direct query first
-          const { data: profileData } = await supabase
-            .from('profiles')
-            .select('id, full_name')
-            .eq('invite_code', inviteCode)
-            .eq('role', 'coach')
-            .maybeSingle();
-          
-          if (profileData && profileData.full_name) {
-            console.log('Found coach via direct query:', profileData.full_name);
-            setCoachName(profileData.full_name);
-            sessionStorage.setItem('inviteCoachName', profileData.full_name);
-            return;
-          }
-          
-          // Try case-insensitive match
-          const { data: allCoaches } = await supabase
-            .from('profiles')
-            .select('id, full_name, invite_code')
-            .eq('role', 'coach');
-          
-          const matchingCoach = allCoaches?.find(coach => 
-            coach.invite_code && coach.invite_code.toLowerCase() === inviteCode.toLowerCase()
-          );
-          
-          if (matchingCoach) {
-            console.log('Found coach via case-insensitive match:', matchingCoach.full_name);
-            setCoachName(matchingCoach.full_name);
-            sessionStorage.setItem('inviteCoachName', matchingCoach.full_name);
-          }
-        } catch (error) {
-          console.error('Error fetching coach info:', error);
+      try {
+        // Validate the invite code and get the coach's name
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('invite_code', inviteCode)
+          .eq('role', 'coach')
+          .maybeSingle();
+
+        if (error) {
+          console.error('Error validating invite code:', error);
+          return;
         }
+
+        if (data) {
+          setCoachName(data.full_name);
+        }
+      } catch (err) {
+        console.error('Error fetching coach info:', err);
       }
     };
     
@@ -75,16 +52,38 @@ const AthleteSignIn = () => {
 
   const handleGoogleLogin = async () => {
     try {
+      // Store selected role in localStorage to be retrieved during the OAuth process
+      localStorage.setItem('selectedRole', 'athlete');
+      
+      // Store user data with role and invite code (if present)
+      const userData = { role: 'athlete' };
+      if (inviteCode) {
+        Object.assign(userData, { inviteCode });
+      }
+      
+      localStorage.setItem('oauthUserData', JSON.stringify(userData));
+      
       // Get the current domain
       const domain = window.location.origin;
       
-      // Use the enhanced signInWithOAuth function
-      const { error: authError } = await signInWithOAuth(
-        'google', 
-        'athlete', 
-        `${domain}/auth/callback`,
-        inviteCode || undefined
-      );
+      // Build redirect URL with role
+      const redirectUrl = `${domain}/auth/callback?role=athlete`;
+      
+      // Add invite code to the redirect URL if it exists
+      const finalRedirectUrl = inviteCode 
+        ? `${redirectUrl}&inviteCode=${inviteCode}`
+        : redirectUrl;
+      
+      const { error: authError } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: finalRedirectUrl,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          }
+        }
+      });
 
       if (authError) {
         console.error('Auth error:', authError);

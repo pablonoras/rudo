@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { z } from 'zod';
 import { useI18n } from '../lib/i18n/context';
-import { signInWithOAuth, signUp, validateInviteCode } from '../lib/supabase';
+import { signUp, supabase, validateInviteCode } from '../lib/supabase';
 import LanguageToggle from './LanguageToggle';
 import { UserRole } from './RoleSelection';
 
@@ -185,36 +185,44 @@ const Register = () => {
     try {
       console.log('Starting Google registration with role:', selectedRole);
       
-      // For OAuth registration, we need to pass the selected role in the options
+      // Always store the selected role in localStorage
+      if (selectedRole) {
+        localStorage.setItem('selectedRole', selectedRole);
+      }
+      
+      // Prepare redirect URL and user metadata
+      const baseRedirectUrl = `${window.location.origin}/auth/callback`;
+      let redirectUrl = `${baseRedirectUrl}?role=${selectedRole || 'athlete'}`;
+      
+      // Prepare user data object
+      const userData: Record<string, any> = {
+        role: selectedRole || 'athlete'
+      };
+      
+      // Add invite code if present
       if (selectedRole === 'athlete' && inviteCode) {
         console.log('Athlete registration with invite code:', inviteCode);
-        
-        // Athlete OAuth registration with invite code
-        await signInWithOAuth(
-          'google',
-          `${window.location.origin}/auth/callback`,
-          { 
-            data: { role: 'athlete' },
-            redirectTo: `${window.location.origin}/auth/callback?inviteCode=${encodeURIComponent(inviteCode)}`
+        userData.inviteCode = inviteCode;
+        redirectUrl += `&inviteCode=${encodeURIComponent(inviteCode)}`;
+      }
+      
+      // Store userData in localStorage for retrieval in callback
+      localStorage.setItem('oauthUserData', JSON.stringify(userData));
+      
+      // Use supabase client directly
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: redirectUrl,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
           }
-        );
-      } else if (selectedRole) {
-        console.log('Registration with role:', selectedRole);
-        
-        // Coach or athlete OAuth registration without invite code
-        // Pass the role in the options to be used in AuthCallback
-        await signInWithOAuth(
-          'google',
-          `${window.location.origin}/auth/callback`,
-          { data: { role: selectedRole } }
-        );
-      } else {
-        // Fallback if no role is selected (should not happen)
-        console.log('No role selected, using default');
-        await signInWithOAuth(
-          'google',
-          `${window.location.origin}/auth/callback`
-        );
+        }
+      });
+      
+      if (error) {
+        throw error;
       }
     } catch (error: any) {
       console.error('Error signing up with Google:', error.message);

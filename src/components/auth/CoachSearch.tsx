@@ -54,6 +54,15 @@ const CoachSearch = () => {
     if (!foundCoach) return;
     
     try {
+      // Store selected role in localStorage to be retrieved during the OAuth process
+      localStorage.setItem('selectedRole', 'athlete');
+      
+      // Store user data with role and coachId
+      localStorage.setItem('oauthUserData', JSON.stringify({
+        role: 'athlete',
+        coachId: foundCoach.id
+      }));
+      
       // Get the current domain
       const domain = window.location.origin;
       
@@ -67,8 +76,8 @@ const CoachSearch = () => {
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
-          },
-        },
+          }
+        }
       });
 
       if (authError) {

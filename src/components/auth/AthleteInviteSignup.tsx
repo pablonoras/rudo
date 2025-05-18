@@ -14,7 +14,6 @@ const AthleteInviteSignup = () => {
   const [searchParams] = useSearchParams();
   const inviteCode = searchParams.get('code');
   const [coachName, setCoachName] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -34,6 +33,10 @@ const AthleteInviteSignup = () => {
           .select('id, full_name, role, invite_code')
           .eq('role', 'coach');
         
+        if (coachError) {
+          throw new Error(`Failed to fetch coaches: ${coachError.message}`);
+        }
+        
         console.log('All coaches:', { allCoaches, coachError });
         
         // Check if any coach has a matching invite code (case insensitive)
@@ -51,6 +54,10 @@ const AthleteInviteSignup = () => {
           .select('id, full_name, role, invite_code')
           .eq('invite_code', inviteCode)
           .eq('role', 'coach');
+        
+        if (profileError) {
+          throw new Error(`Failed to fetch profile: ${profileError.message}`);
+        }
         
         console.log('Direct profile query result:', { profileData, profileError });
         
@@ -109,12 +116,11 @@ const AthleteInviteSignup = () => {
         } else {
           console.error('No coach found for this invite code');
           setError('No coach found for this invitation code.');
-          setIsLoading(false);
         }
       } catch (err) {
-        console.error('Error processing invite code:', err);
-        setError('An error occurred while processing your invitation.');
-        setIsLoading(false);
+        const errorMessage = err instanceof Error ? err.message : 'An error occurred while processing your invitation.';
+        console.error('Error processing invite code:', errorMessage);
+        setError(errorMessage);
       }
     };
 

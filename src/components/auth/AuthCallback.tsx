@@ -10,12 +10,26 @@
 
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ensureProfileExists, getCurrentProfile, supabase, updatePassword } from '../../lib/supabase';
+import { handleEmailVerification } from '../../lib/auth-email-verification';
+import type { UserRole } from '../../lib/supabase';
+import { ensureProfileExists, getCurrentProfile, redirectBasedOnRole, supabase, updatePassword } from '../../lib/supabase';
+
+// Helper function to handle athlete with invite code
+async function handleAthleteWithInviteCode(userId: string, inviteCode: string) {
+  console.log('Processing athlete with invite code:', inviteCode);
+  
+  // Ensure profile exists with the correct role
+  await ensureProfileExists('athlete', inviteCode);
+  
+  // Redirect to athlete dashboard
+  return redirectBasedOnRole(userId);
+}
 
 const AuthCallback = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const inviteCode = searchParams.get('inviteCode');
+  const urlRole = searchParams.get('role') as UserRole | null;
   const isEmailVerification = searchParams.has('email-verification');
   const isPasswordReset = searchParams.has('type') && searchParams.get('type') === 'recovery';
   const [error, setError] = useState<string | null>(null);
@@ -26,34 +40,45 @@ const AuthCallback = () => {
   const [resetSuccess, setResetSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
+  // Log all URL parameters when component mounts
+  useEffect(() => {
+    console.log('AuthCallback mounted with URL parameters:', {
+      raw: window.location.href,
+      isEmailVerification,
+      isPasswordReset,
+      inviteCode,
+      urlRole,
+      type: searchParams.get('type'),
+      allParams: Object.fromEntries(searchParams.entries())
+    });
+  }, []);
+
   useEffect(() => {
     const handleAuthCallback = async () => {
       try {
         // Email verification flow
         if (isEmailVerification) {
-          // The verification happens automatically with Supabase when the user clicks the link
-          // Check if the user is now signed in
-          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+          console.log('Email verification flow initiated with params:', {
+            hasInviteCode: !!inviteCode,
+            urlRole,
+            fullUrl: window.location.href
+          });
           
-          if (sessionError) {
-            throw sessionError;
+          // Use our dedicated email verification handler
+          const result = await handleEmailVerification();
+          console.log('Email verification result:', result);
+          
+          if (!result.success) {
+            console.error('Email verification failed:', result.error);
+            throw new Error(result.error || 'Email verification failed');
           }
           
-          if (session) {
-            // Update the email_verified flag in the profile table
-            const { error: updateError } = await supabase
-              .from('profiles')
-              .update({ email_verified: true })
-              .eq('id', session.user.id);
-            
-            if (updateError) {
-              console.error('Error updating email verification status:', updateError);
-            }
-            
-            // Redirect based on role from profile
-            await redirectBasedOnRole(session.user.id);
+          // If successful, redirect based on the role
+          if (result.userId) {
+            console.log('Email verification successful, redirecting user with ID:', result.userId);
+            await redirectBasedOnRole(result.userId);
           } else {
-            // If no session, redirect to sign in
+            console.error('Missing userId in successful email verification result');
             navigate('/login');
           }
           return;
@@ -61,6 +86,7 @@ const AuthCallback = () => {
         
         // Password reset flow
         if (isPasswordReset) {
+          console.log('Password reset flow initiated');
           // Show the password reset form
           setShowResetForm(true);
           setIsSubmitting(false);
@@ -68,320 +94,262 @@ const AuthCallback = () => {
         }
 
         // Normal auth callback flow
+        console.log('Normal OAuth callback flow initiated');
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
-        if (sessionError) throw sessionError;
+        if (sessionError) {
+          console.error('Session error in normal auth flow:', sessionError);
+          throw sessionError;
+        }
+        
+        console.log('Session check result:', {
+          hasSession: !!session,
+          userId: session?.user?.id
+        });
         
         if (session) {
-          // Check if we have user data in localStorage from OAuth sign-in
-          let role: UserRole = 'coach'; // Default to coach
+          // Check if user already has a profile with a different role
           try {
-            const storedUserData = localStorage.getItem('oauthUserData');
-            if (storedUserData) {
-              const userData = JSON.parse(storedUserData);
-              if (userData.role) {
-                role = userData.role as UserRole;
-              }
-              // Clear the stored data after using it
-              localStorage.removeItem('oauthUserData');
-            } else {
-              // Fallback to user metadata if available
-              const { data: { user } } = await supabase.auth.getUser();
-              if (user?.user_metadata?.role) {
-                role = user.user_metadata.role as UserRole;
-              }
+            const { data: existingProfile } = await supabase
+              .from('profiles')
+              .select('id, role')
+              .eq('id', session.user.id)
+              .maybeSingle();
+            
+            // If profile exists and role is different from requested role
+            if (existingProfile && urlRole && existingProfile.role !== urlRole) {
+              console.log(`Role mismatch: User is ${existingProfile.role} but trying to login as ${urlRole}`);
+              
+              // Redirect to auth page with error message
+              const errorMessage = existingProfile.role === 'coach' 
+                ? 'You have a coach account. Please use coach login.' 
+                : 'You have an athlete account. Please use athlete login.';
+              
+              localStorage.setItem('auth_error', errorMessage);
+              window.location.href = '/auth';
+              return;
             }
           } catch (e) {
-            console.error('Error parsing stored user data:', e);
+            console.error('Error checking existing profile:', e);
           }
           
-          // Handle the OAuth sign-in differently based on role
+          // Determine user role through multiple sources, in priority order:
+          // 1. URL parameter (highest priority)
+          // 2. localStorage from OAuth
+          // 3. User metadata
+          // 4. Default (lowest priority)
+          let role: UserRole | undefined;
+          
+          // Check URL first (highest priority)
+          if (urlRole && (urlRole === 'coach' || urlRole === 'athlete')) {
+            role = urlRole;
+            console.log('Using role from URL:', role);
+          } else {
+            // Check localStorage for OAuth flows
+            try {
+              const storedUserData = localStorage.getItem('oauthUserData');
+              console.log('OAuth user data in localStorage:', storedUserData ? 'present' : 'absent');
+              
+              if (storedUserData) {
+                const userData = JSON.parse(storedUserData);
+                if (userData.role) {
+                  role = userData.role as UserRole;
+                  console.log('Using role from localStorage:', role);
+                }
+                // Don't remove the data yet, let ensureProfileExists handle that
+              } else {
+                // Check user metadata if no localStorage data
+                const { data: { user } } = await supabase.auth.getUser();
+                console.log('User metadata for role extraction:', user?.user_metadata);
+                
+                if (user?.user_metadata?.role) {
+                  role = user.user_metadata.role as UserRole;
+                  console.log('Using role from user metadata:', role);
+                }
+              }
+            } catch (e) {
+              console.error('Error determining user role:', e);
+            }
+          }
+          
+          console.log('Final role determination:', role || 'undefined (will use default)');
+          
+          // Handle the callback based on determined role and invite code
           if (role === 'coach') {
             // For coaches, ensure profile exists and redirect to coach dashboard
             // Never process invite codes for coaches
+            console.log('Handling coach OAuth callback');
             await ensureProfileExists('coach');
             navigate('/coach');
           } else if (inviteCode) {
-            // Only process invite code for athletes
+            // For athletes with invite code
+            console.log('Handling athlete with invite code:', inviteCode);
             await handleAthleteWithInviteCode(session.user.id, inviteCode);
           } else {
-            // For all other cases, ensure profile exists and redirect based on role
-            // If user has no profile yet, create one with default role
+            // For all other cases, ensure profile exists with the determined role
+            console.log('Handling general OAuth callback with role:', role);
             const profile = await getCurrentProfile();
+            console.log('Current profile check result:', !!profile);
+            
             if (!profile) {
-              await ensureProfileExists(role); // Use the role from stored data or metadata
+              // If no profile exists yet, create one with the determined role
+              console.log('No profile found, creating with role:', role);
+              const success = await ensureProfileExists(role);
+              console.log('Profile creation result:', success ? 'success' : 'failed');
             }
+            
             await redirectBasedOnRole(session.user.id);
           }
         } else {
+          console.log('No session found, redirecting to login');
           navigate('/login');
         }
       } catch (error: any) {
         console.error('Error in auth callback:', error);
         setError(error.message || 'An error occurred during authentication');
-        setTimeout(() => navigate('/login'), 5000);
-      } finally {
-        if (!isPasswordReset) {
-          setIsSubmitting(false);
-        }
-      }
-    };
-
-    // Function to redirect based on user role from profile
-    const redirectBasedOnRole = async (userId: string) => {
-      try {
-        // Get the user's profile to determine their role
-        const profile = await getCurrentProfile();
-        
-        if (!profile) {
-          setError('Unable to retrieve user profile');
-          setTimeout(() => navigate('/login'), 3000);
-          return;
-        }
-        
-        // Redirect based on role
-        if (profile.role === 'coach') {
-          // Coaches always go to the coach dashboard
-          console.log('User is a coach, redirecting to coach dashboard');
-          navigate('/coach');
-        } else if (profile.role === 'athlete') {
-          // For athletes, check if they have any coach relationships
-          console.log('User is an athlete, checking coach relationships');
-          await checkAthleteCoachRelationships(userId);
-        } else {
-          // Fallback to login if role is not recognized
-          console.log('Unknown role, redirecting to login');
-          navigate('/login');
-        }
-      } catch (error) {
-        console.error('Error determining user role:', error);
-        setError('An error occurred while accessing your account');
-        setTimeout(() => navigate('/login'), 3000);
-      }
-    };
-
-    // Handle athlete registration with invite code
-    const handleAthleteWithInviteCode = async (userId: string, code: string) => {
-      console.log('Processing invite code for athlete:', code);
-      
-      // Ensure profile exists as athlete since we have an invite code
-      await ensureProfileExists('athlete');
-      
-      try {
-        // Call the RPC function to resolve the invite code and create the relationship
-        const { data: resolveResult, error: resolveError } = await supabase
-          .rpc('resolve_invite', {
-            code,
-            athlete_user_id: userId
-          });
-        
-        if (resolveError) {
-          console.error('Error resolving invite code:', resolveError);
-          setError(`Error resolving invite code: ${resolveError.message}`);
-          setTimeout(() => navigate('/athlete'), 3000);
-        } else if (!resolveResult || !resolveResult.success) {
-          console.error('Invalid invite code:', resolveResult?.message);
-          setError('Invalid invitation code. Please try again.');
-          setTimeout(() => navigate('/invite-code-entry'), 3000);
-        } else {
-          // Store coach info in localStorage for use after email verification
-          localStorage.setItem('pendingCoachName', resolveResult.coach_name);
-          localStorage.setItem('pendingCoachId', resolveResult.coach_id);
-          localStorage.setItem('pendingJoinStatus', 'true');
-          
-          // Redirect to athlete dashboard
-          navigate('/athlete');
-        }
-      } catch (error: any) {
-        console.error('Error processing invite code:', error);
-        setError('An error occurred while processing your invitation code');
-        setTimeout(() => navigate('/login'), 3000);
-      }
-    };
-
-    const checkAthleteCoachRelationships = async (athleteId: string) => {
-      // Make sure we're only dealing with an athlete - this is crucial
-      const profile = await getCurrentProfile();
-      if (!profile) {
-        console.log('No profile found, redirecting to home');
-        navigate('/');
-        return;
-      }
-      
-      // If this is a coach, always redirect to coach dashboard
-      if (profile.role === 'coach') {
-        console.log('User is a coach, redirecting to coach dashboard');
-        navigate('/coach');
-        return;
-      }
-      
-      // Only proceed with athlete logic if the user is actually an athlete
-      if (profile.role !== 'athlete') {
-        console.log('Not an athlete, redirecting to home');
-        navigate('/');
-        return;
-      }
-      
-      // Check if the athlete has any coach relationship
-      const { data: coachRelationships, error: relationshipError } = await supabase
-        .from('coach_athletes')
-        .select('id, status')
-        .eq('athlete_id', athleteId)
-        .in('status', ['active', 'pending']);
-      
-      if (relationshipError) {
-        console.error('Error checking coach relationships:', relationshipError);
-      }
-      
-      // If athlete has any active or pending coach relationship, redirect to dashboard
-      // Otherwise, redirect to the invite code entry page
-      if (coachRelationships && coachRelationships.length > 0) {
-        console.log('Athlete has existing coach relationships, redirecting to dashboard');
-        navigate('/athlete');
-      } else {
-        console.log('Athlete has no coach relationships, redirecting to invite code entry');
-        navigate('/invite-code-entry');
+        setIsSubmitting(false);
       }
     };
 
     handleAuthCallback();
-  }, [navigate, inviteCode, isEmailVerification, isPasswordReset]);
+  }, [navigate, inviteCode, isEmailVerification, isPasswordReset, urlRole, searchParams]);
 
+  // Handle password reset submission
   const handlePasswordReset = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
-
-    // Validate passwords match
+    
     if (password !== confirmPassword) {
       setErrorMessage('Passwords do not match');
       return;
     }
-
-    // Validate password strength
+    
     if (password.length < 8) {
       setErrorMessage('Password must be at least 8 characters long');
       return;
     }
-
-    setIsSubmitting(true);
-
+    
     try {
-      const { success, error } = await updatePassword(password);
+      setIsSubmitting(true);
+      console.log('Attempting password reset');
+      
+      // Update the password using the updatePassword function
+      const { error } = await updatePassword(password);
       
       if (error) {
-        console.error('Error resetting password:', error);
-        setErrorMessage(error.message || 'Failed to reset password. Please try again.');
-        setIsSubmitting(false);
-        return;
+        console.error('Password reset error:', error);
+        throw error;
       }
       
-      if (success) {
-        setResetSuccess(true);
-        // Redirect to login after 3 seconds
-        setTimeout(() => {
-          navigate('/login');
-        }, 3000);
-      }
+      console.log('Password reset successful');
+      setResetSuccess(true);
+      setTimeout(() => {
+        // Redirect to login page after successful password reset
+        navigate('/login');
+      }, 3000);
     } catch (error: any) {
       console.error('Error resetting password:', error);
-      setErrorMessage(error.message || 'Failed to reset password. Please try again.');
+      setErrorMessage(error.message || 'Failed to reset password');
       setIsSubmitting(false);
     }
   };
 
-  const renderPasswordResetForm = () => {
-    if (resetSuccess) {
-      return (
-        <div className="bg-green-900/50 border border-green-500 rounded-lg p-4 mb-4 text-center">
-          <p className="text-green-200 font-semibold mb-2">Password reset successful!</p>
-          <p className="text-green-100">Redirecting you to sign in...</p>
-        </div>
-      );
-    }
-
+  // If there was an error, show it
+  if (error) {
     return (
-      <div className="bg-gray-900/50 backdrop-blur-sm border border-gray-800 rounded-lg p-6 w-full max-w-md">
-        <h2 className="text-2xl font-bold mb-6">Reset Your Password</h2>
-        
-        {errorMessage && (
-          <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-200 text-sm">
-            {errorMessage}
+      <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-gray-50 dark:bg-gray-900">
+        <div className="w-full max-w-md bg-white dark:bg-gray-800 p-8 rounded-lg shadow-md">
+          <h1 className="text-2xl font-bold text-center text-gray-900 dark:text-white mb-2">Authentication Error</h1>
+          <p className="text-center text-red-500 mb-4">{error}</p>
+          <div className="flex justify-center">
+            <button
+              onClick={() => navigate('/login')}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+            >
+              Return to Login
+            </button>
           </div>
-        )}
-        
-        <form onSubmit={handlePasswordReset} className="space-y-4">
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-1">
-              New Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 rounded-lg border border-gray-700 bg-gray-800 text-white focus:ring-blue-500 focus:border-blue-500"
-              required
-              minLength={8}
-            />
-            <p className="mt-1 text-xs text-gray-500">
-              At least 8 characters required
-            </p>
-          </div>
-          
-          <div>
-            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-300 mb-1">
-              Confirm New Password
-            </label>
-            <input
-              id="confirmPassword"
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full px-4 py-3 rounded-lg border border-gray-700 bg-gray-800 text-white focus:ring-blue-500 focus:border-blue-500"
-              required
-              minLength={8}
-            />
-          </div>
-          
-          <button
-            type="submit"
-            disabled={isProcessing}
-            className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-colors duration-300 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isProcessing ? (
-              <>
-                <div className="w-5 h-5 border-2 border-t-white border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin mr-2"></div>
-                Processing...
-              </>
-            ) : 'Reset Password'}
-          </button>
-        </form>
+        </div>
       </div>
     );
-  };
+  }
 
+  // Password reset form
+  if (showResetForm) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-gray-50 dark:bg-gray-900">
+        <div className="w-full max-w-md bg-white dark:bg-gray-800 p-8 rounded-lg shadow-md">
+          <h1 className="text-2xl font-bold text-center text-gray-900 dark:text-white mb-2">
+            Reset Your Password
+          </h1>
+          
+          {resetSuccess ? (
+            <div className="text-center">
+              <p className="text-green-500 mb-4">Password updated successfully!</p>
+              <p className="text-gray-600 dark:text-gray-300">Redirecting to login page...</p>
+            </div>
+          ) : (
+            <form onSubmit={handlePasswordReset}>
+              {errorMessage && (
+                <div className="mb-4 p-2 bg-red-100 border border-red-400 text-red-700 rounded">
+                  {errorMessage}
+                </div>
+              )}
+              
+              <div className="mb-4">
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  New Password
+                </label>
+                <input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                  required
+                />
+              </div>
+              
+              <div className="mb-6">
+                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Confirm Password
+                </label>
+                <input
+                  id="confirmPassword"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                  required
+                />
+              </div>
+              
+              <div>
+                <button
+                  type="submit"
+                  disabled={isProcessing}
+                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                >
+                  {isProcessing ? 'Processing...' : 'Reset Password'}
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Processing state
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black text-white flex flex-col items-center justify-center p-4">
-      <div className="fixed inset-0 bg-grid-pattern opacity-5"></div>
-      <div className="fixed inset-0 bg-gradient-to-b from-blue-500/10 to-purple-600/10"></div>
-      
-      {showResetForm ? (
-        <div className="relative z-10">
-          {renderPasswordResetForm()}
+    <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-gray-50 dark:bg-gray-900">
+      <div className="w-full max-w-md bg-white dark:bg-gray-800 p-8 rounded-lg shadow-md text-center">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Authenticating...</h1>
+        <p className="text-gray-600 dark:text-gray-300 mb-4">Please wait while we verify your credentials.</p>
+        <div className="flex justify-center">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
         </div>
-      ) : error ? (
-        <div className="relative z-10 mb-8 max-w-md text-center">
-          <div className="bg-red-900/50 border border-red-500 rounded-lg p-4 mb-4">
-            <p>{error}</p>
-          </div>
-          <p>Redirecting you to the login page...</p>
-        </div>
-      ) : (
-        <div className="relative z-10 animate-pulse flex flex-col items-center">
-          <div className="w-16 h-16 border-4 border-t-blue-600 border-b-blue-600 border-l-transparent border-r-transparent rounded-full animate-spin"></div>
-          <p className="mt-4 text-gray-400">Setting up your account...</p>
-        </div>
-      )}
+      </div>
     </div>
   );
 };

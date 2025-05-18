@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { z } from 'zod';
 import { useI18n } from '../lib/i18n/context';
-import { getCurrentProfile, signIn, signInWithOAuth } from '../lib/supabase';
+import { getCurrentProfile, signIn, supabase } from '../lib/supabase';
 import LanguageToggle from './LanguageToggle';
 import { UserRole } from './RoleSelection';
 
@@ -62,6 +62,21 @@ const Login = () => {
         return;
       }
       
+      // Check if there's a role mismatch (user trying to login with wrong role)
+      if (userRole === 'coach' && profile.role === 'athlete') {
+        setErrorMessage('You have an athlete account. Please use athlete login.');
+        setTimeout(() => {
+          navigate('/auth');
+        }, 2000);
+        return;
+      } else if (userRole === 'athlete' && profile.role === 'coach') {
+        setErrorMessage('You have a coach account. Please use coach login.');
+        setTimeout(() => {
+          navigate('/auth');
+        }, 2000);
+        return;
+      }
+      
       // Redirect based on role
       if (profile.role === 'coach') {
         navigate('/coach');
@@ -107,13 +122,33 @@ const Login = () => {
       }
 
       console.log('Starting Google login with role:', userRole);
+      
+      // Store selected role in localStorage to be retrieved during the OAuth process
+      localStorage.setItem('selectedRole', userRole);
+      
+      // Store more detailed user data for the OAuth flow
+      localStorage.setItem('oauthUserData', JSON.stringify({
+        role: userRole
+      }));
 
-      // For OAuth login, we pass the selected role in the options
-      await signInWithOAuth(
-        'google',
-        `${window.location.origin}/auth/callback`,
-        { data: { role: userRole } }
-      );
+      // For OAuth login, we pass the selected role in the redirect URL
+      const redirectUrl = `${window.location.origin}/auth/callback?role=${userRole}`;
+      
+      // Use Supabase client directly
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: redirectUrl,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          }
+        }
+      });
+      
+      if (error) {
+        throw error;
+      }
       // Redirect will happen in the auth callback component
     } catch (error: any) {
       console.error('Error signing in with Google:', error.message);
