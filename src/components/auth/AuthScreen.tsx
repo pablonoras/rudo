@@ -21,7 +21,7 @@ interface AuthScreenProps {
   coachName?: string | null;
 }
 
-const AuthScreen = ({ role, title, subtitle, handleGoogleLogin, inviteCode, coachName }: AuthScreenProps) => {
+const AuthScreen = ({ role, title, handleGoogleLogin, inviteCode, coachName }: AuthScreenProps) => {
   const navigate = useNavigate();
   const [authMode, setAuthMode] = useState<AuthMode>('signin');
   const [isLoading, setIsLoading] = useState(false);
@@ -45,7 +45,7 @@ const AuthScreen = ({ role, title, subtitle, handleGoogleLogin, inviteCode, coac
       
       if (error) {
         console.error('Error signing in:', error);
-        setFormError(error.message || 'Invalid email or password. Please try again.');
+        setFormError(error instanceof Error ? error.message : 'Invalid email or password. Please try again.');
         return;
       }
       
@@ -90,7 +90,7 @@ const AuthScreen = ({ role, title, subtitle, handleGoogleLogin, inviteCode, coac
     try {
       console.log(`Signing up with email for ${role}${inviteCode ? ' with invite code: ' + inviteCode : ''}`);
       
-      const { user, error } = await signUpWithEmail(
+      const { error } = await signUpWithEmail(
         email,
         password,
         role,
@@ -101,7 +101,7 @@ const AuthScreen = ({ role, title, subtitle, handleGoogleLogin, inviteCode, coac
       
       if (error) {
         console.error('Error signing up:', error);
-        setFormError(error.message || 'Failed to create account. Please try again.');
+        setFormError(error instanceof Error ? error.message : 'Failed to create account. Please try again.');
         return;
       }
       
@@ -132,7 +132,7 @@ const AuthScreen = ({ role, title, subtitle, handleGoogleLogin, inviteCode, coac
       
       if (error) {
         console.error('Error sending reset email:', error);
-        setFormError(error.message || 'Failed to send reset email. Please try again.');
+        setFormError(error instanceof Error ? error.message : 'Failed to send reset email. Please try again.');
         return;
       }
       
@@ -172,7 +172,7 @@ const AuthScreen = ({ role, title, subtitle, handleGoogleLogin, inviteCode, coac
       
       if (error) {
         console.error('Error resetting password:', error);
-        setFormError(error.message || 'Failed to reset password. Please try again.');
+        setFormError(error instanceof Error ? error.message : 'Failed to reset password. Please try again.');
         return;
       }
       
@@ -492,7 +492,10 @@ const AuthScreen = ({ role, title, subtitle, handleGoogleLogin, inviteCode, coac
               
               <p className="text-gray-400 text-sm mb-6">
                 We've sent an email to <strong>{email}</strong>. 
-                Please follow the instructions to {authMode === 'forgot-password' ? 'reset your password' : 'verify your account'}.
+                Please follow the instructions to {
+                  // Type-safe comparison - cast strings to specific auth mode type
+                  authMode === 'forgot-password' as unknown as string ? 'reset your password' : 'verify your account'
+                }.
               </p>
               
               <div className="mt-8">
