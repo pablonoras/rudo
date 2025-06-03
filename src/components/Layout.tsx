@@ -1,3 +1,4 @@
+import { Dumbbell } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { GlobalSearch } from './GlobalSearch';
 import { ThemeToggle } from './ui/ThemeToggle';
@@ -13,11 +14,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center">
-              <Link to="/" className="flex items-center">
+              <div className="flex items-center">
                 <span className="text-2xl font-black tracking-wider text-gray-900 dark:text-gray-100">
                   RUDO
                 </span>
-              </Link>
+              </div>
               {isCoach && (
                 <div className="ml-8 flex space-x-4">
                   <Link
@@ -39,6 +40,19 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     }`}
                   >
                     Programs
+                  </Link>
+                  <Link
+                    to="/coach/workouts"
+                    className={`px-3 py-2 rounded-md text-sm font-medium ${
+                      location.pathname === '/coach/workouts'
+                        ? 'text-blue-600 dark:text-blue-400'
+                        : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100'
+                    }`}
+                  >
+                    <div className="flex items-center">
+                      <Dumbbell className="h-4 w-4 mr-1" />
+                      Workouts
+                    </div>
                   </Link>
                   <Link
                     to="/coach/athletes"

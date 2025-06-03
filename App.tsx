@@ -1,16 +1,20 @@
 import React from 'react';
-import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes } from 'react-router-dom';
+import { ModalProvider } from './contexts/ModalContext';
+import { ProfileProvider } from './contexts/ProfileContext';
 
 const App: React.FC = () => {
   return (
-    <Router>
-      <Routes>
-        <Route 
-          path="/athlete-signup" 
-          element={<Navigate to={`/register${window.location.search}`} replace />} 
-        />
-      </Routes>
-    </Router>
+    <ProfileProvider>
+      <ModalProvider>
+        <Routes>
+          <Route 
+            path="/athlete-signup" 
+            element={<Navigate to={`/register${window.location.search}`} replace />} 
+          />
+        </Routes>
+      </ModalProvider>
+    </ProfileProvider>
   );
 };
 

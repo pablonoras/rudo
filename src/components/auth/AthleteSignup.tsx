@@ -1,12 +1,14 @@
 /**
  * src/components/auth/AthleteSignup.tsx
  * 
+ * Updated: Enhanced UI to prominently display coach name when athlete uses invitation link.
+ * Added coach profile picture with fallback to default icon.
  * Athlete signup page that handles invitation codes from coaches.
  * It can take an invite code from a URL parameter or allow manual entry.
  * After signup, it creates a pending connection with the coach.
  */
 
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, Loader2, UserCheck, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
@@ -18,6 +20,7 @@ const AthleteSignup = () => {
   
   const [inviteCode, setInviteCode] = useState(codeParam || '');
   const [coachName, setCoachName] = useState('');
+  const [coachAvatar, setCoachAvatar] = useState<string | null>(null);
   const [isCodeValid, setIsCodeValid] = useState(!!codeParam);
   const [isValidating, setIsValidating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,6 +32,7 @@ const AthleteSignup = () => {
     } else {
       setIsCodeValid(false);
       setCoachName('');
+      setCoachAvatar(null);
     }
   }, [inviteCode]);
 
@@ -37,6 +41,7 @@ const AthleteSignup = () => {
     if (!code.trim()) {
       setIsCodeValid(false);
       setCoachName('');
+      setCoachAvatar(null);
       return;
     }
 
@@ -44,10 +49,10 @@ const AthleteSignup = () => {
     setError(null);
 
     try {
-      // Check if the code exists and fetch the coach name
+      // Check if the code exists and fetch the coach info
       const { data, error: fetchError } = await supabase
         .from('profiles')
-        .select('full_name')
+        .select('full_name, avatar_url')
         .eq('invite_code', code)
         .eq('role', 'coach')
         .maybeSingle();
@@ -59,15 +64,18 @@ const AthleteSignup = () => {
       if (data) {
         setIsCodeValid(true);
         setCoachName(data.full_name);
+        setCoachAvatar(data.avatar_url);
       } else {
         setIsCodeValid(false);
         setCoachName('');
+        setCoachAvatar(null);
         setError('Invalid invitation code. Please check and try again.');
       }
     } catch (err) {
       console.error('Error validating invite code:', err);
       setIsCodeValid(false);
       setCoachName('');
+      setCoachAvatar(null);
       setError('An error occurred while validating the code. Please try again.');
     } finally {
       setIsValidating(false);
@@ -87,6 +95,7 @@ const AthleteSignup = () => {
     // Clear validation state
     setIsCodeValid(false);
     setCoachName('');
+    setCoachAvatar(null);
     setError(null);
   };
 
@@ -168,11 +177,36 @@ const AthleteSignup = () => {
             </h1>
             
             <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-8 hover:border-blue-500/50 transition-all duration-300">
-              <h2 className="text-2xl font-bold mb-6 text-center">
-                {isCodeValid 
-                  ? `Join ${coachName} at Rudo` 
-                  : 'Enter Your Invitation Code'}
-              </h2>
+              {/* Enhanced header when coach is found */}
+              {isCodeValid && coachName ? (
+                <div className="text-center mb-6">
+                  <div className="flex items-center justify-center mb-4">
+                    {coachAvatar ? (
+                      <img 
+                        src={coachAvatar} 
+                        alt={`${coachName}'s profile`}
+                        className="w-16 h-16 rounded-full object-cover border-2 border-blue-500/30"
+                        onError={(e) => {
+                          // Fallback to default icon if image fails to load
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          target.nextElementSibling?.classList.remove('hidden');
+                        }}
+                      />
+                    ) : null}
+                    <div className={`p-3 bg-gradient-to-r from-blue-500/20 to-purple-600/20 rounded-full border border-blue-500/30 ${coachAvatar ? 'hidden' : ''}`}>
+                      <Users className="w-8 h-8 text-blue-400" />
+                    </div>
+                  </div>
+                  <h2 className="text-3xl font-bold mb-2">
+                    Join {coachName} on Rudo
+                  </h2>
+                </div>
+              ) : (
+                <h2 className="text-2xl font-bold mb-6 text-center">
+                  Enter Your Invitation Code
+                </h2>
+              )}
               
               {!codeParam && (
                 <div className="mb-8">
@@ -204,13 +238,16 @@ const AthleteSignup = () => {
                   )}
                   
                   {isCodeValid && coachName && (
-                    <p className="mt-2 text-sm text-green-400">
-                      Valid code! You'll join {coachName}'s team.
-                    </p>
+                    <div className="mt-3 p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
+                      <div className="flex items-center gap-2 text-green-400">
+                        <UserCheck className="w-5 h-5" />
+                        <span className="font-medium">Perfect! You'll join {coachName}'s team.</span>
+                      </div>
+                    </div>
                   )}
                 </div>
               )}
-              
+
               <div className="mt-6">
                 <button
                   onClick={handleGoogleLogin}

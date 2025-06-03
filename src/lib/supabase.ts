@@ -41,7 +41,7 @@ export async function validateInviteCode(inviteCode: string) {
     // Check if the invite code exists in the profiles table for a coach
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, full_name, email')
+      .select('id, full_name, email, avatar_url')
       .eq('invite_code', inviteCode)
       .eq('role', 'coach')
       .single();
@@ -585,18 +585,18 @@ export async function redirectBasedOnRole(userId?: string): Promise<void> {
       // Coaches always go to the coach dashboard
       window.location.href = '/coach';
     } else if (profile.role === 'athlete') {
-      // For athletes, check if they have any coach relationships
+      // For athletes, check if they have any coach relationships (including inactive)
       const { data: coachRelationships, error: relationshipError } = await supabase
         .from('coach_athletes')
         .select('id, status')
         .eq('athlete_id', userId)
-        .in('status', ['active', 'pending']);
+        .in('status', ['active', 'pending', 'inactive']);
       
       if (relationshipError) {
         console.error('Error checking coach relationships:', relationshipError);
       }
       
-      // If athlete has any active or pending coach relationship, redirect to dashboard
+      // If athlete has any active, pending, or inactive coach relationship, redirect to dashboard
       // Otherwise, redirect to the invite code entry page
       if (coachRelationships && coachRelationships.length > 0) {
         console.log('Athlete has coach relationships, redirecting to dashboard');
@@ -614,5 +614,265 @@ export async function redirectBasedOnRole(userId?: string): Promise<void> {
     console.error('Error in redirectBasedOnRole:', error);
     // Redirect to login page on any error
     window.location.href = '/login';
+  }
+}
+
+// Athlete Activity Functions
+
+export interface AthleteActivity {
+  id: string;
+  athlete_id: string;
+  workout_id: string;
+  scheduled_on: string | null;
+  is_completed: boolean;
+  completed_at: string | null;
+  notes: string | null;
+  is_unscaled: boolean | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Get athlete activity for a specific workout and date
+ */
+export async function getAthleteActivity(
+  athleteId: string,
+  workoutId: string,
+  scheduledOn: string | null = null
+): Promise<{ data: AthleteActivity | null; error: any }> {
+  try {
+    const { data, error } = await supabase
+      .from('athlete_activity')
+      .select('*')
+      .eq('athlete_id', athleteId)
+      .eq('workout_id', workoutId)
+      .eq('scheduled_on', scheduledOn)
+      .maybeSingle();
+
+    return { data, error };
+  } catch (error) {
+    console.error('Error fetching athlete activity:', error);
+    return { data: null, error };
+  }
+}
+
+/**
+ * Create or update athlete activity record
+ */
+export async function upsertAthleteActivity(
+  athleteId: string,
+  workoutId: string,
+  scheduledOn: string | null,
+  updates: Partial<Pick<AthleteActivity, 'is_completed' | 'completed_at' | 'notes' | 'is_unscaled'>>
+): Promise<{ data: AthleteActivity | null; error: any }> {
+  try {
+    // First, try to get existing record
+    const { data: existing } = await supabase
+      .from('athlete_activity')
+      .select('*')
+      .eq('athlete_id', athleteId)
+      .eq('workout_id', workoutId)
+      .eq('scheduled_on', scheduledOn)
+      .maybeSingle();
+
+    if (existing) {
+      // Update existing record
+      const { data, error } = await supabase
+        .from('athlete_activity')
+        .update(updates)
+        .eq('id', existing.id)
+        .select()
+        .single();
+
+      return { data, error };
+    } else {
+      // Create new record
+      const { data, error } = await supabase
+        .from('athlete_activity')
+        .insert({
+          athlete_id: athleteId,
+          workout_id: workoutId,
+          scheduled_on: scheduledOn,
+          ...updates
+        })
+        .select()
+        .single();
+
+      return { data, error };
+    }
+  } catch (error) {
+    console.error('Error upserting athlete activity:', error);
+    return { data: null, error };
+  }
+}
+
+/**
+ * Mark workout as completed
+ */
+export async function markWorkoutCompleted(
+  athleteId: string,
+  workoutId: string,
+  scheduledOn: string | null,
+  isUnscaled: boolean
+): Promise<{ data: AthleteActivity | null; error: any }> {
+  try {
+    const updates = {
+      is_completed: true,
+      completed_at: new Date().toISOString(),
+      is_unscaled: isUnscaled
+    };
+
+    return await upsertAthleteActivity(athleteId, workoutId, scheduledOn, updates);
+  } catch (error) {
+    console.error('Error marking workout as completed:', error);
+    return { data: null, error };
+  }
+}
+
+/**
+ * Mark workout as incomplete (uncheck completion)
+ */
+export async function markWorkoutIncomplete(
+  athleteId: string,
+  workoutId: string,
+  scheduledOn: string | null
+): Promise<{ data: AthleteActivity | null; error: any }> {
+  try {
+    const updates = {
+      is_completed: false,
+      completed_at: null,
+      is_unscaled: null
+    };
+
+    return await upsertAthleteActivity(athleteId, workoutId, scheduledOn, updates);
+  } catch (error) {
+    console.error('Error marking workout as incomplete:', error);
+    return { data: null, error };
+  }
+}
+
+/**
+ * Update workout notes
+ */
+export async function updateWorkoutNotes(
+  athleteId: string,
+  workoutId: string,
+  scheduledOn: string | null,
+  notes: string
+): Promise<{ data: AthleteActivity | null; error: any }> {
+  try {
+    const updates = { notes };
+    return await upsertAthleteActivity(athleteId, workoutId, scheduledOn, updates);
+  } catch (error) {
+    console.error('Error updating workout notes:', error);
+    return { data: null, error };
+  }
+}
+
+/**
+ * Get recent athlete activity for a coach's athletes
+ */
+export async function getCoachAthleteActivity(
+  coachId: string,
+  limit: number = 10
+): Promise<{ data: any[] | null; error: any }> {
+  try {
+    // First, get the athlete IDs for this coach
+    const { data: athleteRelations, error: athleteError } = await supabase
+      .from('coach_athletes')
+      .select('athlete_id')
+      .eq('coach_id', coachId)
+      .eq('status', 'active');
+
+    if (athleteError) {
+      console.error('Error fetching athlete relations:', athleteError);
+      return { data: null, error: athleteError };
+    }
+
+    // If no athletes found, return empty array
+    if (!athleteRelations || athleteRelations.length === 0) {
+      return { data: [], error: null };
+    }
+
+    // Extract athlete IDs
+    const athleteIds = athleteRelations.map(relation => relation.athlete_id);
+
+    // Now fetch the activity data for these athletes
+    const { data, error } = await supabase
+      .from('athlete_activity')
+      .select(`
+        *,
+        athlete:profiles!athlete_activity_athlete_id_fkey(
+          id,
+          full_name,
+          avatar_url
+        ),
+        workout:workouts!athlete_activity_workout_id_fkey(
+          workout_id,
+          description,
+          coach_id
+        )
+      `)
+      .in('athlete_id', athleteIds)
+      .order('updated_at', { ascending: false })
+      .limit(limit);
+
+    return { data, error };
+  } catch (error) {
+    console.error('Error fetching coach athlete activity:', error);
+    return { data: null, error };
+  }
+}
+
+/**
+ * Delete an athlete account and all related data
+ * Can be called by the athlete themselves or by a coach who has the athlete
+ */
+export async function deleteAthleteAccount(
+  athleteId: string,
+  requestingUserId?: string
+): Promise<{ success: boolean; data?: any; error?: string }> {
+  try {
+    console.log('Deleting athlete account:', athleteId);
+    
+    const { data, error } = await supabase.rpc('delete_athlete_account', {
+      target_athlete_id: athleteId,
+      requesting_user_id: requestingUserId || null
+    });
+
+    if (error) {
+      console.error('Error calling delete_athlete_account RPC:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to delete athlete account'
+      };
+    }
+
+    if (!data) {
+      return {
+        success: false,
+        error: 'No response from deletion operation'
+      };
+    }
+
+    // The stored procedure returns JSON, check if it indicates success
+    if (data.success === false) {
+      return {
+        success: false,
+        error: data.error || 'Deletion operation failed'
+      };
+    }
+
+    console.log('Athlete account deleted successfully:', data);
+    return {
+      success: true,
+      data: data
+    };
+  } catch (error) {
+    console.error('Error in deleteAthleteAccount:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error occurred'
+    };
   }
 }

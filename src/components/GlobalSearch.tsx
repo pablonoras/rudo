@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect } from 'react';
+import { Calendar, Search, User, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, User, Calendar, X } from 'lucide-react';
 import { useAthleteStore } from '../lib/athlete';
 import { useWorkoutStore } from '../lib/workout';
 
@@ -56,7 +56,7 @@ export function GlobalSearch() {
           type: 'athlete',
           title: `${athlete.firstName} ${athlete.lastName}`,
           subtitle: athlete.email,
-          url: `/coach/athletes/${athlete.id}`,
+          url: `/coach/athlete/${athlete.id}`,
         });
       }
     });

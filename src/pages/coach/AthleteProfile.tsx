@@ -1,22 +1,22 @@
-import { useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import { 
-  ArrowLeft, 
-  Mail, 
-  Phone, 
-  Calendar, 
-  AlertCircle,
-  Edit2,
-  User,
-  Activity,
-  Clock,
-  Award,
-  ChevronRight
+import { format, parseISO } from 'date-fns';
+import {
+    Activity,
+    AlertCircle,
+    ArrowLeft,
+    Award,
+    Calendar,
+    ChevronRight,
+    Clock,
+    Edit2,
+    Mail,
+    Phone,
+    User
 } from 'lucide-react';
+import { useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { EditProfileModal } from '../../components/athlete/EditProfileModal';
 import { useAthleteStore } from '../../lib/athlete';
 import { useWorkoutStore } from '../../lib/workout';
-import { format, parseISO } from 'date-fns';
-import { EditProfileModal } from '../../components/athlete/EditProfileModal';
 
 export function AthleteProfile() {
   const { athleteId } = useParams<{ athleteId: string }>();
@@ -65,13 +65,22 @@ export function AthleteProfile() {
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Athletes
         </button>
-        <button
-          onClick={() => setIsEditing(true)}
-          className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
-        >
-          <Edit2 className="h-4 w-4 mr-2" />
-          Edit Profile
-        </button>
+        <div className="flex space-x-3">
+          <button
+            onClick={() => navigate(`/coach/athlete/${athleteId}/calendar`)}
+            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            <Calendar className="h-4 w-4 mr-2" />
+            View Calendar
+          </button>
+          <button
+            onClick={() => setIsEditing(true)}
+            className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
+          >
+            <Edit2 className="h-4 w-4 mr-2" />
+            Edit Profile
+          </button>
+        </div>
       </div>
 
       {/* Profile Overview */}

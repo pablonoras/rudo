@@ -1,25 +1,27 @@
-import { useState } from 'react';
 import { X } from 'lucide-react';
+import { useState } from 'react';
 import type { BlockType, WorkoutBlock } from '../../lib/workout';
 
 interface BlockEditorProps {
-  block: WorkoutBlock;
-  onSave: (block: WorkoutBlock) => void;
+  title: string;
+  blockType: string;
+  initialData?: Partial<WorkoutBlock>;
+  onSave: (blockData: Partial<WorkoutBlock>) => void;
   onClose: () => void;
 }
 
 const BLOCK_TYPES: BlockType[] = ['warmup', 'skill', 'strength', 'wod', 'cooldown'];
 
-export function BlockEditor({ block, onSave, onClose }: BlockEditorProps) {
-  const [title, setTitle] = useState(block.title);
-  const [type, setType] = useState<BlockType>(block.type);
-  const [notes, setNotes] = useState(block.notes || '');
+export function BlockEditor({ title, blockType, initialData = {}, onSave, onClose }: BlockEditorProps) {
+  const [name, setName] = useState(initialData.name || '');
+  const [type, setType] = useState<BlockType>(initialData.type || blockType as BlockType || 'strength');
+  const [notes, setNotes] = useState(initialData.notes || '');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave({
-      ...block,
-      title,
+      ...initialData,
+      name,
       type,
       notes,
     });
@@ -30,7 +32,7 @@ export function BlockEditor({ block, onSave, onClose }: BlockEditorProps) {
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md">
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-            Edit Block
+            {title || "Edit Block"}
           </h2>
           <button
             onClick={onClose}
@@ -43,16 +45,16 @@ export function BlockEditor({ block, onSave, onClose }: BlockEditorProps) {
         <form onSubmit={handleSubmit} className="p-4 space-y-4">
           <div>
             <label
-              htmlFor="title"
+              htmlFor="name"
               className="block text-sm font-medium text-gray-700 dark:text-gray-300"
             >
-              Title
+              Name
             </label>
             <input
               type="text"
-              id="title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              id="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
               className="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-100 sm:text-sm px-3 py-2"
             />
           </div>

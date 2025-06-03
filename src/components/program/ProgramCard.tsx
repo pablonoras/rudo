@@ -159,7 +159,9 @@ export function ProgramCard({ program, onStatusChange, onDelete, onEdit, onManag
           </div>
           <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
             <Calendar className="h-4 w-4 mr-1" />
-            <span>{Object.keys(program.days).length} workouts</span>
+            <span>
+              {Object.values(program.days).reduce((total, day) => total + day.workouts.length, 0)} workouts
+            </span>
           </div>
           <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
             <Users className="h-4 w-4 mr-1" />
