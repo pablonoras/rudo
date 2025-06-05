@@ -286,37 +286,29 @@ export function WorkoutCard({ workout, scheduledDate, onActivityChange }: Workou
 
             {/* Action Buttons */}
             <div className="space-y-2">
-              <div className="flex space-x-2">
-                <button
-                  onClick={handleCompletionToggle}
-                  disabled={isUpdatingCompletion}
-                  className={`flex-1 flex items-center justify-center px-4 py-3 rounded-lg font-medium text-sm transition-colors ${
-                    activity?.is_completed
-                      ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 border border-green-200 dark:border-green-800'
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600'
-                  }`}
-                >
-                  {isUpdatingCompletion ? (
-                    <div className="h-4 w-4 animate-spin rounded-full border border-current border-t-transparent" />
-                  ) : activity?.is_completed ? (
-                    <>
-                      <CheckCircle className="h-4 w-4 mr-2" />
-                      Completed
-                    </>
-                  ) : (
-                    <>
-                      <Circle className="h-4 w-4 mr-2" />
-                      Mark as Completed
-                    </>
-                  )}
-                </button>
-                
-                <button
-                  className="flex items-center justify-center px-4 py-3 rounded-lg font-medium text-sm bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 border border-blue-200 dark:border-blue-800 hover:bg-blue-200 dark:hover:bg-blue-900/50"
-                >
-                  View
-                </button>
-              </div>
+              <button
+                onClick={handleCompletionToggle}
+                disabled={isUpdatingCompletion}
+                className={`w-full flex items-center justify-center px-4 py-3 rounded-lg font-medium text-sm transition-colors ${
+                  activity?.is_completed
+                    ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 border border-green-200 dark:border-green-800'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600'
+                }`}
+              >
+                {isUpdatingCompletion ? (
+                  <div className="h-4 w-4 animate-spin rounded-full border border-current border-t-transparent" />
+                ) : activity?.is_completed ? (
+                  <>
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Completed
+                  </>
+                ) : (
+                  <>
+                    <Circle className="h-4 w-4 mr-2" />
+                    Mark as Completed
+                  </>
+                )}
+              </button>
 
               {!isEditingNotes && (
                 <button

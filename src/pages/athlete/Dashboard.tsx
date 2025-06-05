@@ -501,7 +501,7 @@ export function AthleteDashboard() {
         </div>
       </div>
 
-      {/* Assigned Programs - Hide on mobile if we have workouts */}
+      {/* Assigned Programs - Hidden on mobile, visible on desktop */}
       {isLoadingPrograms ? (
         <div className="hidden md:block bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
           <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
@@ -512,12 +512,12 @@ export function AthleteDashboard() {
           </p>
         </div>
       ) : (
-        <div className={`${dayWorkouts.length > 0 ? 'hidden md:block' : 'block'}`}>
-          <AssignedPrograms 
-            programs={assignedPrograms} 
-            onSelectProgram={setSelectedProgramId} 
-            selectedProgramId={selectedProgramId} 
-          />
+        <div className="hidden md:block">
+        <AssignedPrograms 
+          programs={assignedPrograms} 
+          onSelectProgram={setSelectedProgramId} 
+          selectedProgramId={selectedProgramId} 
+        />
         </div>
       )}
 
