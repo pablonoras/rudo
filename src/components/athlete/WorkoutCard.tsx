@@ -15,7 +15,6 @@ import {
     Circle,
     Clock,
     Edit3,
-    MessageSquare,
     Save,
     TrendingDown,
     X
@@ -231,6 +230,60 @@ export function WorkoutCard({ workout, scheduledDate, onActivityChange }: Workou
               </div>
             </div>
 
+            {/* Notes Section - Mobile */}
+            {(activity?.notes || isEditingNotes) && (
+              <div className="mb-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100">Notes</h4>
+                  {!isEditingNotes && activity?.notes && (
+                    <button
+                      onClick={() => setIsEditingNotes(true)}
+                      className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                    >
+                      Edit
+                    </button>
+                  )}
+                </div>
+                
+                {isEditingNotes ? (
+                  <div className="space-y-2">
+                    <textarea
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      placeholder="Add your workout notes, results, or modifications..."
+                      className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg text-sm resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      rows={3}
+                    />
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={handleSaveNotes}
+                        disabled={isSavingNotes}
+                        className="flex items-center px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700 disabled:opacity-50"
+                      >
+                        {isSavingNotes ? (
+                          <div className="h-3 w-3 animate-spin rounded-full border border-white border-t-transparent mr-1" />
+                        ) : (
+                          <Save className="h-3 w-3 mr-1" />
+                        )}
+                        Save
+                      </button>
+                      <button
+                        onClick={handleCancelNotes}
+                        className="flex items-center px-3 py-1.5 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 text-xs font-medium rounded hover:bg-gray-400 dark:hover:bg-gray-500"
+                      >
+                        <X className="h-3 w-3 mr-1" />
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-blue-50 dark:bg-blue-900/20 rounded p-3 text-sm text-gray-700 dark:text-gray-300">
+                    {activity?.notes}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Action Buttons */}
             <div className="space-y-2">
               <div className="flex space-x-2">
@@ -265,13 +318,15 @@ export function WorkoutCard({ workout, scheduledDate, onActivityChange }: Workou
                 </button>
               </div>
 
-              <button
-                onClick={() => setIsEditingNotes(true)}
-                className="w-full flex items-center justify-center px-4 py-3 rounded-lg font-medium text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600"
-              >
-                <MessageSquare className="h-4 w-4 mr-2" />
-                Log Result
-              </button>
+              {!isEditingNotes && (
+                <button
+                  onClick={() => setIsEditingNotes(true)}
+                  className="w-full flex items-center justify-center px-4 py-3 rounded-lg font-medium text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600"
+                >
+                  <Edit3 className="h-4 w-4 mr-2" />
+                  {activity?.notes ? 'Edit Notes' : 'Add Notes'}
+                </button>
+              )}
             </div>
 
             {/* Program Info */}

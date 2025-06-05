@@ -426,11 +426,29 @@ export function AthleteDashboard() {
   
   return (
     <div className="space-y-4 md:space-y-6 pb-4 md:pb-0">
-      {/* Mobile Header */}
-      <div className="block md:hidden text-center py-2">
-        <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-          RUDO
-        </h1>
+      {/* Mobile Date Header with Navigation */}
+      <div className="block md:hidden">
+        <div className="flex items-center justify-between px-4 py-2">
+          <button
+            onClick={() => navigateDay('prev')}
+            className="p-2 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </button>
+          
+          <div className="text-center">
+            <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">
+              {format(selectedDate, 'EEEE, MMMM d')}
+            </h1>
+          </div>
+          
+          <button
+            onClick={() => navigateDay('next')}
+            className="p-2 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+          >
+            <ChevronRight className="h-5 w-5" />
+          </button>
+        </div>
       </div>
 
       {/* Desktop Header */}
