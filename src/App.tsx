@@ -23,6 +23,7 @@ import LandingPage from './components/LandingPage';
 import Login from './components/Login';
 import Register from './components/Register';
 import RoleSelection from './components/RoleSelection';
+import { EmailConfirmation } from './pages/auth/EmailConfirmation';
 
 // Coach pages
 import { CoachAccount } from './pages/coach/Account';
@@ -124,6 +125,7 @@ function App() {
           <Route path="/coach-signin" element={<Navigate to="/auth" replace />} />
           
           <Route path="/auth/callback" element={<AuthCallback />} />
+          <Route path="/auth/confirm" element={<EmailConfirmation />} />
           <Route path="/login/success" element={<LoginSuccess />} />
           
           {/* Debug routes - only available in development */}

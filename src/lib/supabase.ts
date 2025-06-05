@@ -346,6 +346,7 @@ export async function signUpWithEmail(
       email,
       password,
       options: {
+        emailRedirectTo: `${window.location.origin}/auth/confirm`,
         data: {
           role,
           full_name: fullName,

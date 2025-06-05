@@ -198,146 +198,254 @@ export function WorkoutCard({ workout, scheduledDate, onActivityChange }: Workou
           activity?.is_completed 
             ? 'border-green-500 dark:border-green-400 bg-green-50 dark:bg-green-900/10' 
             : getDefaultBorderColor()
-        }`}
+        } overflow-hidden`}
         style={cardStyle}
       >
-        <div className="p-4">
-          {/* Source badge (program/direct assignment) */}
-          {workout.assignmentType === 'program' && (
-            <div className="flex items-center mb-2">
-              <span className="inline-flex items-center px-2 py-1 text-xs rounded-md bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                <Calendar className="h-3 w-3 mr-1" />
-                {workout.programName}
-              </span>
-            </div>
-          )}
-          
-          {/* Header with completion status */}
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex-1">
-              {workout.name && (
-                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
-                  {workout.name}
-                </h3>
-              )}
-              
-              {/* Completion status */}
-              {activity?.is_completed && (
-                <div className="flex items-center mt-1 text-sm text-green-600 dark:text-green-400">
-                  <CheckCircle className="h-4 w-4 mr-1" />
-                  <span>
-                    Completed {activity.completed_at && format(new Date(activity.completed_at), 'MMM d, h:mm a')}
-                  </span>
-                  {activity.is_unscaled !== null && (
-                    <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium">
-                      {activity.is_unscaled ? (
-                        <span className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 flex items-center">
-                          <Award className="h-3 w-3 mr-1" />
-                          As Prescribed
-                        </span>
-                      ) : (
-                        <span className="bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200 flex items-center">
-                          <TrendingDown className="h-3 w-3 mr-1" />
-                          Scaled
-                        </span>
-                      )}
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
-            
-            {/* Completion toggle button */}
-            <button
-              onClick={handleCompletionToggle}
-              disabled={isUpdatingCompletion}
-              className={`p-1 rounded-full transition-colors ${
-                activity?.is_completed
-                  ? 'text-green-500 dark:text-green-400 hover:text-green-600'
-                  : 'text-gray-400 hover:text-green-500 dark:hover:text-green-400'
-              } ${isUpdatingCompletion ? 'opacity-50 cursor-not-allowed' : ''}`}
-            >
-              {activity?.is_completed ? (
-                <CheckCircle className="h-6 w-6" />
-              ) : (
-                <Circle className="h-6 w-6" />
-              )}
-            </button>
-          </div>
-          
-          {/* Workout description */}
-          <div className="mt-3 text-base text-gray-700 dark:text-gray-200 leading-relaxed whitespace-pre-wrap">
-            {workout.description}
-          </div>
-          
-          {/* Coach notes */}
-          {workout.notes && (
-            <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Coach Notes:</h4>
-              <p className="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap">
-                {workout.notes}
-              </p>
-            </div>
-          )}
-          
-          {/* Athlete notes section */}
-          <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+        {/* Mobile Layout */}
+        <div className="block md:hidden">
+          {/* Header */}
+          <div className="p-4 pb-3">
             <div className="flex items-center justify-between mb-2">
-              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center">
-                <MessageSquare className="h-4 w-4 mr-1" />
-                My Notes
-              </h4>
-              {!isEditingNotes && (
-                <button
-                  onClick={() => setIsEditingNotes(true)}
-                  className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300"
-                >
-                  <Edit3 className="h-4 w-4" />
-                </button>
-              )}
+              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                {workout.name || 'Crossfit'}
+              </h3>
+              <div className="flex items-center">
+                {activity?.is_completed && (
+                  <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
+                )}
+                {activity?.is_unscaled && (
+                  <TrendingDown className="h-4 w-4 text-orange-500" />
+                )}
+              </div>
             </div>
-            
-            {isEditingNotes ? (
-              <div className="space-y-2">
-                <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="How did this workout feel? Any modifications or thoughts..."
-                  className="w-full p-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500"
-                  rows={3}
-                />
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={handleSaveNotes}
-                    disabled={isSavingNotes}
-                    className="inline-flex items-center px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
-                  >
-                    {isSavingNotes ? (
-                      <Clock className="h-3 w-3 mr-1 animate-spin" />
-                    ) : (
-                      <Save className="h-3 w-3 mr-1" />
-                    )}
-                    Save
-                  </button>
-                  <button
-                    onClick={handleCancelNotes}
-                    className="inline-flex items-center px-3 py-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
-                  >
-                    <X className="h-3 w-3 mr-1" />
-                    Cancel
-                  </button>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              {format(scheduledDate, 'EEE, MMM d')}
+            </p>
+          </div>
+
+          {/* Workout Content */}
+          <div className="px-4 pb-4">
+            <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 mb-4">
+              <div className="whitespace-pre-wrap text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                {workout.description}
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="space-y-2">
+              <div className="flex space-x-2">
+                <button
+                  onClick={handleCompletionToggle}
+                  disabled={isUpdatingCompletion}
+                  className={`flex-1 flex items-center justify-center px-4 py-3 rounded-lg font-medium text-sm transition-colors ${
+                    activity?.is_completed
+                      ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 border border-green-200 dark:border-green-800'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  }`}
+                >
+                  {isUpdatingCompletion ? (
+                    <div className="h-4 w-4 animate-spin rounded-full border border-current border-t-transparent" />
+                  ) : activity?.is_completed ? (
+                    <>
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Completed
+                    </>
+                  ) : (
+                    <>
+                      <Circle className="h-4 w-4 mr-2" />
+                      Mark as Completed
+                    </>
+                  )}
+                </button>
+                
+                <button
+                  className="flex items-center justify-center px-4 py-3 rounded-lg font-medium text-sm bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 border border-blue-200 dark:border-blue-800 hover:bg-blue-200 dark:hover:bg-blue-900/50"
+                >
+                  View
+                </button>
+              </div>
+
+              <button
+                onClick={() => setIsEditingNotes(true)}
+                className="w-full flex items-center justify-center px-4 py-3 rounded-lg font-medium text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600"
+              >
+                <MessageSquare className="h-4 w-4 mr-2" />
+                Log Result
+              </button>
+            </div>
+
+            {/* Program Info */}
+            {workout.programName && (
+              <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-600">
+                <div className="text-xs text-gray-500 dark:text-gray-400">
+                  <span className="font-medium">Assigned Program:</span> {workout.programName}
                 </div>
               </div>
-            ) : (
-              <div className="text-sm text-gray-600 dark:text-gray-400">
-                {activity?.notes ? (
-                  <p className="whitespace-pre-wrap">{activity.notes}</p>
-                ) : (
-                  <p className="italic">No notes yet. Click edit to add your thoughts.</p>
-                )}
+            )}
+
+            {/* Activity Status */}
+            {activity?.completed_at && (
+              <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                Completed on {format(new Date(activity.completed_at), 'MMM d, yyyy \'at\' h:mm a')}
+                {activity.is_unscaled && ' (Scaled)'}
               </div>
             )}
           </div>
+        </div>
+
+        {/* Desktop Layout */}
+        <div className="hidden md:block p-6">
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <div className="flex items-center space-x-2 mb-1">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                  {workout.name || 'Workout'}
+                </h3>
+                {activity?.is_completed && (
+                  <CheckCircle className="h-5 w-5 text-green-500" />
+                )}
+                {activity?.is_unscaled && (
+                  <TrendingDown className="h-4 w-4 text-orange-500" />
+                )}
+              </div>
+              <div className="flex items-center text-sm text-gray-500 dark:text-gray-400 space-x-4">
+                <div className="flex items-center space-x-1">
+                  <Calendar className="h-4 w-4" />
+                  <span>{format(scheduledDate, 'MMM d, yyyy')}</span>
+                </div>
+                {workout.assignmentType && (
+                  <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-xs">
+                    {workout.assignmentType}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="mb-6">
+            <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+              <div className="whitespace-pre-wrap text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                {workout.description}
+              </div>
+            </div>
+          </div>
+
+          {/* Notes Section */}
+          {(activity?.notes || isEditingNotes) && (
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100">Notes</h4>
+                {!isEditingNotes && activity?.notes && (
+                  <button
+                    onClick={() => setIsEditingNotes(true)}
+                    className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                  >
+                    Edit
+                  </button>
+                )}
+              </div>
+              
+              {isEditingNotes ? (
+                <div className="space-y-2">
+                  <textarea
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Add your workout notes, results, or modifications..."
+                    className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg text-sm resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                    rows={3}
+                  />
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={handleSaveNotes}
+                      disabled={isSavingNotes}
+                      className="flex items-center px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      {isSavingNotes ? (
+                        <div className="h-3 w-3 animate-spin rounded-full border border-white border-t-transparent mr-1" />
+                      ) : (
+                        <Save className="h-3 w-3 mr-1" />
+                      )}
+                      Save
+                    </button>
+                    <button
+                      onClick={handleCancelNotes}
+                      className="flex items-center px-3 py-1.5 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 text-xs font-medium rounded hover:bg-gray-400 dark:hover:bg-gray-500"
+                    >
+                      <X className="h-3 w-3 mr-1" />
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-blue-50 dark:bg-blue-900/20 rounded p-3 text-sm text-gray-700 dark:text-gray-300">
+                  {activity?.notes}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="flex items-center justify-between">
+            <div className="flex space-x-3">
+              <button
+                onClick={handleCompletionToggle}
+                disabled={isUpdatingCompletion}
+                className={`flex items-center px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
+                  activity?.is_completed
+                    ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 hover:bg-green-200 dark:hover:bg-green-900/50'
+                    : 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-900/50'
+                }`}
+              >
+                {isUpdatingCompletion ? (
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent mr-2" />
+                ) : activity?.is_completed ? (
+                  <>
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Completed
+                  </>
+                ) : (
+                  <>
+                    <Circle className="h-4 w-4 mr-2" />
+                    Mark Complete
+                  </>
+                )}
+              </button>
+              
+              {!isEditingNotes && (
+                <button
+                  onClick={() => setIsEditingNotes(true)}
+                  className="flex items-center px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg font-medium text-sm hover:bg-gray-200 dark:hover:bg-gray-600"
+                >
+                  <Edit3 className="h-4 w-4 mr-2" />
+                  {activity?.notes ? 'Edit Notes' : 'Add Notes'}
+                </button>
+              )}
+            </div>
+
+            {/* Activity Status */}
+            {activity?.completed_at && (
+              <div className="text-xs text-gray-500 dark:text-gray-400">
+                <div className="flex items-center space-x-1">
+                  <Clock className="h-3 w-3" />
+                  <span>
+                    Completed {format(new Date(activity.completed_at), 'MMM d \'at\' h:mm a')}
+                    {activity.is_unscaled && ' (Scaled)'}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Program Information */}
+          {workout.programName && (
+            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between text-sm">
+                <div className="text-gray-500 dark:text-gray-400">
+                  <span className="font-medium">Program:</span> {workout.programName}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

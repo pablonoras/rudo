@@ -9,11 +9,10 @@
  * Added inactive athlete functionality - shows message instead of workouts when athlete is inactive.
  */
 
-import { addDays, format, isToday, subDays } from 'date-fns';
+import { addDays, format, isToday, startOfWeek, subDays } from 'date-fns';
 import { Calendar, ChevronLeft, ChevronRight, Mail, UserX } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { AssignedProgram, AssignedPrograms } from '../../components/athlete/AssignedPrograms';
-import { WeekNavigation } from '../../components/athlete/WeekNavigation';
 import { WorkoutCard } from '../../components/athlete/WorkoutCard';
 import { useProfile } from '../../contexts/ProfileContext';
 import { supabase } from '../../lib/supabase';
@@ -426,8 +425,16 @@ export function AthleteDashboard() {
   const dateStr = format(selectedDate, 'yyyy-MM-dd');
   
   return (
-    <div className="space-y-6">
-      <div>
+    <div className="space-y-4 md:space-y-6 pb-4 md:pb-0">
+      {/* Mobile Header */}
+      <div className="block md:hidden text-center py-2">
+        <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+          RUDO
+        </h1>
+      </div>
+
+      {/* Desktop Header */}
+      <div className="hidden md:block">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
           {isToday(selectedDate) ? 'Today\'s Workouts' : format(selectedDate, 'MMMM d, yyyy')}
         </h1>
@@ -436,9 +443,49 @@ export function AthleteDashboard() {
         </p>
       </div>
 
-      {/* Assigned Programs */}
+      {/* Week Navigation - Compact for mobile */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 mx-2 md:mx-0">
+        <div className="flex justify-between">
+          {Array.from({ length: 7 }, (_, i) => {
+            const date = addDays(startOfWeek(selectedDate), i);
+            const dayName = format(date, 'EEE');
+            const dayNumber = format(date, 'd');
+            const isSelectedDay = format(date, 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd');
+            const isTodayDay = isToday(date);
+            
+            return (
+              <button
+                key={dayName}
+                onClick={() => setSelectedDate(date)}
+                className={`flex-1 py-3 md:py-3 flex flex-col items-center transition-colors first:rounded-l-lg last:rounded-r-lg ${
+                  isSelectedDay
+                    ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200'
+                    : isTodayDay
+                    ? 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200'
+                    : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                }`}
+              >
+                <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                  {dayName}
+                </span>
+                <span className={`text-base md:text-lg font-semibold mt-1 ${
+                  isSelectedDay
+                    ? 'text-blue-800 dark:text-blue-200'
+                    : isTodayDay
+                    ? 'text-gray-800 dark:text-gray-200'
+                    : 'text-gray-900 dark:text-gray-100'
+                }`}>
+                  {dayNumber}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Assigned Programs - Hide on mobile if we have workouts */}
       {isLoadingPrograms ? (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+        <div className="hidden md:block bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
           <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
             Assigned Programs
           </h2>
@@ -447,21 +494,17 @@ export function AthleteDashboard() {
           </p>
         </div>
       ) : (
-        <AssignedPrograms 
-          programs={assignedPrograms} 
-          onSelectProgram={setSelectedProgramId} 
-          selectedProgramId={selectedProgramId} 
-        />
+        <div className={`${dayWorkouts.length > 0 ? 'hidden md:block' : 'block'}`}>
+          <AssignedPrograms 
+            programs={assignedPrograms} 
+            onSelectProgram={setSelectedProgramId} 
+            selectedProgramId={selectedProgramId} 
+          />
+        </div>
       )}
 
-      {/* Week Navigation (above calendar) */}
-      <WeekNavigation 
-        selectedDate={selectedDate} 
-        onSelectDate={setSelectedDate} 
-      />
-
-      {/* Date Navigation */}
-      <div className="flex items-center justify-between">
+      {/* Date Navigation - Hide on mobile */}
+      <div className="hidden md:flex items-center justify-between">
         <button
           onClick={() => navigateDay('prev')}
           className="p-2 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
@@ -485,7 +528,7 @@ export function AthleteDashboard() {
       </div>
 
       {/* Workouts */}
-      <div className="space-y-4">
+      <div className="space-y-4 px-2 md:px-0">
         {dayWorkouts.length > 0 ? (
           dayWorkouts.map((workout: any, index: number) => (
             <WorkoutCard 

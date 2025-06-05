@@ -161,147 +161,159 @@ export function CoachAccount() {
         Account Settings
       </h1>
       
-      {/* Invitation Code Section */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-        <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Athlete Invitation</h2>
-        
-        {inviteCodeError && (
-          <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200 rounded-md text-sm">
-            {inviteCodeError}
-          </div>
-        )}
-        
-        {isEditingCode ? (
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="inviteCode" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Custom Invitation Code
-              </label>
-              <div className="flex items-center space-x-2">
-                <input
-                  id="inviteCode"
-                  type="text"
-                  value={newInviteCode}
-                  onChange={(e) => setNewInviteCode(e.target.value.toLowerCase().replace(/\s/g, ''))}
-                  className="flex-1 rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                  placeholder="Enter custom code"
-                  disabled={inviteCodeAction !== 'idle'}
-                />
-                <button
-                  onClick={saveInviteCode}
-                  disabled={inviteCodeAction !== 'idle' || !newInviteCode.trim()}
-                  className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {inviteCodeAction === 'saving' ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    'Save'
-                  )}
-                </button>
-                <button
-                  onClick={cancelEditingCode}
-                  disabled={inviteCodeAction !== 'idle'}
-                  className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md shadow-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                Use lowercase letters and numbers only. This code will be part of your invite link.
-              </p>
+      {/* Personal Information Section */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">Personal Information</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Manage your account details and preferences.</p>
+        </div>
+        <div className="p-6">
+          <UserProfile role="coach" />
+        </div>
+      </div>
+
+      {/* Athlete Invitation Section */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">Athlete Invitation</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Generate and manage invitation links for your athletes.</p>
+        </div>
+        <div className="p-6">
+          {inviteCodeError && (
+            <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200 rounded-md text-sm">
+              {inviteCodeError}
             </div>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {profile?.invite_code ? (
-              <>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Your Invitation Link
-                  </label>
-                  <div className="flex items-center">
-                    <div className="flex-1 bg-gray-50 dark:bg-gray-700 rounded-l-md border border-r-0 border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 overflow-hidden overflow-ellipsis whitespace-nowrap">
-                      {getInviteLink()}
+          )}
+          
+          {isEditingCode ? (
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="inviteCode" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Custom Invitation Code
+                </label>
+                <div className="flex items-center space-x-2">
+                  <input
+                    id="inviteCode"
+                    type="text"
+                    value={newInviteCode}
+                    onChange={(e) => setNewInviteCode(e.target.value.toLowerCase().replace(/\s/g, ''))}
+                    className="flex-1 rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                    placeholder="Enter custom code"
+                    disabled={inviteCodeAction !== 'idle'}
+                  />
+                  <button
+                    onClick={saveInviteCode}
+                    disabled={inviteCodeAction !== 'idle' || !newInviteCode.trim()}
+                    className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {inviteCodeAction === 'saving' ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      'Save'
+                    )}
+                  </button>
+                  <button
+                    onClick={cancelEditingCode}
+                    disabled={inviteCodeAction !== 'idle'}
+                    className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md shadow-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  Use lowercase letters and numbers only. This code will be part of your invite link.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {profile?.invite_code ? (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Your Invitation Link
+                    </label>
+                    <div className="flex items-center">
+                      <div className="flex-1 bg-gray-50 dark:bg-gray-700 rounded-l-md border border-r-0 border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 overflow-hidden overflow-ellipsis whitespace-nowrap">
+                        {getInviteLink()}
+                      </div>
+                      <button
+                        onClick={copyInviteLink}
+                        className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-r-md shadow-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                      >
+                        {copySuccess ? (
+                          <span className="text-green-600 dark:text-green-400">Copied!</span>
+                        ) : (
+                          <Copy className="h-4 w-4" />
+                        )}
+                      </button>
                     </div>
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      Share this link with your athletes to invite them to join your team.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
                     <button
-                      onClick={copyInviteLink}
-                      className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-r-md shadow-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                      onClick={startEditingCode}
+                      disabled={inviteCodeAction !== 'idle'}
+                      className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 text-xs font-medium rounded-md shadow-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                     >
-                      {copySuccess ? (
-                        <span className="text-green-600 dark:text-green-400">Copied!</span>
+                      <Edit className="h-3 w-3 mr-1" />
+                      Edit Code
+                    </button>
+                    <button
+                      onClick={regenerateInviteCode}
+                      disabled={inviteCodeAction !== 'idle'}
+                      className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 text-xs font-medium rounded-md shadow-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    >
+                      {inviteCodeAction === 'generating' ? (
+                        <Loader2 className="h-3 w-3 animate-spin mr-1" />
                       ) : (
-                        <Copy className="h-4 w-4" />
+                        <RefreshCw className="h-3 w-3 mr-1" />
                       )}
+                      Regenerate Code
+                    </button>
+                    <button
+                      onClick={disableInviteCode}
+                      disabled={inviteCodeAction !== 'idle'}
+                      className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 text-xs font-medium rounded-md shadow-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    >
+                      {inviteCodeAction === 'disabling' ? (
+                        <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                      ) : (
+                        <ShieldOff className="h-3 w-3 mr-1" />
+                      )}
+                      Disable Code
                     </button>
                   </div>
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    Share this link with your athletes to invite them to join your team.
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    onClick={startEditingCode}
-                    disabled={inviteCodeAction !== 'idle'}
-                    className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 text-xs font-medium rounded-md shadow-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                  >
-                    <Edit className="h-3 w-3 mr-1" />
-                    Edit Code
-                  </button>
+                </>
+              ) : (
+                <div className="text-center py-4">
+                  <Shield className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                  <p className="text-gray-700 dark:text-gray-300 mb-4">No active invitation code</p>
                   <button
                     onClick={regenerateInviteCode}
                     disabled={inviteCodeAction !== 'idle'}
-                    className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 text-xs font-medium rounded-md shadow-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                   >
                     {inviteCodeAction === 'generating' ? (
-                      <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        Generating...
+                      </>
                     ) : (
-                      <RefreshCw className="h-3 w-3 mr-1" />
+                      <>
+                        <Link className="h-4 w-4 mr-2" />
+                        Generate Invite Code
+                      </>
                     )}
-                    Regenerate Code
-                  </button>
-                  <button
-                    onClick={disableInviteCode}
-                    disabled={inviteCodeAction !== 'idle'}
-                    className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 text-xs font-medium rounded-md shadow-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                  >
-                    {inviteCodeAction === 'disabling' ? (
-                      <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                    ) : (
-                      <ShieldOff className="h-3 w-3 mr-1" />
-                    )}
-                    Disable Code
                   </button>
                 </div>
-              </>
-            ) : (
-              <div className="text-center py-4">
-                <Shield className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-                <p className="text-gray-700 dark:text-gray-300 mb-4">No active invitation code</p>
-                <button
-                  onClick={regenerateInviteCode}
-                  disabled={inviteCodeAction !== 'idle'}
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  {inviteCodeAction === 'generating' ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      Generating...
-                    </>
-                  ) : (
-                    <>
-                      <Link className="h-4 w-4 mr-2" />
-                      Generate Invite Code
-                    </>
-                  )}
-                </button>
-              </div>
-            )}
-          </div>
-        )}
+              )}
+            </div>
+          )}
+        </div>
       </div>
-
-      {/* User Profile Section */}
-      <UserProfile role="coach" />
     </div>
   );
 } 
