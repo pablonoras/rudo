@@ -203,9 +203,9 @@ const AthleteSignup = () => {
                   </h2>
                 </div>
               ) : (
-                <h2 className="text-2xl font-bold mb-6 text-center">
+              <h2 className="text-2xl font-bold mb-6 text-center">
                   Enter Your Invitation Code
-                </h2>
+              </h2>
               )}
               
               {!codeParam && (
@@ -247,7 +247,7 @@ const AthleteSignup = () => {
                   )}
                 </div>
               )}
-
+              
               <div className="mt-6">
                 <button
                   onClick={handleGoogleLogin}

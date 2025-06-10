@@ -170,7 +170,7 @@ const InviteCodeEntry = () => {
               </div>
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
                 Join Your Coach
-              </h1>
+            </h1>
             </div>
             
             <p className="text-gray-600 dark:text-gray-300 text-center mb-8">

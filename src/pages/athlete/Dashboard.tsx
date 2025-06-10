@@ -14,7 +14,6 @@ import { Calendar, ChevronLeft, ChevronRight, Mail, UserX } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { AssignedProgram, AssignedPrograms } from '../../components/athlete/AssignedPrograms';
 import { WorkoutCard } from '../../components/athlete/WorkoutCard';
-import { InstallBanner } from '../../components/InstallBanner';
 import { useProfile } from '../../contexts/ProfileContext';
 import { supabase } from '../../lib/supabase';
 import { useWorkoutStore } from '../../lib/workout';
@@ -23,7 +22,7 @@ export function AthleteDashboard() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const { programs } = useWorkoutStore();
   const { profile } = useProfile();
-  
+
   // Assigned programs state
   const [assignedPrograms, setAssignedPrograms] = useState<AssignedProgram[]>([]);
   const [isLoadingPrograms, setIsLoadingPrograms] = useState(true);
@@ -87,7 +86,7 @@ export function AthleteDashboard() {
           )
           .filter((name): name is string => typeof name === 'string');
         setCoachNames(names);
-      } else {
+          } else {
         setIsInactive(false);
       }
     } catch (err) {
@@ -236,7 +235,7 @@ export function AthleteDashboard() {
       const { data: programAssignments, error: programAssignmentError } = await supabase
         .from('program_assignments')
         .select(`
-          id,
+          id, 
           program_id,
           start_date,
           end_date,
@@ -424,7 +423,7 @@ export function AthleteDashboard() {
   }
 
   const dateStr = format(selectedDate, 'yyyy-MM-dd');
-  
+
   return (
     <div className="space-y-4 md:space-y-6 pb-4 md:pb-0">
       {/* Mobile Date Header with Navigation */}
@@ -461,9 +460,6 @@ export function AthleteDashboard() {
           Your scheduled training for the day.
         </p>
       </div>
-
-      {/* Smart Install Banner */}
-      <InstallBanner />
 
       {/* Week Navigation - Compact for mobile */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 mx-2 md:mx-0">

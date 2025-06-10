@@ -168,7 +168,7 @@ export function CoachAccount() {
           <p className="text-sm text-gray-500 dark:text-gray-400">Manage your account details and preferences.</p>
         </div>
         <div className="p-6">
-          <UserProfile role="coach" />
+      <UserProfile role="coach" />
         </div>
       </div>
 

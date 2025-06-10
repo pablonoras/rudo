@@ -74,7 +74,7 @@ export function CoachDashboard() {
     if (hour < 17) return 'Good afternoon';
     return 'Good evening';
   };
-
+  
   // Fetch athletes assigned to this coach
   const fetchAthletes = async () => {
     if (!profile) return;
@@ -210,7 +210,7 @@ export function CoachDashboard() {
                   <dd className="flex items-baseline">
                     <div className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
                       {loading ? '-' : athletes.length}
-                    </div>
+          </div>
                   </dd>
                 </dl>
               </div>
@@ -220,7 +220,7 @@ export function CoachDashboard() {
 
         <div className="bg-white dark:bg-gray-800 overflow-hidden rounded-lg shadow">
           <div className="p-5">
-            <div className="flex items-center">
+                  <div className="flex items-center">
               <div className="flex-shrink-0">
                 <Calendar className="h-6 w-6 text-green-600 dark:text-green-400" />
               </div>
@@ -238,7 +238,7 @@ export function CoachDashboard() {
               </div>
             </div>
           </div>
-        </div>
+      </div>
 
         <div className="bg-white dark:bg-gray-800 overflow-hidden rounded-lg shadow">
           <div className="p-5">
@@ -259,7 +259,7 @@ export function CoachDashboard() {
                 </dl>
               </div>
             </div>
-          </div>
+            </div>
         </div>
       </div>
 
@@ -352,7 +352,7 @@ export function CoachDashboard() {
                         <p className="text-xs text-gray-600 dark:text-gray-300 truncate">
                           "{activity.notes}"
                         </p>
-                      </div>
+                    </div>
                     )}
                     
                     <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
