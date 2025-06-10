@@ -18,6 +18,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <span className="text-2xl font-black tracking-wider text-gray-900 dark:text-gray-100">
                   RUDO
                 </span>
+                <span className="ml-2 px-2 py-1 text-xs font-semibold text-white bg-blue-600 rounded">BETA</span>
               </div>
               {isCoach && (
                 <div className="ml-8 flex space-x-4">

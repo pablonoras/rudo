@@ -334,10 +334,10 @@ export function CoachDashboard() {
                           {activity.is_unscaled !== null && (
                             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                               activity.is_unscaled 
-                                ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                                : 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200'
+                                ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200'
+                                : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
                             }`}>
-                              {activity.is_unscaled ? t('as-prescribed') : t('scaled')}
+                              {activity.is_unscaled ? t('scaled') : t('as-prescribed')}
                             </span>
                           )}
                         </div>

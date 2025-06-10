@@ -19,8 +19,6 @@ import { Link } from 'react-router-dom';
 import { useI18n } from '../lib/i18n/context';
 import Footer from './Footer';
 import Header from './Header';
-import Modal from './Modal';
-import WaitlistForm from './WaitlistForm';
 
 // Define a type for translation keys to ensure type safety
 type TranslationKey = Parameters<ReturnType<typeof useI18n>['t']>[0];
@@ -161,7 +159,6 @@ const FAQItem = ({ questionKey, answerKey }: { questionKey: string; answerKey: s
 };
 
 const LandingPage = () => {
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const { t } = useI18n();
 
   return (
@@ -204,16 +201,16 @@ const LandingPage = () => {
                 transition={{ delay: 0.4 }}
                 className="flex flex-col gap-4 justify-center px-4 max-w-md mx-auto"
               >
-                <button 
-                  onClick={() => setIsModalOpen(true)}
+                <Link
+                  to="/auth"
                   className="group relative w-full"
                 >
                   <div className="absolute -inset-0.5 bg-gradient-to-r from-[#8A2BE2] to-[#4169E1] rounded-2xl blur opacity-60 group-hover:opacity-100 transition duration-500"></div>
                   <span className="relative px-8 py-4 md:py-5 bg-[#0A0A0A] text-white rounded-2xl font-bold tracking-wide flex items-center justify-center gap-3 border border-white/20 hover:border-white/30 transition-all duration-500 text-base md:text-lg">
-                    {t('join-beta')}
+                    {t('get-started')}
                     <ArrowRight className="w-5 h-5 transition-transform duration-500 group-hover:translate-x-1" />
                   </span>
-                </button>
+                </Link>
               </motion.div>
             </div>
           </div>
@@ -452,17 +449,6 @@ const LandingPage = () => {
                   <ArrowRight className="w-5 h-5 transition-transform duration-500 group-hover:translate-x-1" />
                 </span>
               </Link>
-              
-              <button
-                onClick={() => setIsModalOpen(true)}
-                className="group relative w-full"
-              >
-                <div className="absolute -inset-0.5 bg-gradient-to-r from-[#8A2BE2] to-[#4169E1] rounded-2xl blur opacity-60 group-hover:opacity-100 transition duration-500"></div>
-                <span className="relative px-8 py-4 md:py-5 bg-[#0A0A0A] text-white rounded-2xl font-bold tracking-wide flex items-center justify-center gap-3 border border-white/20 hover:border-white/30 transition-all duration-500 text-base md:text-lg">
-                  {t('request-access')}
-                  <ArrowRight className="w-5 h-5 transition-transform duration-500 group-hover:translate-x-1" />
-                </span>
-              </button>
             </div>
             
             <p className="text-sm text-gray-300 mt-6">
@@ -473,14 +459,6 @@ const LandingPage = () => {
 
         <Footer />
       </div>
-
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
-        <div className="text-center mb-6">
-          <h2 className="text-2xl font-bold mb-2">{t('join-beta-title')}</h2>
-          <p className="text-gray-400">{t('join-beta-subtitle')}</p>
-    </div>
-        <WaitlistForm />
-      </Modal>
     </>
   );
 };

@@ -1,29 +1,29 @@
 import {
-  addDays,
-  format,
-  isSameDay,
-  isWithinInterval,
-  parseISO,
-  startOfWeek,
+    addDays,
+    format,
+    isSameDay,
+    isWithinInterval,
+    parseISO,
+    startOfWeek,
 } from 'date-fns';
 import {
-  AlertTriangle,
-  ArrowLeft,
-  CalendarDays,
-  Calendar as CalendarIcon,
-  CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
-  Edit2,
-  LayoutGrid,
-  List,
-  Loader2,
-  Plus,
-  Save,
-  Search,
-  Trash2,
-  X,
-  XCircle
+    AlertTriangle,
+    ArrowLeft,
+    CalendarDays,
+    Calendar as CalendarIcon,
+    CheckCircle2,
+    ChevronLeft,
+    ChevronRight,
+    Edit2,
+    LayoutGrid,
+    List,
+    Loader2,
+    Plus,
+    Save,
+    Search,
+    Trash2,
+    X,
+    XCircle
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -467,7 +467,8 @@ export function ProgramCalendar() {
       // Collect all workouts that need to be saved (new) or updated (existing)
       const workoutsToSave = [];
       const workoutsToUpdate = [];
-      const programWorkoutAssignments = [];
+      const newWorkoutAssignments = []; // Only for new workouts
+      const existingWorkoutAssignments = []; // For existing workouts assigned to new dates
       
       // Iterate through all days in the program
       for (const dateStr in program.days) {
@@ -490,8 +491,8 @@ export function ProgramCalendar() {
                 updated_at: workout.updatedAt
               });
               
-              // Track this for program_workouts assignment
-              programWorkoutAssignments.push({
+              // Track this for program_workouts assignment (only for new workouts)
+              newWorkoutAssignments.push({
                 program_id: programId,
                 workout_id: workout.id,
                 workout_date: dateStr
@@ -515,19 +516,21 @@ export function ProgramCalendar() {
               }
               
               workoutsToUpdate.push(updateData);
-            } else if (!workout.isNew) {
-              // This is an existing workout that wasn't edited, but we still need to track its assignment
-              programWorkoutAssignments.push({
+            } else if (workout.isExistingAssignment) {
+              // This is an existing workout being assigned to a new date
+              existingWorkoutAssignments.push({
                 program_id: programId,
                 workout_id: workout.id,
                 workout_date: dateStr
               });
             }
+            // Note: We don't need to handle existing non-edited workouts here
+            // as their assignments should already exist in the database
           }
         }
       }
       
-      console.log(`Found ${workoutsToSave.length} workouts to save and ${workoutsToUpdate.length} to update`);
+      console.log(`Found ${workoutsToSave.length} workouts to save, ${workoutsToUpdate.length} to update, and ${existingWorkoutAssignments.length} existing workout assignments`);
       
       // First, save new workouts if any
       if (workoutsToSave.length > 0) {
@@ -542,17 +545,33 @@ export function ProgramCalendar() {
         
         console.log('Successfully inserted workouts');
         
-        // Now, create workout assignments in program_workouts table for new workouts
-        const { error: assignmentError } = await supabase
-          .from('program_workouts')
-          .insert(programWorkoutAssignments);
+        // Now, create workout assignments in program_workouts table for new workouts only
+        if (newWorkoutAssignments.length > 0) {
+          const { error: assignmentError } = await supabase
+            .from('program_workouts')
+            .insert(newWorkoutAssignments);
+            
+          if (assignmentError) {
+            console.error('Error creating workout assignments:', assignmentError);
+            throw assignmentError;
+          }
           
-        if (assignmentError) {
-          console.error('Error creating workout assignments:', assignmentError);
-          throw assignmentError;
+          console.log('Successfully created workout assignments');
+        }
+      }
+
+      // Handle existing workout assignments (existing workouts assigned to new dates)
+      if (existingWorkoutAssignments.length > 0) {
+        const { error: existingAssignmentError } = await supabase
+          .from('program_workouts')
+          .insert(existingWorkoutAssignments);
+          
+        if (existingAssignmentError) {
+          console.error('Error creating existing workout assignments:', existingAssignmentError);
+          throw existingAssignmentError;
         }
         
-        console.log('Successfully created workout assignments');
+        console.log('Successfully created existing workout assignments');
       }
       
       // Then, update existing workouts if any
@@ -609,7 +628,7 @@ export function ProgramCalendar() {
         setWorkoutsToDelete([]);
       }
       
-      // Update all workouts to remove isNew and wasEdited flags
+      // Update all workouts to remove isNew, wasEdited, and isExistingAssignment flags
       const updatedDays: any = {};
       for (const dateStr in program.days) {
         const day = program.days[dateStr];
@@ -618,7 +637,8 @@ export function ProgramCalendar() {
           workouts: day.workouts.map((w: any) => ({
             ...w,
             isNew: false,
-            wasEdited: false
+            wasEdited: false,
+            isExistingAssignment: false
           }))
         };
       }
@@ -761,17 +781,19 @@ export function ProgramCalendar() {
     
     try {
       // Create workout object from the selected workout
+      // This represents a reference to an existing workout in the database
       const newWorkout = {
-        id: uuidv4(), // Use proper UUID
+        id: selectedWorkout.workout_id, // Use the original workout ID
         name: selectedWorkout.name || '',
         description: selectedWorkout.description,
         color: selectedWorkout.color,
         notes: selectedWorkout.notes || '',
         type_id: selectedWorkout.type_id,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        isNew: false,
-        originalWorkoutId: selectedWorkout.workout_id // Keep reference to original workout
+        coach_id: selectedWorkout.coach_id, // Keep original coach_id
+        createdAt: selectedWorkout.created_at,
+        updatedAt: selectedWorkout.updated_at,
+        isNew: false, // This is an existing workout, just being assigned to a new date
+        isExistingAssignment: true // Flag to indicate this is a new assignment of existing workout
       };
       
       // Update local state
@@ -850,6 +872,18 @@ export function ProgramCalendar() {
         },
         onSave: async (workout) => {
           try {
+            // Get current user ID for coach_id
+            const { data: { user }, error: userError } = await supabase.auth.getUser();
+            if (userError || !user) {
+              console.error('Failed to get current user:', userError);
+              setToast({
+                show: true,
+                message: 'Failed to get user information. Please try again.',
+                type: 'error'
+              });
+              return;
+            }
+
             // Generate proper UUID for new workout
             const newWorkoutId = uuidv4();
             
@@ -861,6 +895,7 @@ export function ProgramCalendar() {
               color: workout.color,
               notes: workout.notes || '',
               type_id: workout.type_id,
+              coach_id: user.id, // Add the coach_id
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString(),
               isNew: true

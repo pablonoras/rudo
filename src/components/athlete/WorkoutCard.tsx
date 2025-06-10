@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useProfile } from '../../contexts/ProfileContext';
+import { useI18n } from '../../lib/i18n/context';
 import {
     AthleteActivity,
     getAthleteActivity,
@@ -45,6 +46,7 @@ interface WorkoutCardProps {
 
 export function WorkoutCard({ workout, scheduledDate, onActivityChange }: WorkoutCardProps) {
   const { profile } = useProfile();
+  const { t } = useI18n();
   const [activity, setActivity] = useState<AthleteActivity | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isEditingNotes, setIsEditingNotes] = useState(false);
@@ -501,34 +503,34 @@ export function WorkoutCard({ workout, scheduledDate, onActivityChange }: Workou
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
             <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
-              Mark Workout as Completed
+              {t('mark-workout-completed')}
             </h3>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-              Did you complete this workout as prescribed or did you scale it?
+              {t('completion-question')}
             </p>
             <div className="flex gap-3">
               <button
-                onClick={() => handleMarkCompleted(true)}
+                onClick={() => handleMarkCompleted(false)}
                 disabled={isUpdatingCompletion}
                 className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50"
               >
                 <Award className="h-4 w-4 mr-2" />
-                As Prescribed
+                {t('as-prescribed')}
               </button>
               <button
-                onClick={() => handleMarkCompleted(false)}
+                onClick={() => handleMarkCompleted(true)}
                 disabled={isUpdatingCompletion}
                 className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50"
               >
                 <TrendingDown className="h-4 w-4 mr-2" />
-                Scaled
+                {t('scaled')}
               </button>
             </div>
             <button
               onClick={() => setShowCompletionDialog(false)}
               className="w-full mt-3 px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
             >
-              Cancel
+              {t('cancel')}
             </button>
           </div>
         </div>

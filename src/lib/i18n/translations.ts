@@ -4,7 +4,6 @@ export const translations = {
     'features': 'Features',
     'how-it-works': 'How it Works',
     'faq': 'FAQ',
-    'join-beta': 'Join the Beta',
     'get-started': 'Get Started',
     
     // Auth
@@ -74,12 +73,15 @@ export const translations = {
     'view-all-athletes': 'View all athletes',
     'completed': 'Completed',
     'updated': 'Updated',
-    'as-prescribed': 'As Prescribed',
+    'as-prescribed': 'Done',
     'scaled': 'Scaled',
     'workout': 'Workout',
     'across-teams': 'across {count} teams',
     'assigned': 'assigned',
     'weeks': 'weeks',
+    'mark-workout-completed': 'Mark Workout as Completed',
+    'completion-question': 'Did you complete this workout as prescribed or did you scale it?',
+    'cancel': 'Cancel',
 
     // Athlete Dashboard
     'your-training': 'Your Training',
@@ -148,17 +150,6 @@ export const translations = {
     'faq-5-question': "What's included in the beta?",
     'faq-5-answer': 'Full access to all core features, direct access to the founding team, and lifetime perks for helping us shape the future of RUDO.',
 
-    // Beta Form
-    'join-beta-title': 'Join the RUDO Beta',
-    'join-beta-subtitle': 'Be among the first to experience the future of CrossFit coaching',
-    'full-name': 'Full Name',
-    'box-name': 'Box name (optional)',
-    'reserve-access': 'RESERVE YOUR ACCESS',
-    'thanks-register': 'Thanks for registering!',
-    'contact-soon': "We'll contact you soon with more information.",
-    'email-registered': 'This email is already registered in the waitlist',
-    'error-occurred': 'An error occurred while processing your registration. Please try again.',
-
     // Comparison Section
     'spreadsheet-problem': 'Dozens of tabs. No structure.',
     'spreadsheet-solution': 'Drag-and-drop full weeks in minutes.',
@@ -197,7 +188,6 @@ export const translations = {
     'features': 'Características',
     'how-it-works': 'Cómo Funciona',
     'faq': 'Preguntas Frecuentes',
-    'join-beta': 'Unirse a la Beta',
     'get-started': 'Comenzar',
     
     // Auth
@@ -267,12 +257,15 @@ export const translations = {
     'view-all-athletes': 'Ver todos los atletas',
     'completed': 'Completado',
     'updated': 'Actualizado',
-    'as-prescribed': 'Como se Prescribió',
+    'as-prescribed': 'Completado',
     'scaled': 'Escalado',
     'workout': 'Entrenamiento',
     'across-teams': 'en {count} equipos',
     'assigned': 'asignados',
     'weeks': 'semanas',
+    'mark-workout-completed': 'Marcar Entrenamiento como Completado',
+    'completion-question': '¿Completaste este entrenamiento como se te indicó o lo escalaste?',
+    'cancel': 'Cancelar',
 
     // Athlete Dashboard
     'your-training': 'Tu Entrenamiento',
@@ -340,17 +333,6 @@ export const translations = {
     'faq-4-answer': 'Sí. Construye, reutiliza y edita tus propias plantillas — calentamientos, EMOMs, habilidades — y despliégalos en segundos.',
     'faq-5-question': '¿Qué incluye la beta?',
     'faq-5-answer': 'Acceso completo a todas las funciones principales, acceso directo al equipo fundador y beneficios de por vida por ayudarnos a dar forma al futuro de RUDO.',
-
-    // Beta Form
-    'join-beta-title': 'Únete a la Beta de RUDO',
-    'join-beta-subtitle': 'Sé de los primeros en experimentar el futuro del coaching en CrossFit',
-    'full-name': 'Nombre completo',
-    'box-name': 'Nombre del box (opcional)',
-    'reserve-access': 'RESERVA TU ACCESO',
-    'thanks-register': '¡Gracias por registrarte!',
-    'contact-soon': 'Te contactaremos pronto con más información.',
-    'email-registered': 'Este email ya está registrado en la lista de espera',
-    'error-occurred': 'Hubo un error al procesar tu registro. Por favor intenta de nuevo.',
 
     // Comparison Section
     'spreadsheet-problem': 'Docenas de pestañas. Sin estructura.',
