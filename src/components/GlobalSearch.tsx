@@ -2,6 +2,7 @@ import { Calendar, Search, User, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAthleteStore } from '../lib/athlete';
+import { useI18n } from '../lib/i18n/context';
 import { useWorkoutStore } from '../lib/workout';
 
 type SearchResult = {
@@ -19,6 +20,7 @@ export function GlobalSearch() {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+  const { t } = useI18n();
 
   const athletes = useAthleteStore((state) => state.athletes);
   const programs = useWorkoutStore((state) => state.programs);
@@ -125,7 +127,7 @@ export function GlobalSearch() {
                   onChange={(e) => setQuery(e.target.value)}
                   onKeyDown={handleKeyDown}
                   className="w-full pl-12 pr-4 py-4 text-gray-900 dark:text-gray-100 bg-transparent border-b border-gray-200 dark:border-gray-700 focus:outline-none focus:border-blue-500 dark:focus:border-blue-400"
-                  placeholder="Search athletes, programs..."
+                  placeholder={t('search-athletes-programs')}
                   autoFocus
                 />
                 <button

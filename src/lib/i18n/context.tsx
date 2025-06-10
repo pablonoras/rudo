@@ -21,7 +21,22 @@ const getInitialLanguage = async (): Promise<Language> => {
     return stored;
   }
 
-  // Use IP geolocation to detect default language
+  // Check if we're in PWA mode and use browser detection first
+  const isPWAMode = window.matchMedia('(display-mode: standalone)').matches ||
+                    (window.navigator as { standalone?: boolean }).standalone === true ||
+                    window.matchMedia('(display-mode: minimal-ui)').matches;
+
+  // For PWA mode, prioritize browser language detection
+  if (isPWAMode) {
+    const browserLang = navigator.language.toLowerCase();
+    const pwaLang = browserLang.startsWith('es') ? 'es' : 'en';
+    
+    // Cache it for session
+    sessionStorage.setItem('detected_language', pwaLang);
+    return pwaLang;
+  }
+
+  // Use IP geolocation to detect default language for web mode
   try {
     const detectedLanguage = await getDefaultLanguage();
     return detectedLanguage;

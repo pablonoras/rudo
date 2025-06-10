@@ -1,12 +1,15 @@
 import { Dumbbell } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
+import { useI18n } from '../lib/i18n/context';
 import { GlobalSearch } from './GlobalSearch';
+import { LanguageSwitcher } from './ui/LanguageSwitcher';
 import { ThemeToggle } from './ui/ThemeToggle';
 import { UserSettings } from './UserSettings';
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const isCoach = location.pathname.startsWith('/coach');
+  const { t } = useI18n();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-100 to-white dark:from-[#161616] dark:to-[#1A1A1A] text-gray-900 dark:text-white transition-colors">
@@ -30,7 +33,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                         : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100'
                     }`}
                   >
-                    Dashboard
+                    {t('dashboard')}
                   </Link>
                   <Link
                     to="/coach/programs"
@@ -40,7 +43,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                         : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100'
                     }`}
                   >
-                    Programs
+                    {t('programs')}
                   </Link>
                   <Link
                     to="/coach/workouts"
@@ -52,7 +55,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   >
                     <div className="flex items-center">
                       <Dumbbell className="h-4 w-4 mr-1" />
-                      Workouts
+                      {t('workouts')}
                     </div>
                   </Link>
                   <Link
@@ -63,13 +66,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
                         : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100'
                     }`}
                   >
-                    Athletes
+                    {t('athletes')}
                   </Link>
                 </div>
               )}
             </div>
             <div className="flex items-center space-x-4">
               {isCoach && <GlobalSearch />}
+              <LanguageSwitcher />
               <ThemeToggle />
               <UserSettings />
             </div>

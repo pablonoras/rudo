@@ -8,6 +8,7 @@
 import { format } from 'date-fns';
 import { Calendar } from 'lucide-react';
 import { useState } from 'react';
+import { useI18n } from '../../lib/i18n/context';
 
 export interface AssignedProgram {
   id: string;
@@ -30,15 +31,16 @@ export function AssignedPrograms({
   selectedProgramId 
 }: AssignedProgramsProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const { t } = useI18n();
   
   if (programs.length === 0) {
     return (
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 mb-4">
         <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
-          Assigned Programs
+          {t('assigned-programs')}
         </h2>
         <p className="text-gray-500 dark:text-gray-400 text-sm">
-          You don't have any programs assigned yet.
+          {t('no-programs-assigned')}
         </p>
       </div>
     );
@@ -50,7 +52,7 @@ export function AssignedPrograms({
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 mb-4">
       <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
-        Assigned Programs
+        {t('assigned-programs')}
       </h2>
       
       <div className="space-y-3">
@@ -70,7 +72,7 @@ export function AssignedPrograms({
                   {program.name}
                 </h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                  Coach: {program.coachName}
+                  {t('coach-label')}: {program.coachName}
                 </p>
               </div>
             </div>
@@ -96,7 +98,7 @@ export function AssignedPrograms({
           onClick={() => setIsExpanded(!isExpanded)}
           className="w-full mt-3 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
         >
-          {isExpanded ? 'Show less' : `Show ${programs.length - 2} more programs`}
+          {isExpanded ? t('show-less') : t('show-more-programs').replace('{count}', (programs.length - 2).toString())}
         </button>
       )}
     </div>

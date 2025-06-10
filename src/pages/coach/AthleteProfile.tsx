@@ -1,16 +1,16 @@
 import { format, parseISO } from 'date-fns';
 import {
-    Activity,
-    AlertCircle,
-    ArrowLeft,
-    Award,
-    Calendar,
-    ChevronRight,
-    Clock,
-    Edit2,
-    Mail,
-    Phone,
-    User
+  Activity,
+  AlertCircle,
+  ArrowLeft,
+  Award,
+  Calendar,
+  ChevronRight,
+  Clock,
+  Edit2,
+  Mail,
+  Phone,
+  User
 } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';

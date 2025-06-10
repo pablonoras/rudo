@@ -1,21 +1,22 @@
 import { DragDropContext, Draggable, Droppable } from '@hello-pangea/dnd';
 import { addDays, endOfWeek, format, isSameMonth, isToday, startOfMonth, startOfWeek } from 'date-fns';
 import {
-  AlertCircle,
-  ArrowLeft,
-  Calendar as CalendarIcon,
-  ChevronLeft,
-  ChevronRight,
-  Dumbbell,
-  Loader2,
-  PlusCircle,
-  Search,
-  X
+    AlertCircle,
+    ArrowLeft,
+    Calendar as CalendarIcon,
+    ChevronLeft,
+    ChevronRight,
+    Dumbbell,
+    Loader2,
+    PlusCircle,
+    Search,
+    X
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useModal } from '../../contexts/ModalContext';
 import { useProfile } from '../../contexts/ProfileContext';
+import { useI18n } from '../../lib/i18n/context';
 import { supabase } from '../../lib/supabase';
 
 type Athlete = {
@@ -37,6 +38,13 @@ type Workout = {
   workout_type?: {
     id: number;
     code: string;
+  };
+  // Activity fields for athlete completion and notes
+  activity?: {
+    is_completed: boolean;
+    is_unscaled: boolean | null;
+    athlete_notes: string | null;
+    completed_at: string | null;
   };
 };
 
@@ -106,6 +114,7 @@ export function AthleteCalendar() {
   const navigate = useNavigate();
   const { profile } = useProfile();
   const { showWorkoutForm } = useModal();
+  const { t } = useI18n();
   const [athlete, setAthlete] = useState<Athlete | null>(null);
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [loading, setLoading] = useState(true);
@@ -342,7 +351,37 @@ export function AthleteCalendar() {
       // Combine all workouts
       const allWorkouts = [...directWorkouts, ...programWorkouts];
       console.log('All workouts:', allWorkouts);
-      setWorkouts(allWorkouts);
+      
+      // Fetch activity data for all workouts
+      const workoutsWithActivity: Workout[] = [];
+      
+      for (const workout of allWorkouts) {
+        // Fetch activity data for this workout
+        const { data: activityData, error: activityError } = await supabase
+          .from('athlete_activity')
+          .select('is_completed, is_unscaled, notes, completed_at')
+          .eq('athlete_id', athleteId)
+          .eq('workout_id', workout.id)
+          .eq('scheduled_on', workout.date)
+          .maybeSingle(); // Use maybeSingle since there might not be activity data
+        
+        if (activityError) {
+          console.error('Error fetching activity for workout:', workout.id, activityError);
+        }
+        
+        // Add activity data to workout
+        workoutsWithActivity.push({
+          ...workout,
+          activity: activityData ? {
+            is_completed: activityData.is_completed,
+            is_unscaled: activityData.is_unscaled,
+            athlete_notes: activityData.notes,
+            completed_at: activityData.completed_at
+          } : undefined
+        });
+      }
+      
+      setWorkouts(workoutsWithActivity);
     } catch (err: any) {
       console.error('Error fetching athlete workouts:', err);
       setError('Failed to load workouts. Please try again.');
@@ -601,7 +640,11 @@ export function AthleteCalendar() {
             ref={provided.innerRef}
             {...provided.draggableProps}
             {...provided.dragHandleProps}
-            className={`${isCompact ? 'text-xs' : 'text-sm'} rounded-md p-1.5 cursor-pointer hover:opacity-90 transition-colors shadow-sm border border-white/20 ${!workout.name ? 'py-1' : ''}`}
+            className={`${isCompact ? 'text-xs' : 'text-sm'} rounded-md p-1.5 cursor-pointer hover:opacity-90 transition-colors shadow-sm border relative ${!workout.name ? 'py-1' : ''} ${
+              workout.activity?.is_completed 
+                ? 'border-green-400 ring-2 ring-green-200' 
+                : 'border-white/20'
+            }`}
             style={{
               backgroundColor: getWorkoutColor(workout),
               color: 'var(--workout-text-color, #1F2937)',
@@ -610,6 +653,13 @@ export function AthleteCalendar() {
             title={workout.name || workout.workout_type?.code || ''}
             onClick={() => setSelectedWorkout(workout)}
           >
+            {/* Completion status badge */}
+            {workout.activity?.is_completed && (
+              <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
+                <span className="text-white text-xs font-bold">✓</span>
+              </div>
+            )}
+            
             {/* Show workout type as main title */}
             <div className="flex flex-col gap-0.5">
               <span className="font-normal uppercase tracking-wide text-center text-black font-poppins">
@@ -620,6 +670,22 @@ export function AthleteCalendar() {
               {workout.name && (
                 <span className="text-[10px] opacity-90 text-center truncate text-black font-inter">
                   {workout.name}
+                </span>
+              )}
+              
+              {/* Completion status label */}
+              {workout.activity?.is_completed && (
+                <span className={`text-[9px] text-center font-medium ${
+                  workout.activity.is_unscaled ? 'text-orange-700' : 'text-green-700'
+                }`}>
+                  {workout.activity.is_unscaled ? 'Scaled' : 'Done'}
+                </span>
+              )}
+              
+              {/* Athlete notes indicator */}
+              {workout.activity?.athlete_notes && (
+                <span className="text-[9px] text-center text-blue-700 font-medium">
+                  {t('notes')}
                 </span>
               )}
             </div>
@@ -642,7 +708,9 @@ export function AthleteCalendar() {
 
           {/* Days of Week */}
           <div className="grid grid-cols-7 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-            {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
+            {[
+              t('mon'), t('tue'), t('wed'), t('thu'), t('fri'), t('sat'), t('sun')
+            ].map((day) => (
               <div 
                 key={day} 
                 className="px-2 py-2 text-center text-xs font-medium text-gray-700 dark:text-gray-300"
@@ -783,7 +851,11 @@ export function AthleteCalendar() {
                                 ref={provided.innerRef}
                                 {...provided.draggableProps}
                                 {...provided.dragHandleProps}
-                                className={`rounded-md p-2 cursor-pointer hover:ring-2 hover:ring-offset-2 hover:ring-blue-500 transition-all shadow-sm border border-white/20 ${!workout.name ? 'py-1.5' : ''}`}
+                                className={`rounded-md p-2 cursor-pointer hover:ring-2 hover:ring-offset-2 hover:ring-blue-500 transition-all shadow-sm border relative ${!workout.name ? 'py-1.5' : ''} ${
+                                  workout.activity?.is_completed 
+                                    ? 'border-green-400 ring-2 ring-green-200' 
+                                    : 'border-white/20'
+                                }`}
                                 style={{
                                   backgroundColor: getWorkoutColor(workout),
                                   color: 'var(--workout-text-color, #1F2937)',
@@ -791,6 +863,13 @@ export function AthleteCalendar() {
                                 }}
                                 onClick={() => setSelectedWorkout(workout)}
                               >
+                                {/* Completion status badge */}
+                                {workout.activity?.is_completed && (
+                                  <div className="absolute -top-1 -right-1 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                                    <span className="text-white text-xs font-bold">✓</span>
+                                  </div>
+                                )}
+                                
                                 <div className="flex flex-col">
                                   <div className="flex items-center justify-center mb-1">
                                     <Dumbbell className="h-3 w-3 mr-1 text-black" />
@@ -803,6 +882,23 @@ export function AthleteCalendar() {
                                       {workout.name}
                                     </div>
                                   )}
+                                  
+                                  {/* Completion status label */}
+                                  {workout.activity?.is_completed && (
+                                    <div className={`text-xs text-center font-medium mb-1 ${
+                                      workout.activity.is_unscaled ? 'text-orange-800' : 'text-green-800'
+                                    }`}>
+                                      {workout.activity.is_unscaled ? 'Scaled' : 'Done'}
+                                    </div>
+                                  )}
+                                  
+                                  {/* Athlete notes indicator */}
+                                  {workout.activity?.athlete_notes && (
+                                    <div className="text-xs text-center text-blue-800 font-medium mb-1">
+                                      {t('notes')}
+                                    </div>
+                                  )}
+                                  
                                   {workout.description && (
                                     <div className="text-xs opacity-80 line-clamp-2 mt-1 border-t border-white/20 pt-1 font-roboto text-black">
                                       {workout.description}
@@ -908,7 +1004,7 @@ export function AthleteCalendar() {
     return (
       <div className="flex items-center justify-center h-80">
         <Loader2 className="h-8 w-8 text-blue-500 animate-spin" />
-        <span className="ml-2 text-gray-600 dark:text-gray-400">Loading athlete data...</span>
+        <span className="ml-2 text-gray-600 dark:text-gray-400">{t('loading-workouts')}</span>
       </div>
     );
   }
@@ -928,7 +1024,7 @@ export function AthleteCalendar() {
           className="mt-4 inline-flex items-center text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Athletes
+          {t('back-to-athletes')}
         </button>
       </div>
     );
@@ -944,7 +1040,7 @@ export function AthleteCalendar() {
             className="inline-flex items-center text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Athletes
+            {t('back-to-athletes')}
           </button>
         </div>
         <div className="flex items-center space-x-2">
@@ -952,7 +1048,7 @@ export function AthleteCalendar() {
             onClick={() => setCurrentDate(new Date())}
             className="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
           >
-            Today
+            {t('today')}
           </button>
           <button
             onClick={() => {
@@ -983,7 +1079,7 @@ export function AthleteCalendar() {
             className="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
           >
             <CalendarIcon className="h-4 w-4 mr-2" />
-            {calendarView === 'month' ? 'Week View' : 'Month View'}
+            {calendarView === 'month' ? t('week-view') : t('month-view')}
           </button>
         </div>
         <button
@@ -991,7 +1087,7 @@ export function AthleteCalendar() {
           className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
         >
           <PlusCircle className="h-4 w-4 mr-2" />
-          Assign Workout
+          {t('assign-workout')}
         </button>
       </div>
 
@@ -1001,7 +1097,7 @@ export function AthleteCalendar() {
           {athlete?.full_name}'s Calendar
         </h1>
         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          View and manage workout assignments for this athlete
+          {t('view-manage-workouts')}
         </p>
       </div>
 
@@ -1009,7 +1105,7 @@ export function AthleteCalendar() {
       {loading ? (
         <div className="flex items-center justify-center h-80">
           <Loader2 className="h-8 w-8 text-blue-500 animate-spin" />
-          <span className="ml-2 text-gray-600 dark:text-gray-400">Loading workouts...</span>
+          <span className="ml-2 text-gray-600 dark:text-gray-400">{t('loading-workouts')}</span>
         </div>
       ) : error ? (
         <div className="flex items-center justify-center h-80">
@@ -1023,7 +1119,7 @@ export function AthleteCalendar() {
       {/* Workout move confirmation modal */}
       {showMoveConfirm && renderMoveConfirmModal()}
 
-      {/* Improved Assignment Modal */}
+      {/* Assignment Modal */}
       {showAssignWorkout && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
@@ -1032,7 +1128,7 @@ export function AthleteCalendar() {
               <div className="px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-gray-100">
-                    Assign Workout for {assignmentDate ? format(new Date(assignmentDate), 'MMMM d, yyyy') : 'Selected Date'}
+                    {t('assign-workout-for')} {assignmentDate ? format(new Date(assignmentDate), 'MMMM d, yyyy') : t('selected-date')}
                   </h3>
                   <button
                     onClick={() => setShowAssignWorkout(false)}
@@ -1052,7 +1148,7 @@ export function AthleteCalendar() {
                     }`}
                     onClick={() => setSelectedTab('library')}
                   >
-                    Workout Library
+                    {t('workout-library')}
                   </button>
                   <button
                     className={`px-4 py-2 text-sm font-medium ${
@@ -1062,7 +1158,7 @@ export function AthleteCalendar() {
                     }`}
                     onClick={() => setSelectedTab('new')}
                   >
-                    Create New Workout
+                    {t('create-new-workout')}
                   </button>
                 </div>
 
@@ -1077,7 +1173,7 @@ export function AthleteCalendar() {
                         <input
                           type="text"
                           className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md leading-5 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                          placeholder="Search workouts..."
+                          placeholder={t('search-workouts')}
                           value={librarySearchQuery}
                           onChange={(e) => setLibrarySearchQuery(e.target.value)}
                         />
@@ -1128,14 +1224,14 @@ export function AthleteCalendar() {
                     ) : (
                       <div className="text-center py-10 border border-gray-200 dark:border-gray-700 rounded-md">
                         <p className="text-gray-500 dark:text-gray-400">
-                          {librarySearchQuery ? 'No matching workouts found.' : 'No workouts in your library yet.'}
+                          {librarySearchQuery ? t('no-matching-workouts-found') : t('no-workouts-in-library')}
                         </p>
                         <button
                           onClick={() => setSelectedTab('new')}
                           className="mt-4 inline-flex items-center px-3 py-1.5 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300"
                         >
                           <PlusCircle className="h-4 w-4 mr-1.5" />
-                          Create a new workout
+                          {t('create-a-new-workout')}
                         </button>
                       </div>
                     )}
@@ -1146,7 +1242,7 @@ export function AthleteCalendar() {
                     <button
                       onClick={() => {
                         showWorkoutForm({
-                          title: 'Create New Workout',
+                          title: t('create-new-workout'),
                           onSave: async (workout: {
                             description: string;
                             color: string;
@@ -1175,7 +1271,7 @@ export function AthleteCalendar() {
                               // Show success message
                               setToast({
                                 show: true,
-                                message: 'Workout created successfully!',
+                                message: t('workout-created-successfully'),
                                 type: 'success'
                               });
                               
@@ -1195,7 +1291,7 @@ export function AthleteCalendar() {
                               console.error('Error creating workout:', error);
                               setToast({
                                 show: true,
-                                message: 'Failed to create workout. Please try again.',
+                                message: t('failed-create-workout'),
                                 type: 'error'
                               });
                               
@@ -1213,10 +1309,10 @@ export function AthleteCalendar() {
                     >
                       <PlusCircle className="h-8 w-8 text-blue-500 mb-2" />
                       <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Create New Workout
+                        {t('create-new-workout')}
                       </span>
                       <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                        Opens the workout form to create a custom workout
+                        {t('opens-workout-form')}
                       </p>
                     </button>
                   </div>
@@ -1230,14 +1326,14 @@ export function AthleteCalendar() {
                   disabled={!selectedWorkoutId}
                   className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Assign Workout
+                  {t('assign-workout')}
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowAssignWorkout(false)}
                   className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-800 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
                 >
-                  Cancel
+                  {t('cancel')}
                 </button>
               </div>
             </div>
@@ -1307,6 +1403,53 @@ export function AthleteCalendar() {
                         </div>
                       </div>
                     )}
+                    
+                    {/* Athlete Activity Section */}
+                    {selectedWorkout.activity && (
+                      <div className="mt-4 border-t border-gray-200 dark:border-gray-600 pt-4">
+                        <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 font-inter">
+                          Athlete Activity:
+                        </h4>
+                        
+                        {/* Completion Status */}
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                            selectedWorkout.activity.is_completed 
+                              ? selectedWorkout.activity.is_unscaled
+                                ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400'
+                                : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                              : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
+                          }`}>
+                            {selectedWorkout.activity.is_completed ? (
+                              <>
+                                <span className="mr-1">✓</span>
+                                {selectedWorkout.activity.is_unscaled ? 'Completed (Scaled)' : 'Completed (As Prescribed)'}
+                              </>
+                            ) : (
+                              'Not Completed'
+                            )}
+                          </div>
+                          
+                          {selectedWorkout.activity.completed_at && (
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                              {format(new Date(selectedWorkout.activity.completed_at), 'MMM d, h:mm a')}
+                            </span>
+                          )}
+                        </div>
+                        
+                        {/* Athlete Notes */}
+                        {selectedWorkout.activity.athlete_notes && (
+                          <div>
+                            <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 font-inter">
+                              Athlete Notes:
+                            </h5>
+                            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-3 rounded-md text-sm whitespace-pre-wrap text-blue-900 dark:text-blue-200 font-inter">
+                              {selectedWorkout.activity.athlete_notes}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
                 
@@ -1316,7 +1459,7 @@ export function AthleteCalendar() {
                     onClick={() => setSelectedWorkout(null)}
                     className="w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-800 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:w-auto sm:text-sm"
                   >
-                    Close
+                    {t('close')}
                   </button>
                 </div>
               </div>
@@ -1375,4 +1518,4 @@ export function AthleteCalendar() {
       )}
     </div>
   );
-} 
+}

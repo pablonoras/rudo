@@ -30,6 +30,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { WeekNavigation } from '../../components/coach/WeekNavigation';
 import { useModal } from '../../contexts/ModalContext';
+import { useI18n } from '../../lib/i18n/context';
 import { supabase } from '../../lib/supabase';
 import { useWorkoutStore } from '../../lib/workout';
 
@@ -48,27 +49,29 @@ interface DeleteConfirmModalProps {
 }
 
 function DeleteConfirmModal({ workoutName, onConfirm, onCancel }: DeleteConfirmModalProps) {
+  const { t } = useI18n();
+  
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md p-6">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-          Delete Workout
+          {t('delete-workout')}
         </h2>
         <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-          Are you sure you want to delete this workout? This action cannot be undone.
+          {t('are-you-sure-delete')}
         </p>
         <div className="flex justify-end space-x-3">
           <button
             onClick={onCancel}
             className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md border border-gray-300 dark:border-gray-600"
           >
-            Cancel
+            {t('cancel')}
           </button>
           <button
             onClick={onConfirm}
             className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md"
           >
-            Delete
+            {t('delete')}
           </button>
         </div>
       </div>
@@ -83,36 +86,38 @@ interface SaveConfirmModalProps {
 }
 
 function SaveConfirmModal({ onSave, onDiscard, onCancel }: SaveConfirmModalProps) {
+  const { t } = useI18n();
+  
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md p-6">
         <div className="flex items-center mb-4">
           <AlertTriangle className="h-6 w-6 text-yellow-500 mr-3" />
           <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-            Unsaved Changes
+            {t('unsaved-changes')}
           </h2>
         </div>
         <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-          You have unsaved changes. Do you want to save your changes before leaving?
+          {t('unsaved-changes-desc')}
         </p>
         <div className="flex justify-end space-x-3">
           <button
             onClick={onDiscard}
             className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md border border-gray-300 dark:border-gray-600"
           >
-            Don't Save
+            {t('dont-save')}
           </button>
           <button
             onClick={onCancel}
             className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md border border-gray-300 dark:border-gray-600"
           >
-            Cancel
+            {t('cancel')}
           </button>
           <button
             onClick={onSave}
             className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md"
           >
-            Save Changes
+            {t('save-changes')}
           </button>
         </div>
       </div>
@@ -138,6 +143,7 @@ function WorkoutSearchModal({ onSelect, onClose, dateStr }: WorkoutSearchModalPr
   const [workouts, setWorkouts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(null);
+  const { t } = useI18n();
 
   useEffect(() => {
     const fetchWorkouts = async () => {
@@ -193,7 +199,7 @@ function WorkoutSearchModal({ onSelect, onClose, dateStr }: WorkoutSearchModalPr
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-            Select Workout for {format(new Date(dateStr), 'MMMM d, yyyy')}
+            {t('select-workout-for')} {format(new Date(dateStr), 'MMMM d, yyyy')}
           </h2>
           <button
             onClick={onClose}
@@ -208,7 +214,7 @@ function WorkoutSearchModal({ onSelect, onClose, dateStr }: WorkoutSearchModalPr
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <input
               type="text"
-              placeholder="Search workouts..."
+              placeholder={t('search-workouts')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -260,7 +266,7 @@ function WorkoutSearchModal({ onSelect, onClose, dateStr }: WorkoutSearchModalPr
           ) : (
             <div className="text-center py-8">
               <p className="text-gray-500 dark:text-gray-400">
-                {searchQuery ? 'No matching workouts found.' : 'No workouts available.'}
+                {searchQuery ? t('no-matching-workouts') : t('no-workouts-available')}
               </p>
             </div>
           )}
@@ -273,14 +279,14 @@ function WorkoutSearchModal({ onSelect, onClose, dateStr }: WorkoutSearchModalPr
             disabled={!selectedWorkoutId}
             className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Select Workout
+            {t('select-workout')}
           </button>
           <button
             type="button"
             onClick={onClose}
             className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-800 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
           >
-            Cancel
+            {t('cancel')}
           </button>
         </div>
       </div>
@@ -296,6 +302,7 @@ export function ProgramCalendar() {
     updateProgram,
   } = useWorkoutStore();
   const { showWorkoutForm } = useModal();
+  const { t } = useI18n();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isSaving, setIsSaving] = useState(false);
   const [deleteWorkoutInfo, setDeleteWorkoutInfo] = useState<DeleteWorkoutInfo | null>(null);
@@ -322,6 +329,12 @@ export function ProgramCalendar() {
   const [currentDateStr, setCurrentDateStr] = useState<string>('');
 
   const program = programId ? programs[programId] : null;
+
+  // Helper function to get translated day names
+  const getTranslatedDayName = (date: Date) => {
+    const dayKey = format(date, 'EEEE').toLowerCase();
+    return t(dayKey);
+  };
 
   useEffect(() => {
     if (programId) {
@@ -648,7 +661,7 @@ export function ProgramCalendar() {
       setHasUnsavedChanges(false);
       setToast({
         show: true,
-        message: 'Changes saved successfully!',
+        message: t('changes-saved-successfully'),
         type: 'success'
       });
       
@@ -664,7 +677,7 @@ export function ProgramCalendar() {
       console.error('Error saving changes:', error);
       setToast({
         show: true,
-        message: 'Error saving changes. Please try again.',
+        message: t('error-saving-changes'),
         type: 'error'
       });
     } finally {
@@ -831,7 +844,7 @@ export function ProgramCalendar() {
       console.error('Error adding existing workout:', error);
       setToast({
         show: true,
-        message: 'Failed to add workout. Please try again.',
+        message: t('failed-assign-workout'),
         type: 'error'
       });
     }
@@ -1078,7 +1091,7 @@ export function ProgramCalendar() {
               className="inline-flex items-center text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
             >
               <ArrowLeft className="h-4 w-4 mr-1" />
-              Back to Programs
+              {t('back-to-programs')}
             </button>
           </div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
@@ -1096,7 +1109,7 @@ export function ProgramCalendar() {
             className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
           >
             <Save className="h-4 w-4 mr-2" />
-            {isSaving ? 'Saving...' : 'Save'}
+            {isSaving ? t('saving') : t('save')}
           </button>
         </div>
       </div>
@@ -1163,11 +1176,11 @@ export function ProgramCalendar() {
                     ? 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200'
                     : 'bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
                 }`}
-                title="Week View"
+                title={t('week-view')}
                 data-testid="week-view-btn"
               >
                 <LayoutGrid className="h-4 w-4" />
-                <span className="ml-1 hidden sm:inline">Week</span>
+                <span className="ml-1 hidden sm:inline">{t('week')}</span>
               </button>
               <button
                 onClick={() => setViewMode('day')}
@@ -1176,11 +1189,11 @@ export function ProgramCalendar() {
                     ? 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200'
                     : 'bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
                 }`}
-                title="Day View"
+                title={t('day-view')}
                 data-testid="day-view-btn"
               >
                 <List className="h-4 w-4" />
-                <span className="ml-1 hidden sm:inline">Day</span>
+                <span className="ml-1 hidden sm:inline">{t('day')}</span>
               </button>
         </div>
             
@@ -1188,10 +1201,10 @@ export function ProgramCalendar() {
             <button
               onClick={handleTodayClick}
               className="mr-2 flex items-center justify-center p-2 text-sm bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-800/30 rounded-md"
-              title="Go to Today"
+              title={t('today')}
             >
               <CalendarDays className="h-4 w-4" />
-              <span className="ml-1 hidden sm:inline">Today</span>
+              <span className="ml-1 hidden sm:inline">{t('today')}</span>
             </button>
           
             {/* Navigation */}
@@ -1245,7 +1258,7 @@ export function ProgramCalendar() {
                 }`}
               >
                 <div className="font-medium text-sm text-gray-900 dark:text-gray-100">
-                  {format(date, 'EEEE')}
+                  {getTranslatedDayName(date)}
                 </div>
                 <div className="text-sm text-gray-500 dark:text-gray-400">
                   {format(date, 'MMM d')}
@@ -1269,17 +1282,27 @@ export function ProgramCalendar() {
                           >
                             <div className="flex items-center justify-between">
                               <div className="flex-1">
-                                {workout.name && (
-                                  <p className="text-sm font-medium text-black dark:text-black mb-1 font-inter">
-                                    {workout.name}
-                                  </p>
-                                )}
-                                <p className="text-sm text-black dark:text-black whitespace-pre-wrap font-roboto">
+                                {/* Show workout type as main title, similar to AthleteCalendar */}
+                                <div className="flex flex-col gap-0.5 mb-2">
+                                  <span className="font-normal uppercase tracking-wide text-black font-poppins text-sm">
+                                    {workout.workout_type?.code || 'Workout'}
+                                  </span>
+                                  
+                                  {/* Only show name if it exists */}
+                                  {workout.name && (
+                                    <span className="text-xs opacity-90 truncate text-black font-inter">
+                                      {workout.name}
+                                    </span>
+                                  )}
+                                </div>
+                                
+                                {/* Truncated description */}
+                                <p className="text-sm text-black dark:text-black font-roboto line-clamp-2">
                                   {workout.description}
                                 </p>
                                 {workout.notes && (
                                   <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
-                                    <p className="text-xs text-black dark:text-black whitespace-pre-wrap font-inter">
+                                    <p className="text-xs text-black dark:text-black line-clamp-1 font-inter">
                                       {workout.notes}
                                     </p>
                                   </div>
@@ -1315,7 +1338,7 @@ export function ProgramCalendar() {
                           className="w-full flex items-center justify-center px-3 py-2 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                         >
                           <Plus className="h-4 w-4 mr-1.5 text-gray-500 dark:text-gray-400" />
-                          Add Workout
+                          {t('add-workout')}
                         </button>
                       </>
                     ) : (
@@ -1324,7 +1347,7 @@ export function ProgramCalendar() {
                         className="w-full flex items-center justify-center px-3 py-2 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                       >
                         <Plus className="h-4 w-4 mr-1.5 text-gray-500 dark:text-gray-400" />
-                        Add Workout
+                        {t('add-workout')}
                       </button>
                     )}
                   </>
@@ -1345,7 +1368,7 @@ export function ProgramCalendar() {
             if (!isInProgram) {
               return (
                 <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-                  <p>This date is outside the program date range.</p>
+                  <p>{t('outside-program-date-range')}</p>
                 </div>
               );
             }
@@ -1353,13 +1376,13 @@ export function ProgramCalendar() {
             if (!dayProgram || !dayProgram.workouts || dayProgram.workouts.length === 0) {
               return (
                 <div className="py-8 text-center">
-                  <p className="text-gray-500 dark:text-gray-400 mb-6">No workouts for this day yet.</p>
+                  <p className="text-gray-500 dark:text-gray-400 mb-6">{t('no-workouts-for-this-day')}</p>
                   <button
                     onClick={() => handleAddWorkout(dateStr)}
                     className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
                   >
                     <Plus className="h-4 w-4 mr-2" />
-                    Add Workout
+                    {t('add-workout')}
                   </button>
                 </div>
               );
@@ -1378,17 +1401,27 @@ export function ProgramCalendar() {
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
-                          {workout.name && (
-                            <p className="text-sm font-medium text-black dark:text-black mb-1 font-inter">
-                              {workout.name}
-                            </p>
-                          )}
-                          <p className="text-sm text-black dark:text-black whitespace-pre-wrap font-roboto">
+                          {/* Show workout type as main title, similar to AthleteCalendar */}
+                          <div className="flex flex-col gap-0.5 mb-2">
+                            <span className="font-normal uppercase tracking-wide text-black font-poppins text-sm">
+                              {workout.workout_type?.code || 'Workout'}
+                            </span>
+                            
+                            {/* Only show name if it exists */}
+                            {workout.name && (
+                              <span className="text-xs opacity-90 truncate text-black font-inter">
+                                {workout.name}
+                              </span>
+                            )}
+                          </div>
+                          
+                          {/* Truncated description */}
+                          <p className="text-sm text-black dark:text-black font-roboto line-clamp-2">
                             {workout.description}
                           </p>
                           {workout.notes && (
                             <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
-                              <p className="text-xs text-black dark:text-black whitespace-pre-wrap font-inter">
+                              <p className="text-xs text-black dark:text-black line-clamp-1 font-inter">
                                 {workout.notes}
                               </p>
                             </div>
@@ -1424,7 +1457,7 @@ export function ProgramCalendar() {
                     className="w-full flex items-center justify-center px-3 py-2 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                   >
                     <Plus className="h-4 w-4 mr-1.5 text-gray-500 dark:text-gray-400" />
-                    Add Workout
+                    {t('add-workout')}
                   </button>
                 </div>
               </div>
@@ -1456,7 +1489,7 @@ export function ProgramCalendar() {
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md overflow-hidden">
             <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                Add Workout
+                {t('add-workout')}
               </h2>
               <button
                 onClick={() => setShowWorkoutSearch(false)}
@@ -1474,10 +1507,10 @@ export function ProgramCalendar() {
                 <div className="text-center">
                   <Plus className="h-8 w-8 text-blue-500 mx-auto mb-2" />
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Create New Workout
+                    {t('create-new-workout')}
                   </span>
                   <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    Design a new workout from scratch
+                    {t('design-new-workout-from-scratch')}
                   </p>
                 </div>
               </button>
@@ -1488,7 +1521,7 @@ export function ProgramCalendar() {
                 </div>
                 <div className="relative flex justify-center">
                   <span className="px-2 bg-white dark:bg-gray-800 text-sm text-gray-500 dark:text-gray-400">
-                    or
+                    {t('or')}
                   </span>
                 </div>
               </div>
@@ -1508,10 +1541,10 @@ export function ProgramCalendar() {
                 <div className="text-center">
                   <Search className="h-8 w-8 text-blue-500 mx-auto mb-2" />
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Search Existing Workouts
+                    {t('search-existing-workouts')}
                   </span>
                   <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    Choose from your workout library
+                    {t('choose-from-workout-library')}
                   </p>
                 </div>
               </button>

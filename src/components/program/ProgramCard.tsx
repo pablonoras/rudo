@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useI18n } from '../../lib/i18n/context';
 import type { Program, ProgramStatus } from '../../lib/workout';
 
 interface ProgramCardProps {
@@ -25,6 +26,7 @@ interface ProgramCardProps {
 
 export function ProgramCard({ program, onStatusChange, onDelete, onEdit, onManageAssignments }: ProgramCardProps) {
   const [showMenu, setShowMenu] = useState(false);
+  const { t } = useI18n();
   
   const getStatusColor = (status: ProgramStatus) => {
     const colors = {
@@ -49,7 +51,7 @@ export function ProgramCard({ program, onStatusChange, onDelete, onEdit, onManag
                   program.status
                 )}`}
               >
-                {program.status}
+                {t(program.status)}
               </span>
             </div>
             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
@@ -78,7 +80,7 @@ export function ProgramCard({ program, onStatusChange, onDelete, onEdit, onManag
                       className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 w-full text-left"
                     >
                       <Edit2 className="h-4 w-4 mr-2" />
-                      Edit Program
+                      {t('edit-program')}
                     </button>
                   )}
                   {onManageAssignments && (
@@ -90,7 +92,7 @@ export function ProgramCard({ program, onStatusChange, onDelete, onEdit, onManag
                       className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 w-full text-left"
                     >
                       <UserMinus className="h-4 w-4 mr-2" />
-                      Manage Assignments
+                      {t('manage-assignments')}
                     </button>
                   )}
                   {program.status === 'draft' && (
@@ -102,7 +104,7 @@ export function ProgramCard({ program, onStatusChange, onDelete, onEdit, onManag
                       className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 w-full text-left"
                     >
                       <CheckCircle className="h-4 w-4 mr-2" />
-                      Publish Program
+                      {t('publish-program')}
                     </button>
                   )}
                   {program.status === 'published' && (
@@ -114,7 +116,7 @@ export function ProgramCard({ program, onStatusChange, onDelete, onEdit, onManag
                       className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 w-full text-left"
                     >
                       <Archive className="h-4 w-4 mr-2" />
-                      Archive Program
+                      {t('archive-program')}
                     </button>
                   )}
                   {program.status === 'archived' && (
@@ -126,7 +128,7 @@ export function ProgramCard({ program, onStatusChange, onDelete, onEdit, onManag
                       className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 w-full text-left"
                     >
                       <RefreshCw className="h-4 w-4 mr-2" />
-                      Revert to Draft
+                      {t('revert-to-draft')}
                     </button>
                   )}
                   <Link
@@ -134,7 +136,7 @@ export function ProgramCard({ program, onStatusChange, onDelete, onEdit, onManag
                     className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
                   >
                     <Eye className="h-4 w-4 mr-2" />
-                    View Program
+                    {t('view-program')}
                   </Link>
                   <button
                     onClick={() => {
@@ -144,7 +146,7 @@ export function ProgramCard({ program, onStatusChange, onDelete, onEdit, onManag
                     className="flex items-center px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 w-full text-left"
                   >
                     <Trash2 className="h-4 w-4 mr-2" />
-                    Delete Program
+                    {t('delete-program')}
                   </button>
                 </div>
               </div>
@@ -155,18 +157,18 @@ export function ProgramCard({ program, onStatusChange, onDelete, onEdit, onManag
         <div className="mt-4 grid grid-cols-3 gap-4">
           <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
             <Calendar className="h-4 w-4 mr-1" />
-            <span>{program.weekCount} weeks</span>
+            <span>{program.weekCount} {t('weeks')}</span>
           </div>
           <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
             <Calendar className="h-4 w-4 mr-1" />
             <span>
-              {Object.values(program.days).reduce((total, day) => total + day.workouts.length, 0)} workouts
+              {Object.values(program.days).reduce((total, day) => total + day.workouts.length, 0)} {t('workouts')}
             </span>
           </div>
           <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
             <Users className="h-4 w-4 mr-1" />
             <span>
-              {program.assignedTo.athletes.length} assigned
+              {program.assignedTo.athletes.length} {t('assigned')}
             </span>
           </div>
         </div>
@@ -176,7 +178,7 @@ export function ProgramCard({ program, onStatusChange, onDelete, onEdit, onManag
             to={`/coach/program/${program.id}`}
             className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium text-sm inline-flex items-center"
           >
-            View Details
+            {t('view-details')}
             <Calendar className="h-4 w-4 ml-1" />
           </Link>
           <Link
@@ -184,7 +186,7 @@ export function ProgramCard({ program, onStatusChange, onDelete, onEdit, onManag
             className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 inline-flex items-center"
           >
             <Users className="h-4 w-4 mr-1" />
-            Assign
+            {t('assign')}
           </Link>
         </div>
       </div>
