@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { useI18n } from '../lib/i18n/context';
 import { getCurrentProfile, signIn, supabase } from '../lib/supabase';
 import LanguageToggle from './LanguageToggle';
+import { Logo } from './Logo';
 import { UserRole } from './RoleSelection';
 
 const loginSchema = z.object({
@@ -176,9 +177,7 @@ const Login = () => {
         </div>
 
         <div className="flex items-center gap-3 mb-12">
-          <div className="text-2xl font-black tracking-tighter bg-gradient-to-r from-[#8A2BE2] to-[#4169E1] bg-clip-text text-transparent">
-            RUDO
-          </div>
+          <Logo variant="gradient" size="lg" />
         </div>
 
         <div className="max-w-md w-full mx-auto flex-1 flex flex-col justify-center">

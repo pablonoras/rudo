@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useI18n } from '../lib/i18n/context';
 import LanguageToggle from './LanguageToggle';
+import { Logo } from './Logo';
 
 const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -49,8 +50,7 @@ const Header = () => {
         <div className="flex items-center justify-between h-16 sm:h-20">
           {/* Logo */}
           <Link to="/" className="flex items-center">
-            <span className="text-2xl font-black tracking-tighter text-white">RUDO</span>
-            <span className="ml-2 px-2 py-1 text-xs font-semibold text-white bg-blue-600 rounded">BETA</span>
+            <Logo variant="light" showBeta={true} />
           </Link>
 
           {/* Desktop Navigation - Centered */}

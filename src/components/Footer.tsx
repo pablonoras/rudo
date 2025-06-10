@@ -1,6 +1,7 @@
 import { LogIn } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useI18n } from '../lib/i18n/context';
+import { Logo } from './Logo';
 
 const Footer = () => {
   const { t } = useI18n();
@@ -12,7 +13,7 @@ const Footer = () => {
           {/* Logo + Tagline */}
           <div>
             <Link to="/" className="inline-block mb-4">
-              <span className="text-2xl font-black tracking-tighter text-white">RUDO</span>
+              <Logo variant="light" size="lg" />
             </Link>
             <div className="text-gray-400 flex flex-col">
               <span>{t('new-slogan-line1')}</span>

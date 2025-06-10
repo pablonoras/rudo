@@ -29,8 +29,7 @@ export function AthleteProfile() {
 
   // Get assigned programs for this athlete
   const assignedPrograms = Object.values(programs).filter(program => 
-    program.assignedTo.athletes.includes(athleteId || '') ||
-    (athlete?.team && program.assignedTo.teams.includes(athlete.team))
+    program.assignedTo.athletes.includes(athleteId || '')
   );
 
   if (!athlete) {

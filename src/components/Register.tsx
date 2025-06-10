@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { useI18n } from '../lib/i18n/context';
 import { signUp, supabase, validateInviteCode } from '../lib/supabase';
 import LanguageToggle from './LanguageToggle';
+import { Logo } from './Logo';
 import { UserRole } from './RoleSelection';
 
 // Schema for email/password registration
@@ -272,9 +273,7 @@ NHYxaC00di0xem0wIDJoMXYzaC0xdi0zem0tNS00aDN2MWgtM3YtMXptMCAyaDF2NmgtMXYtNnptLTUt
         
         <div className="max-w-md w-full relative animate-fadeIn">
           <div className="flex items-center gap-3 mb-8 justify-center">
-            <div className="text-3xl font-black tracking-tighter bg-gradient-to-r from-[#8A2BE2] to-[#4169E1] bg-clip-text text-transparent animate-pulse">
-              RUDO
-            </div>
+            <Logo variant="gradient" size="xl" className="animate-pulse" />
           </div>
           
           <div className="bg-green-900/30 border border-green-500/50 rounded-lg p-8 text-center shadow-xl backdrop-blur-sm animate-slideUp">
@@ -313,9 +312,7 @@ NHYxaC00di0xem0wIDJoMXYzaC0xdi0zem0tNS00aDN2MWgtM3YtMXptMCAyaDF2NmgtMXYtNnptLTUt
         </div>
 
         <div className="flex items-center gap-3 mb-12">
-          <div className="text-2xl font-black tracking-tighter bg-gradient-to-r from-[#8A2BE2] to-[#4169E1] bg-clip-text text-transparent">
-            RUDO
-          </div>
+          <Logo variant="gradient" size="lg" />
         </div>
 
         <div className="max-w-md w-full mx-auto flex-1 flex flex-col justify-center">
