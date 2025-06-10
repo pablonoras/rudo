@@ -10,19 +10,31 @@
  */
 
 import { addDays, format, isToday, startOfWeek, subDays } from 'date-fns';
-import { Calendar, ChevronLeft, ChevronRight, Mail, UserX } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, Info, Mail } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { AssignedProgram, AssignedPrograms } from '../../components/athlete/AssignedPrograms';
 import { WorkoutCard } from '../../components/athlete/WorkoutCard';
 import { InstallBanner } from '../../components/InstallBanner';
 import { useProfile } from '../../contexts/ProfileContext';
+import { useI18n } from '../../lib/i18n/context';
 import { supabase } from '../../lib/supabase';
 import { useWorkoutStore } from '../../lib/workout';
+
+// Define interface for assigned programs
+// interface AssignedProgram {
+//   id: string;
+//   name: string;
+//   description?: string;
+//   startDate: string;
+//   endDate: string;
+//   coachName: string;
+// }
 
 export function AthleteDashboard() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const { programs } = useWorkoutStore();
   const { profile } = useProfile();
+  const { t } = useI18n();
   
   // Assigned programs state
   const [assignedPrograms, setAssignedPrograms] = useState<AssignedProgram[]>([]);
@@ -355,10 +367,10 @@ export function AthleteDashboard() {
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            Welcome back!
+            {t('your-training')}
           </h1>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Your account status has been updated.
+            {t('welcome-athlete-dashboard')}
           </p>
         </div>
 
@@ -366,29 +378,29 @@ export function AthleteDashboard() {
         <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-6">
           <div className="flex">
             <div className="flex-shrink-0">
-              <UserX className="h-6 w-6 text-orange-400" aria-hidden="true" />
+              <Info className="h-5 w-5 text-orange-400" />
             </div>
             <div className="ml-3">
-              <h3 className="text-lg font-medium text-orange-800 dark:text-orange-300">
-                Account Inactive
+              <h3 className="text-sm font-medium text-orange-800 dark:text-orange-200">
+                {t('inactive-account')}
               </h3>
               <div className="mt-2 text-sm text-orange-700 dark:text-orange-400">
                 <p className="mb-3">
-                  Your athlete account is currently inactive. You will not see any workouts or programs assigned until your coach reactivates your account.
+                  {t('inactive-account-desc')}
                 </p>
                 <p className="mb-3">
-                  <strong>What this means:</strong>
+                  <strong>{t('what-this-means')}</strong>
                 </p>
                 <ul className="list-disc list-inside mb-3 space-y-1">
-                  <li>No workouts will be displayed</li>
-                  <li>No training programs will be visible</li>
-                  <li>Your calendar will remain empty</li>
+                  <li>{t('no-workouts-displayed')}</li>
+                  <li>{t('no-programs-visible')}</li>
+                  <li>{t('calendar-empty')}</li>
                 </ul>
                 <p className="mb-3">
-                  <strong>To reactivate your account:</strong>
+                  <strong>{t('to-reactivate')}</strong>
                 </p>
                 <p>
-                  Please reach out to your coach{coachNames.length > 1 ? 'es' : ''}
+                  {coachNames.length > 1 ? t('contact-coaches') : t('contact-coach')}
                   {coachNames.length > 0 && (
                     <span className="font-semibold">
                       {coachNames.length === 1 
@@ -396,14 +408,14 @@ export function AthleteDashboard() {
                         : ` (${coachNames.join(', ')})`
                       }
                     </span>
-                  )} to request account reactivation.
+                  )} {t('request-reactivation')}
                 </p>
               </div>
               <div className="mt-4">
                 <div className="flex items-center text-sm">
                   <Mail className="h-4 w-4 text-orange-400 mr-2" />
                   <span className="text-orange-700 dark:text-orange-400">
-                    Contact your coach directly or through your usual communication channel.
+                    {t('contact-coach-directly')}
                   </span>
                 </div>
               </div>
@@ -414,9 +426,9 @@ export function AthleteDashboard() {
         {/* Empty calendar placeholder */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 text-center">
           <Calendar className="h-12 w-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-1">No workouts available</h3>
+          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-1">{t('no-workouts-today')}</h3>
           <p className="text-gray-500 dark:text-gray-400">
-            Your training calendar is empty while your account is inactive.
+            {t('check-other-days')}
           </p>
         </div>
       </div>
@@ -455,10 +467,10 @@ export function AthleteDashboard() {
       {/* Desktop Header */}
       <div className="hidden md:block">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-          {isToday(selectedDate) ? 'Today\'s Workouts' : format(selectedDate, 'MMMM d, yyyy')}
+          {isToday(selectedDate) ? t('your-training') : format(selectedDate, 'MMMM d, yyyy')}
         </h1>
         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          Your scheduled training for the day.
+          {t('welcome-athlete-dashboard')}
         </p>
       </div>
 

@@ -20,6 +20,7 @@ import {
 import { useEffect, useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import { useProfile } from '../../contexts/ProfileContext';
+import { useI18n } from '../../lib/i18n/context';
 import { getCoachAthleteActivity, supabase } from '../../lib/supabase';
 import { useWorkoutStore } from '../../lib/workout';
 
@@ -63,6 +64,7 @@ export function CoachDashboard() {
   const [athletes, setAthletes] = useState<Athlete[]>([]);
   const [recentActivity, setRecentActivity] = useState<AthleteActivityItem[]>([]);
   const [activityLoading, setActivityLoading] = useState(true);
+  const { t } = useI18n();
 
   // Default coach name fallback
   const coachName = profile?.full_name || 'Coach';
@@ -70,9 +72,9 @@ export function CoachDashboard() {
   // Get greeting based on time of day
   const getGreeting = () => {
     const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 17) return 'Good afternoon';
-    return 'Good evening';
+    if (hour < 12) return t('good-morning');
+    if (hour < 17) return t('good-afternoon');
+    return t('good-evening');
   };
   
   // Fetch athletes assigned to this coach
@@ -190,7 +192,7 @@ export function CoachDashboard() {
           {getGreeting()}, {coachName} 👋
         </h1>
         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          Welcome to your dashboard. Here's what's happening with your athletes.
+          {t('welcome-dashboard')}
         </p>
       </div>
 
@@ -205,12 +207,12 @@ export function CoachDashboard() {
               <div className="ml-5 w-0 flex-1">
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
-                    Active Athletes
+                    {t('active-athletes')}
                   </dt>
                   <dd className="flex items-baseline">
                     <div className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
                       {loading ? '-' : athletes.length}
-          </div>
+                    </div>
                   </dd>
                 </dl>
               </div>
@@ -220,25 +222,25 @@ export function CoachDashboard() {
 
         <div className="bg-white dark:bg-gray-800 overflow-hidden rounded-lg shadow">
           <div className="p-5">
-                  <div className="flex items-center">
+            <div className="flex items-center">
               <div className="flex-shrink-0">
                 <Calendar className="h-6 w-6 text-green-600 dark:text-green-400" />
               </div>
               <div className="ml-5 w-0 flex-1">
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
-                    Active Programs
+                    Programs
                   </dt>
                   <dd className="flex items-baseline">
                     <div className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
-                      {Object.values(programs).filter(p => p.status === 'published').length}
+                      {programs.length}
                     </div>
                   </dd>
                 </dl>
               </div>
             </div>
           </div>
-      </div>
+        </div>
 
         <div className="bg-white dark:bg-gray-800 overflow-hidden rounded-lg shadow">
           <div className="p-5">
@@ -249,7 +251,7 @@ export function CoachDashboard() {
               <div className="ml-5 w-0 flex-1">
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
-                    Recent Activities
+                    {t('recent-activity')}
                   </dt>
                   <dd className="flex items-baseline">
                     <div className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
@@ -259,7 +261,7 @@ export function CoachDashboard() {
                 </dl>
               </div>
             </div>
-            </div>
+          </div>
         </div>
       </div>
 
@@ -268,13 +270,13 @@ export function CoachDashboard() {
         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">
-              Recent Activity
+              {t('recent-activity')}
             </h2>
             <RouterLink
               to="/coach/athletes"
               className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 flex items-center"
             >
-              View all athletes
+              {t('view-all-athletes')}
               <ChevronRight className="h-4 w-4 ml-1" />
             </RouterLink>
           </div>
@@ -283,7 +285,7 @@ export function CoachDashboard() {
         {activityLoading ? (
           <div className="p-6 text-center">
             <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-gray-500 dark:text-gray-400" />
-            <p className="text-gray-500 dark:text-gray-400">Loading recent activity...</p>
+            <p className="text-gray-500 dark:text-gray-400">{t('loading-recent-activity')}</p>
           </div>
         ) : recentActivity.length > 0 ? (
           <div className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -335,7 +337,7 @@ export function CoachDashboard() {
                                 ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
                                 : 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200'
                             }`}>
-                              {activity.is_unscaled ? 'As Prescribed' : 'Scaled'}
+                              {activity.is_unscaled ? t('as-prescribed') : t('scaled')}
                             </span>
                           )}
                         </div>
@@ -343,7 +345,7 @@ export function CoachDashboard() {
                     </div>
                     
                     <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
-                      {activity.is_completed ? 'Completed' : 'Updated'}: {activity.workout.description || 'Workout'}
+                      {activity.is_completed ? t('completed') : t('updated')}: {activity.workout.description || t('workout')}
                     </p>
                     
                     {activity.notes && (
@@ -352,7 +354,7 @@ export function CoachDashboard() {
                         <p className="text-xs text-gray-600 dark:text-gray-300 truncate">
                           "{activity.notes}"
                         </p>
-                    </div>
+                      </div>
                     )}
                     
                     <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
@@ -366,9 +368,9 @@ export function CoachDashboard() {
         ) : (
           <div className="p-6 flex flex-col items-center justify-center text-center py-12">
             <Activity className="h-12 w-12 text-gray-400 dark:text-gray-500 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-1">No recent activity</h3>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-1">{t('no-recent-activity')}</h3>
             <p className="text-gray-500 dark:text-gray-400 max-w-md">
-              Once your athletes start completing workouts and adding notes, their activity will appear here.
+              {t('no-recent-activity-desc')}
             </p>
           </div>
         )}
