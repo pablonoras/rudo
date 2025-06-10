@@ -14,7 +14,7 @@ import { Calendar, ChevronLeft, ChevronRight, Mail, UserX } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { AssignedProgram, AssignedPrograms } from '../../components/athlete/AssignedPrograms';
 import { WorkoutCard } from '../../components/athlete/WorkoutCard';
-import { PWAInstallPrompt } from '../../components/PWAInstallPrompt';
+import { InstallBanner } from '../../components/InstallBanner';
 import { useProfile } from '../../contexts/ProfileContext';
 import { supabase } from '../../lib/supabase';
 import { useWorkoutStore } from '../../lib/workout';
@@ -462,8 +462,8 @@ export function AthleteDashboard() {
         </p>
       </div>
 
-      {/* PWA Install Prompt */}
-      <PWAInstallPrompt />
+      {/* Smart Install Banner */}
+      <InstallBanner />
 
       {/* Week Navigation - Compact for mobile */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 mx-2 md:mx-0">

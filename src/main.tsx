@@ -5,17 +5,7 @@ import App from './App';
 import './index.css';
 import { I18nProvider } from './lib/i18n/context';
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <BrowserRouter>
-      <I18nProvider>
-        <App />
-      </I18nProvider>
-    </BrowserRouter>
-  </StrictMode>
-);
-
-// Register service worker for PWA functionality
+// Register service worker for PWA
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js')
@@ -27,3 +17,13 @@ if ('serviceWorker' in navigator) {
       });
   });
 }
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <BrowserRouter>
+      <I18nProvider>
+        <App />
+      </I18nProvider>
+    </BrowserRouter>
+  </StrictMode>
+);

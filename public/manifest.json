@@ -1,77 +1,57 @@
 {
-  "name": "RUDO Fitness - Personal Training App",
+  "name": "RUDO - Fitness Coaching Platform",
   "short_name": "RUDO",
-  "description": "Your personal fitness coaching app for tracking workouts and training programs",
-  "start_url": "/athlete",
+  "description": "Coach Smarter. Manage Less. The ultimate fitness coaching platform for athletes and coaches.",
+  "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#3b82f6",
+  "background_color": "#0A0A0A",
+  "theme_color": "#8A2BE2",
   "orientation": "portrait-primary",
   "scope": "/",
-  "categories": ["health", "fitness", "sports"],
   "lang": "en",
+  "categories": ["fitness", "health", "sports", "lifestyle"],
   "icons": [
-    {
-      "src": "/icon-72x72.png",
-      "sizes": "72x72",
-      "type": "image/png",
-      "purpose": "maskable any"
-    },
-    {
-      "src": "/icon-96x96.png",
-      "sizes": "96x96",
-      "type": "image/png",
-      "purpose": "maskable any"
-    },
-    {
-      "src": "/icon-128x128.png",
-      "sizes": "128x128",
-      "type": "image/png",
-      "purpose": "maskable any"
-    },
-    {
-      "src": "/icon-144x144.png",
-      "sizes": "144x144",
-      "type": "image/png",
-      "purpose": "maskable any"
-    },
-    {
-      "src": "/icon-152x152.png",
-      "sizes": "152x152",
-      "type": "image/png",
-      "purpose": "maskable any"
-    },
     {
       "src": "/icon-192x192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "maskable any"
-    },
-    {
-      "src": "/icon-384x384.png",
-      "sizes": "384x384",
-      "type": "image/png",
-      "purpose": "maskable any"
+      "purpose": "any maskable"
     },
     {
       "src": "/icon-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "maskable any"
+      "purpose": "any maskable"
     }
   ],
   "screenshots": [
     {
       "src": "/screenshot-mobile.png",
-      "sizes": "640x1136",
+      "sizes": "375x812",
       "type": "image/png",
       "form_factor": "narrow"
     },
     {
       "src": "/screenshot-desktop.png",
-      "sizes": "1280x800",
+      "sizes": "1280x720",
       "type": "image/png",
       "form_factor": "wide"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Today's Workouts",
+      "short_name": "Workouts",
+      "description": "View today's assigned workouts",
+      "url": "/athlete",
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Coach Dashboard",
+      "short_name": "Dashboard",
+      "description": "Access coach dashboard",
+      "url": "/coach",
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
     }
   ]
 }
