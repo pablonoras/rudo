@@ -16,7 +16,7 @@ import { ModalProvider, ProfileProvider } from './contexts';
 import { I18nProvider } from './lib/i18n/context';
 
 // Lazy load pages for better performance
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense } from 'react';
 import LandingPage from './components/LandingPage';
 
 // Auth components
@@ -105,68 +105,6 @@ const DemoRoutes = () => (
   </Routes>
 );
 
-// PWA detection and routing component
-const PWAHomeRoute = () => {
-  const [isPWA, setIsPWA] = useState<boolean | null>(null);
-  const location = useLocation();
-
-  useEffect(() => {
-    // Detect if app is running as PWA
-    const detectPWA = () => {
-      // Check if user wants to force web view
-      const searchParams = new URLSearchParams(location.search);
-      const forceWeb = searchParams.get('web') === 'true';
-      
-      if (forceWeb) {
-        setIsPWA(false);
-        return;
-      }
-      
-      // Multiple methods to detect PWA/standalone mode
-      const isStandaloneDisplayMode = window.matchMedia('(display-mode: standalone)').matches;
-      const isIOSStandalone = (window.navigator as any).standalone === true;
-      const isAndroidApp = document.referrer.includes('android-app://');
-      
-      // Check if launched from home screen (iOS Safari)
-      const isFromHomeScreen = isIOSStandalone || isStandaloneDisplayMode;
-      
-      // Additional check for Chrome/Android PWA
-      const isMinimalUI = window.matchMedia('(display-mode: minimal-ui)').matches;
-      
-      const isPWAMode = isStandaloneDisplayMode || isIOSStandalone || isAndroidApp || isMinimalUI;
-      
-      // Debug logging (can be removed in production)
-      console.log('PWA Detection:', {
-        isStandaloneDisplayMode,
-        isIOSStandalone,
-        isAndroidApp,
-        isMinimalUI,
-        isFromHomeScreen,
-        forceWeb,
-        finalDecision: isPWAMode
-      });
-      
-      setIsPWA(isPWAMode);
-    };
-
-    // Small delay to ensure DOM is ready
-    setTimeout(detectPWA, 100);
-  }, [location.search]);
-
-  // Show loading while detecting PWA mode
-  if (isPWA === null) {
-    return <LoadingScreen />;
-  }
-
-  // If it's a PWA, redirect to athlete login
-  if (isPWA) {
-    return <Navigate to="/login/athlete" replace />;
-  }
-
-  // Otherwise, show the landing page
-  return <LandingPage />;
-};
-
 function App() {
   return (
     <ThemeProvider>
@@ -174,7 +112,7 @@ function App() {
         <ProfileProvider>
           <Suspense fallback={<LoadingScreen />}>
             <Routes>
-              <Route path="/" element={<PWAHomeRoute />} />
+              <Route path="/" element={<LandingPage />} />
               
               {/* New role-first authentication flow */}
               <Route path="/auth" element={<RoleSelection />} />
