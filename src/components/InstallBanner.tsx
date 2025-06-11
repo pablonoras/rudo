@@ -1,5 +1,6 @@
 import { Download, Smartphone, X, Zap } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useI18n } from '../lib/i18n/context';
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
@@ -15,6 +16,7 @@ interface InstallBannerProps {
 }
 
 export function InstallBanner({ className = '' }: InstallBannerProps) {
+  const { t } = useI18n();
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showBanner, setShowBanner] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
@@ -125,35 +127,35 @@ export function InstallBanner({ className = '' }: InstallBannerProps) {
     switch (platform) {
       case 'ios':
         return {
-          title: '⚡ Add RUDO to your home screen',
-          description: 'Get instant access to your workouts. Tap Share → "Add to Home Screen"',
-          buttonText: 'Show me how',
+          title: t('pwa-add-to-home'),
+          description: t('pwa-ios-description'),
+          buttonText: t('pwa-show-me-how'),
           icon: <Smartphone className="h-5 w-5" />,
-          benefits: ['Faster loading', 'Offline access', 'Native app feel']
+          benefits: [t('pwa-faster-loading'), t('pwa-offline-access'), t('pwa-native-feel')]
         };
       case 'android':
         return {
-          title: '🚀 Install RUDO App',
-          description: 'Get the full app experience with faster loading and offline access.',
-          buttonText: 'Install now',
+          title: t('pwa-install-app'),
+          description: t('pwa-android-description'),
+          buttonText: t('pwa-install-now'),
           icon: <Download className="h-5 w-5" />,
-          benefits: ['Instant loading', 'Works offline', 'Home screen access']
+          benefits: [t('pwa-instant-loading'), t('pwa-works-offline'), t('pwa-home-screen-access')]
         };
       case 'desktop':
         return {
-          title: '💪 Install RUDO',
-          description: 'Get desktop app with better performance and offline capability.',
-          buttonText: 'Install app',
+          title: t('pwa-install-desktop'),
+          description: t('pwa-desktop-description'),
+          buttonText: t('pwa-install-app-btn'),
           icon: <Download className="h-5 w-5" />,
-          benefits: ['Desktop notifications', 'Faster access', 'Works offline']
+          benefits: [t('pwa-desktop-notifications'), t('pwa-faster-access'), t('pwa-works-offline')]
         };
       default:
         return {
-          title: '⭐ Get the RUDO App',
-          description: 'Enhanced experience with better performance and offline access.',
-          buttonText: 'Install',
+          title: t('pwa-install-generic'),
+          description: t('pwa-generic-description'),
+          buttonText: t('pwa-install-btn'),
           icon: <Download className="h-5 w-5" />,
-          benefits: ['Better performance', 'Offline access', 'Quick launch']
+          benefits: [t('pwa-better-performance'), t('pwa-offline-access'), t('pwa-quick-launch')]
         };
     }
   };
@@ -195,17 +197,16 @@ export function InstallBanner({ className = '' }: InstallBannerProps) {
                 <button
                   onClick={() => {
                     // Enhanced iOS install instructions
-                    const instructions = `To install RUDO on your iPhone/iPad:
+                    const instructions = `${t('pwa-ios-description')}
 
-1. Tap the Share button (□↗) at the bottom of Safari
-2. Scroll down and tap "Add to Home Screen"
-3. Tap "Add" to confirm
-4. The RUDO app will appear on your home screen!
+1. ${t('pwa-show-me-how')}
+2. ${t('pwa-install-now')}
+3. ${t('pwa-install-app-btn')}
 
-Benefits:
-✓ Faster loading times
-✓ Works offline
-✓ Native app experience`;
+${t('pwa-benefits')}:
+✓ ${t('pwa-faster-loading')}
+✓ ${t('pwa-works-offline')}
+✓ ${t('pwa-native-feel')}`;
                     
                     alert(instructions);
                   }}
@@ -229,7 +230,7 @@ Benefits:
                 onClick={handleDismiss}
                 className="inline-flex items-center justify-center px-4 py-2.5 text-sm font-medium text-white/90 hover:text-white transition-colors"
               >
-                Maybe later
+                {t('pwa-maybe-later')}
               </button>
             </div>
           </div>

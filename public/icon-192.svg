@@ -1,0 +1,31 @@
+<svg width="192" height="192" viewBox="0 0 192 192" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Dark background with subtle gradient -->
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0A0A0A"/>
+      <stop offset="100%" style="stop-color:#1A1A1A"/>
+    </linearGradient>
+    <linearGradient id="textGradient192" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#4A148C"/>
+      <stop offset="50%" style="stop-color:#6A1B9A"/>
+      <stop offset="100%" style="stop-color:#8A2BE2"/>
+    </linearGradient>
+    <!-- Subtle glow effect -->
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge> 
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Background with rounded corners -->
+  <rect width="192" height="192" rx="32" fill="url(#bgGradient)"/>
+  
+  <!-- Subtle border -->
+  <rect x="1" y="1" width="190" height="190" rx="31" fill="none" stroke="url(#textGradient192)" stroke-width="0.5" opacity="0.3"/>
+  
+  <!-- RUDO text with glow effect -->
+  <text x="96" y="120" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="42" text-anchor="middle" fill="url(#textGradient192)" letter-spacing="-1px" filter="url(#glow)">RUDO</text>
+</svg> 

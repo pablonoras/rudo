@@ -9,13 +9,22 @@
  * Added inactive athlete functionality - shows message instead of workouts when athlete is inactive.
  */
 
-import { addDays, format, isToday, startOfWeek, subDays } from 'date-fns';
+import { format, subDays } from 'date-fns';
 import { Calendar, ChevronLeft, ChevronRight, Info, Mail } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { AssignedProgram, AssignedPrograms } from '../../components/athlete/AssignedPrograms';
 import { WorkoutCard } from '../../components/athlete/WorkoutCard';
 import { InstallBanner } from '../../components/InstallBanner';
+import LanguageToggle from '../../components/LanguageToggle';
 import { useProfile } from '../../contexts/ProfileContext';
+import {
+  addDays,
+  formatDayName,
+  formatFullDateWithDay,
+  formatMonthDayYear,
+  isToday,
+  startOfWeek
+} from '../../lib/dateUtils';
 import { useI18n } from '../../lib/i18n/context';
 import { supabase } from '../../lib/supabase';
 import { useWorkoutStore } from '../../lib/workout';
@@ -34,7 +43,7 @@ export function AthleteDashboard() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const { programs } = useWorkoutStore();
   const { profile } = useProfile();
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   
   // Assigned programs state
   const [assignedPrograms, setAssignedPrograms] = useState<AssignedProgram[]>([]);
@@ -439,7 +448,7 @@ export function AthleteDashboard() {
   
   return (
     <div className="space-y-4 md:space-y-6 pb-4 md:pb-0">
-      {/* Mobile Date Header with Navigation */}
+      {/* Mobile Date Header with Navigation and Language Toggle */}
       <div className="block md:hidden">
         <div className="flex items-center justify-between px-4 py-2">
           <button
@@ -451,7 +460,7 @@ export function AthleteDashboard() {
           
           <div className="text-center">
             <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">
-              {format(selectedDate, 'EEEE, MMMM d')}
+              {formatFullDateWithDay(selectedDate, language)}
             </h1>
           </div>
           
@@ -462,16 +471,26 @@ export function AthleteDashboard() {
             <ChevronRight className="h-5 w-5" />
           </button>
         </div>
+        
+        {/* Language Toggle for mobile */}
+        <div className="flex justify-center pb-2">
+          <LanguageToggle />
+        </div>
       </div>
 
-      {/* Desktop Header */}
+      {/* Desktop Header with Language Toggle */}
       <div className="hidden md:block">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-          {isToday(selectedDate) ? t('your-training') : format(selectedDate, 'MMMM d, yyyy')}
-        </h1>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          {t('welcome-athlete-dashboard')}
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+              {isToday(selectedDate) ? t('your-training') : formatMonthDayYear(selectedDate, language)}
+            </h1>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              {t('welcome-athlete-dashboard')}
+            </p>
+          </div>
+          <LanguageToggle />
+        </div>
       </div>
 
       {/* Smart Install Banner */}
@@ -482,14 +501,14 @@ export function AthleteDashboard() {
         <div className="flex justify-between">
           {Array.from({ length: 7 }, (_, i) => {
             const date = addDays(startOfWeek(selectedDate), i);
-            const dayName = format(date, 'EEE');
+            const dayName = formatDayName(date, language);
             const dayNumber = format(date, 'd');
             const isSelectedDay = format(date, 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd');
             const isTodayDay = isToday(date);
             
             return (
               <button
-                key={dayName}
+                key={`${dayName}-${dayNumber}`}
                 onClick={() => setSelectedDate(date)}
                 className={`flex-1 py-3 md:py-3 flex flex-col items-center transition-colors first:rounded-l-lg last:rounded-r-lg ${
                   isSelectedDay
@@ -549,7 +568,7 @@ export function AthleteDashboard() {
         <div className="flex items-center space-x-2">
           <Calendar className="h-5 w-5 text-gray-400" />
           <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-            {format(selectedDate, 'MMMM d, yyyy')}
+            {formatMonthDayYear(selectedDate, language)}
           </span>
         </div>
         
