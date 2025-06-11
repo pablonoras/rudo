@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { BarChart3, ChevronLeft, Dumbbell, MessageSquare } from 'lucide-react';
+import { BarChart3, ChevronLeft, Dumbbell, MessageSquare, UserCheck } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { useI18n } from '../lib/i18n/context';
 import { signUp, supabase, validateInviteCode } from '../lib/supabase';
 import LanguageToggle from './LanguageToggle';
+import { Logo } from './Logo';
 import { UserRole } from './RoleSelection';
 
 // Schema for email/password registration
@@ -40,6 +41,8 @@ const Register = () => {
   const [currentStep, setCurrentStep] = useState<RegistrationStep>('registration');
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
   const [inviteCode, setInviteCode] = useState<string | null>(codeFromUrl);
+  const [coachName, setCoachName] = useState<string | null>(null);
+  const [coachAvatar, setCoachAvatar] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isValidatingUrlCode, setIsValidatingUrlCode] = useState(false);
@@ -103,8 +106,10 @@ const Register = () => {
         // Reset to invite code entry if code is invalid
         setCurrentStep('invite-code');
       } else {
-        // Valid code from URL - proceed to registration
+        // Valid code from URL - proceed to registration and set coach info
         setInviteCode(codeFromUrl);
+        setCoachName(validationResult.full_name);
+        setCoachAvatar(validationResult.avatar_url);
         setCurrentStep('registration');
       }
     } catch (error: any) {
@@ -130,8 +135,10 @@ const Register = () => {
         return;
       }
 
-      // Store the valid invite code and proceed to registration
+      // Store the valid invite code and coach info, then proceed to registration
       setInviteCode(data.inviteCode);
+      setCoachName(validationResult.full_name);
+      setCoachAvatar(validationResult.avatar_url);
       setCurrentStep('registration');
     } catch (error: any) {
       setErrorMessage(error.message || 'An error occurred while validating the invitation code');
@@ -266,9 +273,7 @@ NHYxaC00di0xem0wIDJoMXYzaC0xdi0zem0tNS00aDN2MWgtM3YtMXptMCAyaDF2NmgtMXYtNnptLTUt
         
         <div className="max-w-md w-full relative animate-fadeIn">
           <div className="flex items-center gap-3 mb-8 justify-center">
-            <div className="text-3xl font-black tracking-tighter bg-gradient-to-r from-[#8A2BE2] to-[#4169E1] bg-clip-text text-transparent animate-pulse">
-              RUDO
-            </div>
+            <Logo variant="text-only" size="xl" className="animate-pulse" />
           </div>
           
           <div className="bg-green-900/30 border border-green-500/50 rounded-lg p-8 text-center shadow-xl backdrop-blur-sm animate-slideUp">
@@ -307,9 +312,7 @@ NHYxaC00di0xem0wIDJoMXYzaC0xdi0zem0tNS00aDN2MWgtM3YtMXptMCAyaDF2NmgtMXYtNnptLTUt
         </div>
 
         <div className="flex items-center gap-3 mb-12">
-          <div className="text-2xl font-black tracking-tighter bg-gradient-to-r from-[#8A2BE2] to-[#4169E1] bg-clip-text text-transparent">
-            RUDO
-          </div>
+          <Logo variant="text-only" size="lg" />
         </div>
 
         <div className="max-w-md w-full mx-auto flex-1 flex flex-col justify-center">
@@ -354,10 +357,39 @@ NHYxaC00di0xem0wIDJoMXYzaC0xdi0zem0tNS00aDN2MWgtM3YtMXptMCAyaDF2NmgtMXYtNnptLTUt
           {/* Registration Step */}
           {currentStep === 'registration' && (
             <>
-              <h1 className="text-3xl font-bold mb-2">{t('create-account')}</h1>
-              <p className="text-gray-400 mb-8">
-                {selectedRole === 'coach' ? t('join-as-coach') : t('join-as-athlete')}
-              </p>
+              {/* Enhanced header for athletes with coach invitation */}
+              {selectedRole === 'athlete' && coachName ? (
+                <div className="text-center mb-8">
+                  <div className="flex items-center justify-center mb-4">
+                    {coachAvatar ? (
+                      <img 
+                        src={coachAvatar} 
+                        alt={`${coachName}'s profile`}
+                        className="w-16 h-16 rounded-full object-cover border-2 border-[#8A2BE2]/30"
+                        onError={(e) => {
+                          // Fallback to default icon if image fails to load
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          target.nextElementSibling?.classList.remove('hidden');
+                        }}
+                      />
+                    ) : null}
+                    <div className={`p-3 bg-gradient-to-r from-[#8A2BE2]/20 to-[#4169E1]/20 rounded-full border border-[#8A2BE2]/30 ${coachAvatar ? 'hidden' : ''}`}>
+                      <UserCheck className="w-8 h-8 text-[#8A2BE2]" />
+                    </div>
+                  </div>
+                  <h1 className="text-3xl font-bold mb-2">
+                    Join {coachName} on Rudo
+                  </h1>
+                </div>
+              ) : (
+                <div className="mb-8">
+                  <h1 className="text-3xl font-bold mb-2">{t('create-account')}</h1>
+                  <p className="text-gray-400">
+                    {selectedRole === 'coach' ? t('join-as-coach') : t('join-as-athlete')}
+                  </p>
+                </div>
+              )}
 
               <form onSubmit={handleSubmit(onSubmitRegistration)} className="space-y-4">
                 {errorMessage && (
@@ -407,7 +439,13 @@ NHYxaC00di0xem0wIDJoMXYzaC0xdi0zem0tNS00aDN2MWgtM3YtMXptMCAyaDF2NmgtMXYtNnptLTUt
                   disabled={isSubmitting}
                   className="w-full bg-gradient-to-r from-[#8A2BE2] to-[#4169E1] text-white font-bold py-3 px-4 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
                 >
-                  {isSubmitting ? t('creating-account') : t('create-account')}
+                  {isSubmitting 
+                    ? t('creating-account') 
+                    : (selectedRole === 'athlete' && coachName 
+                        ? `Join ${coachName}'s Team` 
+                        : t('create-account')
+                      )
+                  }
                 </button>
 
                 <div className="relative my-6">
@@ -442,7 +480,10 @@ NHYxaC00di0xem0wIDJoMXYzaC0xdi0zem0tNS00aDN2MWgtM3YtMXptMCAyaDF2NmgtMXYtNnptLTUt
                       d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                     />
                   </svg>
-                  {t('continue-with-google')}
+                  {selectedRole === 'athlete' && coachName 
+                    ? `Join ${coachName} with Google`
+                    : t('continue-with-google')
+                  }
                 </button>
               </form>
             </>

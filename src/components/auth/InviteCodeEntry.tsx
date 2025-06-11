@@ -1,11 +1,12 @@
 /**
  * src/components/auth/InviteCodeEntry.tsx
  * 
+ * Updated: Enhanced UI to prominently display coach name with fancy icons and profile picture.
  * Component for athletes to enter a coach invitation code after logging in.
  * Shown to athletes who don't have any coach relationship yet.
  */
 
-import { Loader2 } from 'lucide-react';
+import { Loader2, UserCheck, UserPlus, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useProfile } from '../../contexts/ProfileContext';
@@ -16,6 +17,7 @@ const InviteCodeEntry = () => {
   const { profile } = useProfile();
   const [inviteCode, setInviteCode] = useState('');
   const [coachName, setCoachName] = useState('');
+  const [coachAvatar, setCoachAvatar] = useState<string | null>(null);
   const [isValidating, setIsValidating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCodeValid, setIsCodeValid] = useState(false);
@@ -45,6 +47,7 @@ const InviteCodeEntry = () => {
     if (!code.trim()) {
       setIsCodeValid(false);
       setCoachName('');
+      setCoachAvatar(null);
       return;
     }
 
@@ -52,10 +55,10 @@ const InviteCodeEntry = () => {
     setError(null);
 
     try {
-      // Check if the code exists and fetch the coach name
+      // Check if the code exists and fetch the coach info
       const { data, error: fetchError } = await supabase
         .from('profiles')
-        .select('full_name')
+        .select('full_name, avatar_url')
         .eq('invite_code', code)
         .eq('role', 'coach')
         .maybeSingle();
@@ -67,15 +70,18 @@ const InviteCodeEntry = () => {
       if (data) {
         setIsCodeValid(true);
         setCoachName(data.full_name);
+        setCoachAvatar(data.avatar_url);
       } else {
         setIsCodeValid(false);
         setCoachName('');
+        setCoachAvatar(null);
         setError('Invalid invitation code. Please check and try again.');
       }
     } catch (err) {
       console.error('Error validating invite code:', err);
       setIsCodeValid(false);
       setCoachName('');
+      setCoachAvatar(null);
       setError('An error occurred while validating the code. Please try again.');
     } finally {
       setIsValidating(false);
@@ -90,6 +96,7 @@ const InviteCodeEntry = () => {
     // Clear validation state
     setIsCodeValid(false);
     setCoachName('');
+    setCoachAvatar(null);
     setError(null);
   };
 
@@ -154,12 +161,20 @@ const InviteCodeEntry = () => {
       <div className="flex-grow flex items-center justify-center p-4">
         <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden">
           <div className="p-8">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white text-center mb-6">
-              Enter Coach Invitation Code
+            {/* Enhanced header with icon */}
+            <div className="text-center mb-6">
+              <div className="flex items-center justify-center mb-4">
+                <div className="p-3 bg-blue-500/10 dark:bg-blue-500/20 rounded-full border border-blue-500/30">
+                  <UserPlus className="w-8 h-8 text-blue-500" />
+                </div>
+              </div>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                Join Your Coach
             </h1>
+            </div>
             
             <p className="text-gray-600 dark:text-gray-300 text-center mb-8">
-              To continue, please enter the invitation code provided by your coach.
+              Enter the invitation code provided by your coach to start training together.
             </p>
             
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -193,9 +208,14 @@ const InviteCodeEntry = () => {
                 )}
                 
                 {isCodeValid && coachName && (
-                  <p className="mt-2 text-sm text-green-600 dark:text-green-400">
-                    Valid code! You'll join {coachName}'s team.
-                  </p>
+                  <div className="mt-3 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <UserCheck className="w-5 h-5 text-green-600 dark:text-green-400" />
+                      <span className="text-green-600 dark:text-green-400 font-medium">
+                        Ready to join Coach {coachName}!
+                      </span>
+                    </div>
+                  </div>
                 )}
               </div>
               
@@ -208,7 +228,10 @@ const InviteCodeEntry = () => {
                   {isSubmitting ? (
                     <Loader2 className="h-5 w-5 text-white animate-spin" />
                   ) : (
-                    'Join Coach'
+                    <div className="flex items-center gap-2">
+                      <Users className="w-5 h-5" />
+                      <span>{coachName ? `Join ${coachName}` : 'Join Coach'}</span>
+                    </div>
                   )}
                 </button>
               </div>

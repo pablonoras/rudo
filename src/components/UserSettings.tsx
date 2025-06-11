@@ -6,13 +6,10 @@
  */
 
 import {
-    Bell,
     ChevronDown,
-    HelpCircle,
     Loader2,
     LogOut,
     Settings,
-    Shield,
     User
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
@@ -160,24 +157,6 @@ export function UserSettings() {
               <Settings className="h-4 w-4 mr-3" />
               Settings
             </Link>
-            <button
-              className="w-full px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
-            >
-              <Bell className="h-4 w-4 mr-3" />
-              Notifications
-            </button>
-            <button
-              className="w-full px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
-            >
-              <Shield className="h-4 w-4 mr-3" />
-              Privacy
-            </button>
-            <button
-              className="w-full px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
-            >
-              <HelpCircle className="h-4 w-4 mr-3" />
-              Help Center
-            </button>
           </div>
 
           <div className="py-1 border-t border-gray-200 dark:border-gray-700">

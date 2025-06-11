@@ -1,105 +1,46 @@
 /**
  * src/pages/demo/Dashboard.tsx
  * 
- * This file contains a demonstration dashboard that displays sample data.
- * It's used for showcasing the application's features without requiring real data.
+ * Demo coach dashboard showing fake data for demonstration purposes
+ * This gives potential users a feel for the full coach experience
  */
 
 import { format, parseISO } from 'date-fns';
-import {
-    BarChart2,
-    Calendar,
-    ChevronRight,
-    Clock,
-    TrendingUp,
-    Users,
-} from 'lucide-react';
-import { useState } from 'react';
+import { Calendar, Clock, TrendingUp, Trophy, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useI18n } from '../../lib/i18n/context';
 import { useWorkoutStore } from '../../lib/workout';
 
 export function DemoCoachDashboard() {
   const { programs } = useWorkoutStore();
-  const [timeRange] = useState<'week' | 'month'>('week');
+  const { t } = useI18n();
 
-  // Demo coach name
-  const demoCoachName = 'Alex Rodriguez';
+  // Mock data for demo
+  const totalAthletes = 24;
+  const totalTeams = 3;
+  const recentPrograms = programs.slice(0, 3);
 
   // Get greeting based on time of day
   const getGreeting = () => {
     const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 17) return 'Good afternoon';
-    return 'Good evening';
+    if (hour < 12) return t('good-morning');
+    if (hour < 17) return t('good-afternoon');
+    return t('good-evening');
   };
-
-  // Calculate dashboard metrics
-  const activePrograms = Object.values(programs).filter(
-    (p) => p.status === 'published'
-  );
-  const totalAthletes = activePrograms.reduce(
-    (sum, p) => sum + p.assignedTo.athletes.length,
-    0
-  );
-  const totalTeams = activePrograms.reduce(
-    (sum, p) => sum + p.assignedTo.teams.length,
-    0
-  );
-  const totalWorkouts = activePrograms.reduce(
-    (sum, p) => sum + Object.keys(p.days).length,
-    0
-  );
-
-  // Get recent programs
-  const recentPrograms = Object.values(programs)
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 3);
 
   return (
     <div className="space-y-6">
       <div>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            {getGreeting()}, {demoCoachName} 👋
-          </h1>
-          <div className="mt-2 sm:mt-0">
-            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200">
-              Demo Dashboard
-            </span>
-          </div>
-        </div>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+          {getGreeting()}, Coach! 👋
+        </h1>
         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          Here's what's happening with your athletes and programs today
+          {t('welcome-dashboard')} (Demo Mode)
         </p>
       </div>
 
       {/* Key Metrics */}
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        <Link
-          to="/demo/programs"
-          className="bg-white dark:bg-gray-800 overflow-hidden rounded-lg shadow hover:shadow-md transition-shadow"
-        >
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <Calendar className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
-                    Active Programs
-                  </dt>
-                  <dd className="flex items-baseline">
-                    <div className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
-                      {activePrograms.length}
-                    </div>
-                  </dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </Link>
-
         <Link
           to="/demo/athletes"
           className="bg-white dark:bg-gray-800 overflow-hidden rounded-lg shadow hover:shadow-md transition-shadow"
@@ -112,14 +53,14 @@ export function DemoCoachDashboard() {
               <div className="ml-5 w-0 flex-1">
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
-                    Total Athletes
+                    {t('total-athletes')}
                   </dt>
                   <dd className="flex items-baseline">
                     <div className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
                       {totalAthletes}
                     </div>
                     <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">
-                      across {totalTeams} teams
+                      {t('across-teams').replace('{count}', totalTeams.toString())}
                     </span>
                   </dd>
                 </dl>
@@ -128,42 +69,33 @@ export function DemoCoachDashboard() {
           </div>
         </Link>
 
-        <Link
-          to="/demo/programs"
-          className="bg-white dark:bg-gray-800 overflow-hidden rounded-lg shadow hover:shadow-md transition-shadow"
-        >
+        <div className="bg-white dark:bg-gray-800 overflow-hidden rounded-lg shadow">
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <BarChart2 className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                <Calendar className="h-6 w-6 text-blue-600 dark:text-blue-400" />
               </div>
               <div className="ml-5 w-0 flex-1">
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
-                    Total Workouts
+                    Programs
                   </dt>
                   <dd className="flex items-baseline">
                     <div className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
-                      {totalWorkouts}
+                      {programs.length}
                     </div>
-                    <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">
-                      this {timeRange}
-                    </span>
                   </dd>
                 </dl>
               </div>
             </div>
           </div>
-        </Link>
+        </div>
 
-        <Link
-          to="/demo/athletes"
-          className="bg-white dark:bg-gray-800 overflow-hidden rounded-lg shadow hover:shadow-md transition-shadow"
-        >
+        <div className="bg-white dark:bg-gray-800 overflow-hidden rounded-lg shadow">
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <TrendingUp className="h-6 w-6 text-red-600 dark:text-red-400" />
+                <TrendingUp className="h-6 w-6 text-purple-600 dark:text-purple-400" />
               </div>
               <div className="ml-5 w-0 flex-1">
                 <dl>
@@ -172,40 +104,52 @@ export function DemoCoachDashboard() {
                   </dt>
                   <dd className="flex items-baseline">
                     <div className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
-                      92%
+                      87%
                     </div>
-                    <span className="ml-2 text-sm text-emerald-600 dark:text-emerald-400">
-                      +2.5%
-                    </span>
                   </dd>
                 </dl>
               </div>
             </div>
           </div>
-        </Link>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 overflow-hidden rounded-lg shadow">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <Trophy className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
+                    PRs This Week
+                  </dt>
+                  <dd className="flex items-baseline">
+                    <div className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
+                      15
+                    </div>
+                  </dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Recent Programs */}
       <div className="bg-white dark:bg-gray-800 shadow rounded-lg">
+        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">
+            Recent Programs
+          </h2>
+        </div>
         <div className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">
-              Recent Programs
-            </h2>
-            <Link
-              to="/demo/programs"
-              className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 flex items-center"
-            >
-              View all
-              <ChevronRight className="h-4 w-4 ml-1" />
-            </Link>
-          </div>
           <div className="space-y-4">
             {recentPrograms.map((program) => (
               <Link
                 key={program.id}
                 to={`/demo/program/${program.id}`}
-                className="block p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                className="block p-4 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
               >
                 <div className="flex items-center justify-between">
                   <div>
@@ -220,14 +164,14 @@ export function DemoCoachDashboard() {
                   <div className="flex flex-col sm:flex-row items-end sm:items-center sm:space-x-4 text-sm text-gray-500 dark:text-gray-400">
                     <div className="flex items-center mb-1 sm:mb-0">
                       <Clock className="h-4 w-4 mr-1" />
-                      <span>{program.weekCount} weeks</span>
+                      <span>{program.weekCount} {t('weeks')}</span>
                     </div>
                     <div className="flex items-center">
                       <Users className="h-4 w-4 mr-1" />
                       <span>
                         {program.assignedTo.athletes.length +
                           program.assignedTo.teams.length}{' '}
-                        assigned
+                        {t('assigned')}
                       </span>
                     </div>
                   </div>

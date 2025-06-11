@@ -1,70 +1,89 @@
+/*
+ * Program Calendar Component - Enhanced workout display with proper formatting
+ * 
+ * Changes made:
+ * 1. Fixed workout description display to show full text with line breaks preserved using whitespace-pre-wrap
+ * 2. Enhanced workout type display as prominent title with larger, semibold font
+ * 3. Updated fetchWorkouts to include workout_type data from database
+ * 4. Modified WorkoutBlock interface to support workout_type and isExistingAssignment properties
+ * 5. Improved visual hierarchy with better font sizes and weights
+ * 6. Removed line-clamp-2 truncation to show complete workout descriptions
+ */
+
 import {
-    addDays,
-    format,
-    isSameDay,
-    isWithinInterval,
-    parseISO,
-    startOfWeek,
+  addDays,
+  format,
+  isSameDay,
+  isWithinInterval,
+  parseISO,
+  startOfWeek,
 } from 'date-fns';
 import {
-    AlertTriangle,
-    ArrowLeft,
-    CalendarDays,
-    Calendar as CalendarIcon,
-    ChevronLeft,
-    ChevronRight,
-    LayoutGrid,
-    List,
-    Plus,
-    Save
+  AlertTriangle,
+  ArrowLeft,
+  CalendarDays,
+  Calendar as CalendarIcon,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  Edit2,
+  LayoutGrid,
+  List,
+  Loader2,
+  Plus,
+  Save,
+  Search,
+  Trash2,
+  X,
+  XCircle
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { WeekNavigation } from '../../components/coach/WeekNavigation';
-import { SessionBlock } from '../../components/session/SessionBlock';
-import { SessionForm } from '../../components/session/SessionForm';
 import { useModal } from '../../contexts/ModalContext';
+import { useI18n } from '../../lib/i18n/context';
 import { supabase } from '../../lib/supabase';
-import { deleteWorkout, useWorkoutStore } from '../../lib/workout';
+import { useWorkoutStore } from '../../lib/workout';
 
 // View Mode type
 type ViewMode = 'week' | 'day';
 
-interface DeleteSessionInfo {
+interface DeleteWorkoutInfo {
   id: string;
   date: string;
-  name: string;
 }
 
 interface DeleteConfirmModalProps {
-  sessionName: string;
+  workoutName: string;
   onConfirm: () => void;
   onCancel: () => void;
 }
 
-function DeleteConfirmModal({ sessionName, onConfirm, onCancel }: DeleteConfirmModalProps) {
+function DeleteConfirmModal({ workoutName, onConfirm, onCancel }: DeleteConfirmModalProps) {
+  const { t } = useI18n();
+  
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md p-6">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-          Delete Session
+          {t('delete-workout')}
         </h2>
         <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-          Are you sure you want to delete <span className="font-medium text-gray-900 dark:text-gray-100">{sessionName}</span>? This action cannot be undone.
+          {t('are-you-sure-delete')}
         </p>
         <div className="flex justify-end space-x-3">
           <button
             onClick={onCancel}
             className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md border border-gray-300 dark:border-gray-600"
           >
-            Cancel
+            {t('cancel')}
           </button>
           <button
             onClick={onConfirm}
             className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md"
           >
-            Delete
+            {t('delete')}
           </button>
         </div>
       </div>
@@ -79,36 +98,38 @@ interface SaveConfirmModalProps {
 }
 
 function SaveConfirmModal({ onSave, onDiscard, onCancel }: SaveConfirmModalProps) {
+  const { t } = useI18n();
+  
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md p-6">
         <div className="flex items-center mb-4">
           <AlertTriangle className="h-6 w-6 text-yellow-500 mr-3" />
           <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-            Unsaved Changes
+            {t('unsaved-changes')}
           </h2>
         </div>
         <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-          You have unsaved changes. Do you want to save your changes before leaving?
+          {t('unsaved-changes-desc')}
         </p>
         <div className="flex justify-end space-x-3">
           <button
             onClick={onDiscard}
             className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md border border-gray-300 dark:border-gray-600"
           >
-            Don't Save
+            {t('dont-save')}
           </button>
           <button
             onClick={onCancel}
             className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md border border-gray-300 dark:border-gray-600"
           >
-            Cancel
+            {t('cancel')}
           </button>
           <button
             onClick={onSave}
             className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md"
           >
-            Save Changes
+            {t('save-changes')}
           </button>
         </div>
       </div>
@@ -123,28 +144,187 @@ interface ExpandedWorkout {
   workout: any;
 }
 
+interface WorkoutSearchModalProps {
+  onSelect: (workout: any) => void;
+  onClose: () => void;
+  dateStr: string;
+}
+
+function WorkoutSearchModal({ onSelect, onClose, dateStr }: WorkoutSearchModalProps) {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [workouts, setWorkouts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(null);
+  const { t } = useI18n();
+
+  useEffect(() => {
+    const fetchWorkouts = async () => {
+      setLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('workouts')
+          .select(`
+            *,
+            workout_type:type_id(id, code)
+          `)
+          .order('created_at', { ascending: false });
+        
+        if (error) {
+          console.error('Error fetching workouts:', error);
+          return;
+        }
+        
+        setWorkouts(data || []);
+      } catch (error) {
+        console.error('Error fetching workouts:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchWorkouts();
+  }, []);
+
+  // Filter workouts based on search query
+  const filteredWorkouts = searchQuery
+    ? workouts.filter(workout => 
+        (workout.name && workout.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (workout.description && workout.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (workout.workout_type?.code && workout.workout_type.code.toLowerCase().includes(searchQuery.toLowerCase()))
+      )
+    : workouts;
+
+  const handleSelectWorkout = () => {
+    if (!selectedWorkoutId) return;
+    
+    const selectedWorkout = workouts.find(w => w.workout_id === selectedWorkoutId);
+    if (selectedWorkout) {
+      onSelect({
+        ...selectedWorkout,
+        id: selectedWorkout.workout_id,
+      });
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+            {t('select-workout-for')} {format(new Date(dateStr), 'MMMM d, yyyy')}
+          </h2>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder={t('search-workouts')}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4">
+          {loading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+            </div>
+          ) : filteredWorkouts.length > 0 ? (
+            <div className="grid grid-cols-1 gap-3">
+              {filteredWorkouts.map((workout) => (
+                <div 
+                  key={workout.workout_id}
+                  className={`p-3 border rounded-md cursor-pointer ${
+                    selectedWorkoutId === workout.workout_id
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                      : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                  }`}
+                  onClick={() => setSelectedWorkoutId(workout.workout_id)}
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-medium text-gray-900 dark:text-gray-100 font-inter">
+                        {workout.name || ''}
+                      </h4>
+                      <div className="flex items-center gap-2 mt-1">
+                        {workout.workout_type && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-normal text-black dark:text-black bg-blue-100 dark:bg-blue-100 font-poppins">
+                            {workout.workout_type.code}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div 
+                      className="h-6 w-6 rounded-full"
+                      style={{ backgroundColor: workout.color || '#BAE6FD' }}
+                    />
+                  </div>
+                  <p className="mt-2 text-sm text-black dark:text-black line-clamp-2 font-roboto">
+                    {workout.description}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <p className="text-gray-500 dark:text-gray-400">
+                {searchQuery ? t('no-matching-workouts') : t('no-workouts-available')}
+              </p>
+            </div>
+          )}
+        </div>
+
+        <div className="bg-gray-50 dark:bg-gray-700 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+          <button
+            type="button"
+            onClick={handleSelectWorkout}
+            disabled={!selectedWorkoutId}
+            className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {t('select-workout')}
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-800 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+          >
+            {t('cancel')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function ProgramCalendar() {
   const navigate = useNavigate();
   const { programId } = useParams<{ programId: string }>();
   const {
     programs,
-    addSession,
-    updateSession,
-    deleteSession,
     updateProgram,
   } = useWorkoutStore();
-  const { showSessionForm, showWorkoutForm } = useModal();
+  const { showWorkoutForm } = useModal();
+  const { t } = useI18n();
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [addSessionDate, setAddSessionDate] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [deleteSessionInfo, setDeleteSessionInfo] = useState<DeleteSessionInfo | null>(null);
-  const [sessions, setSessions] = useState<any[]>([]);
+  const [deleteWorkoutInfo, setDeleteWorkoutInfo] = useState<DeleteWorkoutInfo | null>(null);
+  const [workouts, setWorkouts] = useState<any[]>([]);
   // Track workout IDs to delete
   const [workoutsToDelete, setWorkoutsToDelete] = useState<string[]>([]);
   // Add view mode state (week or day)
   const [viewMode, setViewMode] = useState<ViewMode>('week');
   // Add state for expanded workout preview
-  const [expandedWorkout, setExpandedWorkout] = useState<ExpandedWorkout | null>(null);
+  const [expandedWorkout, setExpandedWorkout] = useState<any | null>(null);
   // Add state for tracking touch/swipe gestures
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
@@ -154,109 +334,139 @@ export function ProgramCalendar() {
   const [showSaveConfirm, setShowSaveConfirm] = useState<boolean>(false);
   // Add state for storing navigation destination
   const [navigationDestination, setNavigationDestination] = useState<string | null>(null);
+  // Add toast notification state
+  const [toast, setToast] = useState<{ show: boolean; message: string; type: 'success' | 'error' } | null>(null);
+  // Add new state variables for workout search
+  const [showWorkoutSearch, setShowWorkoutSearch] = useState(false);
+  const [currentDateStr, setCurrentDateStr] = useState<string>('');
 
   const program = programId ? programs[programId] : null;
 
+  // Helper function to get translated day names
+  const getTranslatedDayName = (date: Date) => {
+    const dayKey = format(date, 'EEEE').toLowerCase();
+    // Map day names to translation keys
+    const dayTranslations: Record<string, string> = {
+      'monday': t('monday'),
+      'tuesday': t('tuesday'),
+      'wednesday': t('wednesday'),
+      'thursday': t('thursday'),
+      'friday': t('friday'),
+      'saturday': t('saturday'),
+      'sunday': t('sunday')
+    };
+    return dayTranslations[dayKey] || dayKey;
+  };
+
   useEffect(() => {
     if (programId) {
-      fetchSessions();
+      fetchWorkouts();
     }
   }, [programId]);
 
-  const fetchSessions = async () => {
+  // Auto-dismiss toast after 3 seconds
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => {
+        setToast(null);
+      }, 3000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
+
+  const fetchWorkouts = async () => {
     if (!programId) return;
     
     try {
-      console.log(`Fetching sessions for program: ${programId}`);
+      console.log(`Fetching workouts for program: ${programId}`);
       
-      const { data, error } = await supabase
-        .from('sessions')
-        .select('*')
+      // First, get all workout assignments for this program
+      const { data: programWorkouts, error: programWorkoutsError } = await supabase
+        .from('program_workouts')
+        .select('workout_id, workout_date')
         .eq('program_id', programId);
       
-      if (error) {
-        console.error('Error fetching sessions:', error);
+      if (programWorkoutsError) {
+        console.error('Error fetching program_workouts:', programWorkoutsError);
         return;
       }
       
-      if (data) {
-        console.log(`Found ${data.length} sessions`);
-        setSessions(data);
-        
-        // Fetch workouts for each session
-        const sessionIds = data.map(session => session.session_id);
-        
-        if (sessionIds.length > 0) {
-          const { data: workoutsData, error: workoutsError } = await supabase
-            .from('workouts')
-            .select('*')
-            .in('session_id', sessionIds);
-            
-          if (workoutsError) {
-            console.error('Error fetching workouts:', workoutsError);
-          } else {
-            console.log(`Found ${workoutsData?.length || 0} workouts`);
-            
-            // Group workouts by session_id
-            const workoutsBySession: Record<string, any[]> = {};
-            workoutsData?.forEach(workout => {
-              if (!workoutsBySession[workout.session_id]) {
-                workoutsBySession[workout.session_id] = [];
-              }
-              workoutsBySession[workout.session_id].push({
-                id: workout.workout_id,
-                description: workout.description,
-                color: workout.color,
-                notes: workout.notes,
-                createdAt: workout.created_at,
-                updatedAt: workout.updated_at
-              });
-            });
-            
-            // Recreate program days from session data with workouts
-            recreateProgramDaysFromSessions(data, workoutsBySession);
-            return;
-          }
-        }
-        
-        // If no workouts or error fetching workouts, just recreate with sessions
-        recreateProgramDaysFromSessions(data, {});
+      if (!programWorkouts || programWorkouts.length === 0) {
+        console.log('No workouts found for this program');
+        // Clear any existing days
+        updateProgram(programId, { days: {} });
+        return;
       }
+      
+      console.log(`Found ${programWorkouts.length} workout assignments`);
+      
+      // Get all workout IDs from the assignments
+      const workoutIds = programWorkouts.map(pw => pw.workout_id);
+      
+      // Fetch the actual workout data
+      const { data: workoutsData, error: workoutsError } = await supabase
+        .from('workouts')
+        .select(`
+          *,
+          workout_type:type_id(id, code)
+        `)
+        .in('workout_id', workoutIds);
+        
+      if (workoutsError) {
+        console.error('Error fetching workouts:', workoutsError);
+        return;
+      }
+      
+      console.log(`Found ${workoutsData?.length || 0} workouts`);
+      
+      // Group workouts by date
+      const workoutsByDate: Record<string, any[]> = {};
+      
+      // For each program_workout, find the corresponding workout data
+      programWorkouts.forEach(pw => {
+        const workout = workoutsData?.find(w => w.workout_id === pw.workout_id);
+        if (workout) {
+          const date = pw.workout_date;
+          if (!workoutsByDate[date]) {
+            workoutsByDate[date] = [];
+          }
+          
+          workoutsByDate[date].push({
+            id: workout.workout_id,
+            description: workout.description,
+            color: workout.color,
+            notes: workout.notes,
+            name: workout.name,
+            workout_type: workout.workout_type,
+            type_id: workout.type_id,
+            coach_id: workout.coach_id,
+            createdAt: workout.created_at,
+            updatedAt: workout.updated_at
+          });
+        }
+      });
+      
+      // Recreate program days from workout data
+      recreateProgramDaysFromWorkouts(workoutsByDate);
     } catch (error) {
-      console.error('Error in fetchSessions:', error);
+      console.error('Error in fetchWorkouts:', error);
     }
   };
 
-  // Recreate the program days from the sessions fetched from Supabase
-  const recreateProgramDaysFromSessions = (supabaseSessions: any[], workoutsBySession: Record<string, any[]> = {}) => {
+  // Recreate the program days from the workouts fetched from Supabase
+  const recreateProgramDaysFromWorkouts = (workoutsByDate: Record<string, any[]>) => {
     if (!programId || !programs[programId]) return;
     
     const newDays: Record<string, any> = {};
     
-    // Group sessions by date
-    supabaseSessions.forEach(session => {
-      const date = session.session_date;
-      
-      if (!newDays[date]) {
-        newDays[date] = {
-          id: uuidv4(),
-          date,
-          sessions: []
-        };
-      }
-      
-      // Get workouts for this session
-      const sessionWorkouts = workoutsBySession[session.session_id] || [];
-      
-      // Create session object compatible with our state
-      newDays[date].sessions.push({
-        id: session.session_id,
-        name: session.name,
-        description: session.description,
-        workouts: sessionWorkouts,
-        createdAt: session.created_at,
-        updatedAt: session.updated_at
-      });
+    // Create a day for each date with workouts
+    Object.entries(workoutsByDate).forEach(([date, workouts]) => {
+      newDays[date] = {
+        id: uuidv4(),
+        date,
+        workouts: workouts
+      };
     });
     
     // Only update if we have days to add
@@ -269,231 +479,305 @@ export function ProgramCalendar() {
   };
 
   const handleSave = async () => {
+    if (!programId || !program) return;
+    
     setIsSaving(true);
     
     try {
-      const programData = programs[programId];
-      if (programData) {
-        // Collect all session data from all days
-        const allSessions: Array<{
-          program_id: string;
-          name: string;
-          description: string | null;
-          session_id: string;
-          session_date: string;
-        }> = [];
-
-        // Track sessions that need to be updated
-        const sessionUpdates: Array<{
-          program_id: string;
-          name: string;
-          description: string | null;
-          session_id: string;
-          session_date: string;
-        }> = [];
-
-        // Collect workouts that need to be saved
-        const workoutsToSave: Array<{
-          session_id: string;
-          description: string;
-          color: string;
-          notes: string | null;
-        }> = [];
-
-        // Collect workouts that need to be updated
-        const workoutsToUpdate: Array<{
-          workout_id: string;
-          description: string;
-          color: string;
-          notes: string | null;
-        }> = [];
-
-        // Iterate through program days and collect sessions
-        Object.entries(programData.days).forEach(([dateStr, day]) => {
-          day.sessions.forEach(session => {
-            const existingSession = sessions.find(s => s.session_id === session.id);
-            const sessionData = {
-              program_id: programId,
-              name: session.name,
-              description: session.description || null,
-              session_id: session.id,
-              session_date: dateStr,
-            };
-            
-            if (!existingSession) {
-              // New session to insert
-              allSessions.push({
-                ...sessionData
-              });
-            } else if (
-              existingSession.name !== session.name || 
-              existingSession.description !== (session.description || null) ||
-              existingSession.session_date !== dateStr
-            ) {
-              // Session exists but has been updated
-              sessionUpdates.push(sessionData);
-            }
-
-            // Collect new workouts for this session
-            session.workouts.forEach(workout => {
-              console.log('Processing workout:', workout.id, workout.description, workout.isNew, workout.wasEdited);
-              
-              if (workout.isNew) {
-                workoutsToSave.push({
-                  session_id: session.id,
-                  description: workout.description,
-                  color: workout.color,
-                  notes: workout.notes || null
-                });
-              } else if (workout.wasEdited) {
-                console.log('Marking workout for update:', workout.id, workout.description);
-                workoutsToUpdate.push({
-                  workout_id: workout.id,
-                  description: workout.description,
-                  color: workout.color,
-                  notes: workout.notes || null
-                });
-              }
-            });
-          });
-        });
-
-        console.log(`Saving ${allSessions.length} new sessions and updating ${sessionUpdates.length} existing sessions...`);
+      // Get the default 'custom' workout type for new workouts
+      const { data: customType, error: typeError } = await supabase
+        .from('workout_types')
+        .select('id')
+        .eq('code', 'custom')
+        .single();
         
-        // Handle inserts for new sessions
-        if (allSessions.length > 0) {
-          const { data, error } = await supabase
-            .from('sessions')
-            .insert(allSessions)
-            .select();
-          
-          if (error) {
-            console.error('Error saving sessions to Supabase:', error);
-            throw new Error('Failed to save sessions');
-          }
-          
-          console.log('Successfully saved new sessions:', data);
-        }
-
-        // Handle updates for existing sessions
-        if (sessionUpdates.length > 0) {
-          for (const update of sessionUpdates) {
-            const { error } = await supabase
-              .from('sessions')
-              .update({ 
-                name: update.name, 
-                description: update.description,
-                session_date: update.session_date
-              })
-              .eq('session_id', update.session_id);
-            
-            if (error) {
-              console.error(`Error updating session ${update.session_id}:`, error);
-            }
-          }
-          console.log('Successfully updated existing sessions');
-        }
-
-        // Save new workouts to the database
-        if (workoutsToSave.length > 0) {
-          console.log(`Saving ${workoutsToSave.length} new workouts to database...`);
-          const { data, error } = await supabase
-            .from('workouts')
-            .insert(workoutsToSave)
-            .select();
-
-          if (error) {
-            console.error('Error saving workouts to Supabase:', error);
-            throw new Error('Failed to save workouts');
-          }
-          
-          console.log('Successfully saved workouts:', data);
-        }
-        
-        // Update existing workouts in the database
-        if (workoutsToUpdate.length > 0) {
-          console.log(`Updating ${workoutsToUpdate.length} existing workouts in database...`);
-          console.log('Workouts to update:', workoutsToUpdate);
-          
-          for (const workout of workoutsToUpdate) {
-            console.log(`Updating workout ${workout.workout_id} with:`, {
-              description: workout.description,
-              color: workout.color,
-              notes: workout.notes
-            });
-            
-            const { error } = await supabase
-              .from('workouts')
-              .update({ 
-                description: workout.description, 
-                color: workout.color,
-                notes: workout.notes
-              })
-              .eq('workout_id', workout.workout_id);
-            
-            if (error) {
-              console.error(`Error updating workout ${workout.workout_id}:`, error);
-            } else {
-              console.log(`Successfully updated workout ${workout.workout_id}`);
-            }
-          }
-          console.log('Successfully updated existing workouts');
-        }
-        
-        // Delete workouts from the database if any were marked for deletion
-        if (workoutsToDelete.length > 0) {
-          console.log(`Deleting ${workoutsToDelete.length} workouts from database...`);
-          for (const workoutId of workoutsToDelete) {
-            try {
-              await deleteWorkout(workoutId);
-            } catch (error) {
-              console.error(`Error deleting workout ${workoutId}:`, error);
-            }
-          }
-          // Clear the list after processing deletions
-          setWorkoutsToDelete([]);
-        }
-        
-        // Refresh the sessions list
-        await fetchSessions();
+      if (typeError) {
+        console.error('Error fetching custom workout type:', typeError);
+        throw typeError;
       }
       
-      alert('All sessions and workouts saved successfully!');
-      // Clear unsaved changes flag after successful save
+      if (!customType) {
+        throw new Error("Could not find the 'custom' workout type");
+      }
+      
+      const defaultTypeId = customType.id;
+      
+      console.log('Starting save operation');
+      
+      // Collect all workouts that need to be saved (new) or updated (existing)
+      const workoutsToSave = [];
+      const workoutsToUpdate = [];
+      const newWorkoutAssignments = []; // Only for new workouts
+      const existingWorkoutAssignments = []; // For existing workouts assigned to new dates
+      
+      // Iterate through all days in the program
+      for (const dateStr in program.days) {
+        const day = program.days[dateStr];
+        
+        // Iterate through all workouts in each day
+        if (day && day.workouts) {
+          for (const workout of day.workouts) {
+            if (workout.isNew) {
+              // This is a new workout to save
+              workoutsToSave.push({
+                workout_id: workout.id,
+                description: workout.description,
+                color: workout.color,
+                notes: workout.notes || null,
+                name: workout.name || null,
+                type_id: workout.type_id || defaultTypeId, // Use workout's type_id or default to custom
+                coach_id: workout.coach_id,
+                created_at: workout.createdAt,
+                updated_at: workout.updatedAt
+              });
+              
+              // Track this for program_workouts assignment (only for new workouts)
+              newWorkoutAssignments.push({
+                program_id: programId,
+                workout_id: workout.id,
+                workout_date: dateStr
+              });
+            } else if (workout.wasEdited) {
+              // This is an existing workout that was edited
+              const updateData = {
+                workout_id: workout.id,
+                description: workout.description,
+                color: workout.color,
+                notes: workout.notes || null,
+                name: workout.name || null
+              };
+              
+              // Only include type_id if it exists on the workout
+              if (workout.type_id) {
+                (updateData as any).type_id = workout.type_id;
+              } else {
+                // Use default type_id if none exists
+                (updateData as any).type_id = defaultTypeId;
+              }
+              
+              workoutsToUpdate.push(updateData);
+            } else if (workout.isExistingAssignment) {
+              // This is an existing workout being assigned to a new date
+              existingWorkoutAssignments.push({
+                program_id: programId,
+                workout_id: workout.id,
+                workout_date: dateStr
+              });
+            }
+            // Note: We don't need to handle existing non-edited workouts here
+            // as their assignments should already exist in the database
+          }
+        }
+      }
+      
+      console.log(`Found ${workoutsToSave.length} workouts to save, ${workoutsToUpdate.length} to update, and ${existingWorkoutAssignments.length} existing workout assignments`);
+      
+      // First, save new workouts if any
+      if (workoutsToSave.length > 0) {
+        const { error: insertError } = await supabase
+          .from('workouts')
+          .insert(workoutsToSave);
+          
+        if (insertError) {
+          console.error('Error inserting workouts:', insertError);
+          throw insertError;
+        }
+        
+        console.log('Successfully inserted workouts');
+        
+        // Now, create workout assignments in program_workouts table for new workouts only
+        if (newWorkoutAssignments.length > 0) {
+          const { error: assignmentError } = await supabase
+            .from('program_workouts')
+            .insert(newWorkoutAssignments);
+            
+          if (assignmentError) {
+            console.error('Error creating workout assignments:', assignmentError);
+            throw assignmentError;
+          }
+          
+          console.log('Successfully created workout assignments');
+        }
+      }
+
+      // Handle existing workout assignments (existing workouts assigned to new dates)
+      if (existingWorkoutAssignments.length > 0) {
+        const { error: existingAssignmentError } = await supabase
+          .from('program_workouts')
+          .insert(existingWorkoutAssignments);
+          
+        if (existingAssignmentError) {
+          console.error('Error creating existing workout assignments:', existingAssignmentError);
+          throw existingAssignmentError;
+        }
+        
+        console.log('Successfully created existing workout assignments');
+      }
+      
+      // Then, update existing workouts if any
+      if (workoutsToUpdate.length > 0) {
+        for (const workout of workoutsToUpdate) {
+          const { error: updateError } = await supabase
+            .from('workouts')
+            .update({
+              description: workout.description,
+              color: workout.color,
+              notes: workout.notes,
+              name: workout.name,
+              type_id: (workout as any).type_id,
+              updated_at: new Date().toISOString()
+            })
+            .eq('workout_id', workout.workout_id);
+            
+          if (updateError) {
+            console.error(`Error updating workout ${workout.workout_id}:`, updateError);
+            // Continue with other updates even if one fails
+          }
+        }
+        
+        console.log('Finished updating workouts');
+      }
+      
+      // Delete workouts that were marked for deletion
+      if (workoutsToDelete.length > 0) {
+        // First delete from program_workouts
+        const { error: deleteProgramWorkoutsError } = await supabase
+          .from('program_workouts')
+          .delete()
+          .in('workout_id', workoutsToDelete);
+          
+        if (deleteProgramWorkoutsError) {
+          console.error('Error deleting workout assignments:', deleteProgramWorkoutsError);
+          // Continue with deletion of workouts even if assignments deletion fails
+        }
+        
+        // Then delete the workouts themselves
+        const { error: deleteError } = await supabase
+          .from('workouts')
+          .delete()
+          .in('workout_id', workoutsToDelete);
+          
+        if (deleteError) {
+          console.error('Error deleting workouts:', deleteError);
+          throw deleteError;
+        }
+        
+        console.log(`Successfully deleted ${workoutsToDelete.length} workouts`);
+        
+        // Clear the list of workouts to delete
+        setWorkoutsToDelete([]);
+      }
+      
+      // Update all workouts to remove isNew, wasEdited, and isExistingAssignment flags
+      const updatedDays: any = {};
+      for (const dateStr in program.days) {
+        const day = program.days[dateStr];
+        updatedDays[dateStr] = {
+          ...day,
+          workouts: day.workouts.map((w: any) => ({
+            ...w,
+            isNew: false,
+            wasEdited: false,
+            isExistingAssignment: false
+          }))
+        };
+      }
+      
+      updateProgram(programId, { days: updatedDays });
+      
       setHasUnsavedChanges(false);
+      setToast({
+        show: true,
+        message: t('changes-saved-successfully'),
+        type: 'success'
+      });
+      
+      console.log('Save operation completed successfully');
+      
+      // If we have a navigation destination, navigate there
+      if (showSaveConfirm && navigationDestination) {
+        navigate(navigationDestination);
+        setShowSaveConfirm(false);
+        setNavigationDestination(null);
+      }
     } catch (error) {
-      console.error('Error saving program:', error);
-      alert('There was an error saving the program. Please try again.');
+      console.error('Error saving changes:', error);
+      setToast({
+        show: true,
+        message: t('error-saving-changes'),
+        type: 'error'
+      });
     } finally {
-    setIsSaving(false);
+      setIsSaving(false);
     }
   };
 
-  const handleDeleteSession = async () => {
-    if (!deleteSessionInfo || !programId) return;
+  const handleDeleteWorkout = async () => {
+    if (!deleteWorkoutInfo || !programId) return;
     
     try {
-      const { error } = await supabase
-        .from('sessions')
-        .delete()
-        .eq('session_id', deleteSessionInfo.id);
+      // Add to workoutsToDelete array to delete on save
+      setWorkoutsToDelete(prev => [...prev, deleteWorkoutInfo.id]);
+      
+      // Update local state
+      const day = programs[programId].days[deleteWorkoutInfo.date];
+      if (day) {
+        const updatedWorkouts = day.workouts.filter(w => w.id !== deleteWorkoutInfo.id);
         
-      if (error) {
-        console.error('Error deleting session from Supabase:', error);
-      } else {
-        console.log('Successfully deleted session from Supabase');
+        // Update the day with filtered workouts
+        updateProgram(programId, {
+          days: {
+            ...programs[programId].days,
+            [deleteWorkoutInfo.date]: {
+              ...day,
+              workouts: updatedWorkouts
+            }
+          }
+        });
       }
       
-      deleteSession(programId, deleteSessionInfo.date, deleteSessionInfo.id);
-      
-      await fetchSessions();
+      // Set unsaved changes flag
+      setHasUnsavedChanges(true);
       
     } catch (err) {
-      console.error('Error in handleDeleteSession:', err);
-      alert('There was an error deleting the session. Please try again.');
+      console.error('Error in handleDeleteWorkout:', err);
+      alert('There was an error deleting the workout. Please try again.');
     } finally {
-      setDeleteSessionInfo(null);
+      setDeleteWorkoutInfo(null);
     }
+  };
+
+  // Helper function to handle workout deletion
+  const confirmDeleteWorkout = (id: string, date: string) => {
+    setDeleteWorkoutInfo({ id, date });
+    // Set unsaved changes flag
+    setHasUnsavedChanges(true);
+  };
+
+  // Helper function to get color classes for workouts
+  const getWorkoutColorClass = (color?: string) => {
+    if (!color) return 'border-gray-400 bg-gray-50 dark:bg-gray-900/20';
+    
+    // Check if the color is a hex value, rgb or hsl
+    if (color.startsWith('#') || color.startsWith('rgb') || color.startsWith('hsl')) {
+      // For hex/rgb/hsl values, we'll use inline styles instead of classes
+      return 'border-gray-400 text-[var(--workout-text-color,#1F2937)]'; // Use CSS variables for text color
+    }
+    
+    // For named colors, map to our new palette
+    const colors: Record<string, string> = {
+      red: 'border-red-300 bg-[#FECACA] text-[var(--workout-text-color,#1F2937)]',
+      blue: 'border-blue-300 bg-[#BAE6FD] text-[var(--workout-text-color,#1F2937)]',
+      green: 'border-green-300 bg-[#A7F3D0] text-[var(--workout-text-color,#1F2937)]',
+      yellow: 'border-yellow-300 bg-[#FDE68A] text-[var(--workout-text-color,#1F2937)]',
+      purple: 'border-purple-300 bg-[#C4B5FD] text-[var(--workout-text-color,#1F2937)]',
+      orange: 'border-orange-300 bg-[#FCD34D] text-[var(--workout-text-color,#1F2937)]',
+      pink: 'border-pink-300 bg-[#FBCFE8] text-[var(--workout-text-color,#1F2937)]',
+      cyan: 'border-cyan-300 bg-[#A5F3FC] text-[var(--workout-text-color,#1F2937)]',
+      gray: 'border-gray-300 bg-[#E5E7EB] text-[var(--workout-text-color,#1F2937)]',
+    };
+
+    return colors[color.toLowerCase()] || 'border-gray-400 bg-[#E5E7EB] text-[var(--workout-text-color,#1F2937)]';
   };
 
   const weekDays = Array.from({ length: 7 }, (_, i) => {
@@ -525,71 +809,183 @@ export function ProgramCalendar() {
     });
   };
 
-  // Helper function to handle session deletion
-  const confirmDeleteSession = (id: string, date: string, name: string) => {
-    setDeleteSessionInfo({ id, date, name });
-    // Set unsaved changes flag
-    setHasUnsavedChanges(true);
+  // Modify handleAddWorkout to show options for new workout or search existing
+  const handleAddWorkout = (dateStr: string) => {
+    setCurrentDateStr(dateStr);
+    setShowWorkoutSearch(true);
   };
 
-  // Handle deleting a workout
-  const handleDeleteWorkout = (sessionId: string, dateStr: string, workoutId: string) => {
+  // Add a new function to handle adding a selected workout from search
+  const handleAddExistingWorkout = async (selectedWorkout: any) => {
+    if (!programId || !program) return;
+    
     try {
-      const session = programs[programId].days[dateStr].sessions.find(s => s.id === sessionId);
-      if (!session) return;
-
-      // Find the workout to remove
-      const workout = session.workouts.find(w => w.id === workoutId);
-      if (!workout) return;
+      // Create workout object from the selected workout
+      // This represents a reference to an existing workout in the database
+      const newWorkout = {
+        id: selectedWorkout.workout_id, // Use the original workout ID
+        name: selectedWorkout.name || '',
+        description: selectedWorkout.description,
+        color: selectedWorkout.color,
+        notes: selectedWorkout.notes || '',
+        type_id: selectedWorkout.type_id,
+        coach_id: selectedWorkout.coach_id, // Keep original coach_id
+        createdAt: selectedWorkout.created_at,
+        updatedAt: selectedWorkout.updated_at,
+        isNew: false, // This is an existing workout, just being assigned to a new date
+        isExistingAssignment: true // Flag to indicate this is a new assignment of existing workout
+      };
       
-      // If this is not a new workout, mark it for deletion from the database
-      if (!workout.isNew) {
-        setWorkoutsToDelete(prev => [...prev, workoutId]);
+      // Update local state
+      if (program.days[currentDateStr]) {
+        // Add to existing day
+        updateProgram(programId, {
+          days: {
+            ...program.days,
+            [currentDateStr]: {
+              ...program.days[currentDateStr],
+              workouts: [...program.days[currentDateStr].workouts, newWorkout]
+            }
+          }
+        });
+      } else {
+        // Create new day
+        updateProgram(programId, {
+          days: {
+            ...program.days,
+            [currentDateStr]: {
+              id: uuidv4(), // Use proper UUID for day ID
+              date: currentDateStr,
+              workouts: [newWorkout]
+            }
+          }
+        });
       }
-      
-      // Remove the workout from local state
-      updateSession(programId, dateStr, sessionId, {
-        workouts: session.workouts.filter(w => w.id !== workoutId)
-      });
       
       // Set unsaved changes flag
       setHasUnsavedChanges(true);
       
-      console.log('Workout removed from local state!');
+      // Close the search modal
+      setShowWorkoutSearch(false);
     } catch (error) {
-      console.error('Error removing workout:', error);
-      alert('There was an error removing the workout. Please try again.');
+      console.error('Error adding existing workout:', error);
+      setToast({
+        show: true,
+        message: t('failed-assign-workout'),
+        type: 'error'
+      });
     }
   };
 
-  // Handle adding a workout (only to local state)
-  const handleAddWorkout = (sessionId: string, dateStr: string, workout: any) => {
+  // Add function to handle creating a new workout
+  const handleCreateNewWorkout = async () => {
+    if (!programId || !program) return;
+    
     try {
-      // First create a workout ID
-      const workoutId = uuidv4();
+      // Get the default "custom" workout type
+      const { data: typeData, error: typeError } = await supabase
+        .from('workout_types')
+        .select('id')
+        .eq('code', 'custom')
+        .single();
+        
+      if (typeError) {
+        console.error('Error fetching default workout type:', typeError);
+        setToast({
+          show: true,
+          message: 'Failed to get workout type. Please try again.',
+          type: 'error'
+        });
+        return;
+      }
       
-      // Create the workout with additional properties
-      const newWorkout = {
-        id: workoutId,
-        ...workout,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        // Add a flag to mark this as a new workout
-        isNew: true
-      };
+      const defaultTypeId = typeData?.id || 1; // Fallback to ID 1 if not found
       
-      // Update the session in the local state
-      updateSession(programId, dateStr, sessionId, {
-        workouts: [...programs[programId].days[dateStr].sessions.find(s => s.id === sessionId).workouts, newWorkout],
+      // Close the search modal first
+      setShowWorkoutSearch(false);
+      
+      // Show the workout form
+      showWorkoutForm({
+        title: `Add Workout for ${format(new Date(currentDateStr), 'MMMM d, yyyy')}`,
+        initialData: {
+          type_id: defaultTypeId, // Ensure type_id is always provided
+        },
+        onSave: async (workout) => {
+          try {
+            // Get current user ID for coach_id
+            const { data: { user }, error: userError } = await supabase.auth.getUser();
+            if (userError || !user) {
+              console.error('Failed to get current user:', userError);
+              setToast({
+                show: true,
+                message: 'Failed to get user information. Please try again.',
+                type: 'error'
+              });
+              return;
+            }
+
+            // Generate proper UUID for new workout
+            const newWorkoutId = uuidv4();
+            
+            // Create workout object
+            const newWorkout = {
+              id: newWorkoutId,
+              name: workout.name || '',
+              description: workout.description,
+              color: workout.color,
+              notes: workout.notes || '',
+              type_id: workout.type_id,
+              coach_id: user.id, // Add the coach_id
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              isNew: true
+            };
+            
+            // Update local state
+            if (program.days[currentDateStr]) {
+              // Add to existing day
+              updateProgram(programId, {
+                days: {
+                  ...program.days,
+                  [currentDateStr]: {
+                    ...program.days[currentDateStr],
+                    workouts: [...program.days[currentDateStr].workouts, newWorkout]
+                  }
+                }
+              });
+            } else {
+              // Create new day
+              updateProgram(programId, {
+                days: {
+                  ...program.days,
+                  [currentDateStr]: {
+                    id: uuidv4(), // Use proper UUID for day ID as well
+                    date: currentDateStr,
+                    workouts: [newWorkout]
+                  }
+                }
+              });
+            }
+            
+            // Set unsaved changes flag
+            setHasUnsavedChanges(true);
+          } catch (error) {
+            console.error('Error adding workout:', error);
+            setToast({
+              show: true,
+              message: 'Failed to add workout. Please try again.',
+              type: 'error'
+            });
+          }
+        }
       });
-      
-      // Set unsaved changes flag
-      setHasUnsavedChanges(true);
-      
-      console.log('Workout added to local state!');
     } catch (error) {
-      console.error('Error adding workout:', error);
-      alert('There was an error adding the workout. Please try again.');
+      console.error('Error in handleCreateNewWorkout:', error);
+      setToast({
+        show: true,
+        message: 'Failed to prepare workout form. Please try again.',
+        type: 'error'
+      });
     }
   };
 
@@ -614,203 +1010,19 @@ export function ProgramCalendar() {
   const handleSaveAndNavigate = async () => {
     setIsSaving(true);
     try {
-      const programData = programs[programId];
-      if (programData) {
-        // Collect all session data from all days
-        const allSessions: Array<{
-          program_id: string;
-          name: string;
-          description: string | null;
-          session_id: string;
-          session_date: string;
-        }> = [];
-
-        // Track sessions that need to be updated
-        const sessionUpdates: Array<{
-          program_id: string;
-          name: string;
-          description: string | null;
-          session_id: string;
-          session_date: string;
-        }> = [];
-
-        // Collect workouts that need to be saved
-        const workoutsToSave: Array<{
-          session_id: string;
-          description: string;
-          color: string;
-          notes: string | null;
-        }> = [];
-
-        // Collect workouts that need to be updated
-        const workoutsToUpdate: Array<{
-          workout_id: string;
-          description: string;
-          color: string;
-          notes: string | null;
-        }> = [];
-
-        // Iterate through program days and collect sessions
-        Object.entries(programData.days).forEach(([dateStr, day]) => {
-          day.sessions.forEach(session => {
-            const existingSession = sessions.find(s => s.session_id === session.id);
-            const sessionData = {
-              program_id: programId,
-              name: session.name,
-              description: session.description || null,
-              session_id: session.id,
-              session_date: dateStr,
-            };
-            
-            if (!existingSession) {
-              // New session to insert
-              allSessions.push({
-                ...sessionData
-              });
-            } else if (
-              existingSession.name !== session.name || 
-              existingSession.description !== (session.description || null) ||
-              existingSession.session_date !== dateStr
-            ) {
-              // Session exists but has been updated
-              sessionUpdates.push(sessionData);
-            }
-
-            // Collect new workouts for this session
-            session.workouts.forEach(workout => {
-              console.log('Processing workout:', workout.id, workout.description, workout.isNew, workout.wasEdited);
-              
-              if (workout.isNew) {
-                workoutsToSave.push({
-                  session_id: session.id,
-                  description: workout.description,
-                  color: workout.color,
-                  notes: workout.notes || null
-                });
-              } else if (workout.wasEdited) {
-                console.log('Marking workout for update:', workout.id, workout.description);
-                workoutsToUpdate.push({
-                  workout_id: workout.id,
-                  description: workout.description,
-                  color: workout.color,
-                  notes: workout.notes || null
-                });
-              }
-            });
-          });
-        });
-
-        console.log(`Saving ${allSessions.length} new sessions and updating ${sessionUpdates.length} existing sessions...`);
-        
-        // Handle inserts for new sessions
-        if (allSessions.length > 0) {
-          const { data, error } = await supabase
-            .from('sessions')
-            .insert(allSessions)
-            .select();
-          
-          if (error) {
-            console.error('Error saving sessions to Supabase:', error);
-            throw new Error('Failed to save sessions');
-          }
-          
-          console.log('Successfully saved new sessions:', data);
-        }
-
-        // Handle updates for existing sessions
-        if (sessionUpdates.length > 0) {
-          for (const update of sessionUpdates) {
-            const { error } = await supabase
-              .from('sessions')
-              .update({ 
-                name: update.name, 
-                description: update.description,
-                session_date: update.session_date
-              })
-              .eq('session_id', update.session_id);
-            
-            if (error) {
-              console.error(`Error updating session ${update.session_id}:`, error);
-            }
-          }
-          console.log('Successfully updated existing sessions');
-        }
-
-        // Save new workouts to the database
-        if (workoutsToSave.length > 0) {
-          console.log(`Saving ${workoutsToSave.length} new workouts to database...`);
-          const { data, error } = await supabase
-            .from('workouts')
-            .insert(workoutsToSave)
-            .select();
-
-          if (error) {
-            console.error('Error saving workouts to Supabase:', error);
-            throw new Error('Failed to save workouts');
-          }
-          
-          console.log('Successfully saved workouts:', data);
-        }
-        
-        // Update existing workouts in the database
-        if (workoutsToUpdate.length > 0) {
-          console.log(`Updating ${workoutsToUpdate.length} existing workouts in database...`);
-          console.log('Workouts to update:', workoutsToUpdate);
-          
-          for (const workout of workoutsToUpdate) {
-            console.log(`Updating workout ${workout.workout_id} with:`, {
-              description: workout.description,
-              color: workout.color,
-              notes: workout.notes
-            });
-            
-            const { error } = await supabase
-              .from('workouts')
-              .update({ 
-                description: workout.description, 
-                color: workout.color,
-                notes: workout.notes
-              })
-              .eq('workout_id', workout.workout_id);
-            
-            if (error) {
-              console.error(`Error updating workout ${workout.workout_id}:`, error);
-            } else {
-              console.log(`Successfully updated workout ${workout.workout_id}`);
-            }
-          }
-          console.log('Successfully updated existing workouts');
-        }
-        
-        // Delete workouts from the database if any were marked for deletion
-        if (workoutsToDelete.length > 0) {
-          console.log(`Deleting ${workoutsToDelete.length} workouts from database...`);
-          for (const workoutId of workoutsToDelete) {
-            try {
-              await deleteWorkout(workoutId);
-            } catch (error) {
-              console.error(`Error deleting workout ${workoutId}:`, error);
-            }
-          }
-          // Clear the list after processing deletions
-          setWorkoutsToDelete([]);
-        }
-        
-        // Refresh the sessions list
-        await fetchSessions();
-      }
-      
-      alert('All sessions and workouts saved successfully!');
-      // Clear unsaved changes flag after successful save
-      setHasUnsavedChanges(false);
+      // Call the same save function we use for normal saving
+      await handleSave();
       
       // Navigate after successful save
       if (navigationDestination) {
-        navigate(navigationDestination);
+        // Short delay to allow the toast to be seen before navigating
+        setTimeout(() => {
+          navigate(navigationDestination);
+        }, 500);
       }
     } catch (error) {
       console.error('Error saving before navigation:', error);
-      alert('There was an error saving your changes. Please try again.');
+      // Error toast will be shown by handleSave
     } finally {
       setIsSaving(false);
       setShowSaveConfirm(false);
@@ -822,10 +1034,21 @@ export function ProgramCalendar() {
   const handleDiscardAndNavigate = () => {
     // Clear unsaved changes flag
     setHasUnsavedChanges(false);
-    // Navigate to the stored destination
+    
+    // Show discard toast
+    setToast({
+      show: true,
+      message: 'Changes discarded',
+      type: 'error'
+    });
+    
+    // Navigate to the stored destination after a short delay
     if (navigationDestination) {
-      navigate(navigationDestination);
+      setTimeout(() => {
+        navigate(navigationDestination);
+      }, 500);
     }
+    
     setShowSaveConfirm(false);
     setNavigationDestination(null);
   };
@@ -834,6 +1057,46 @@ export function ProgramCalendar() {
   const handleCancelNavigation = () => {
     setShowSaveConfirm(false);
     setNavigationDestination(null);
+  };
+
+  // Update the handleEditWorkout function to handle null program
+  const handleEditWorkout = (workout: any, dateStr: string, dayProgram: any) => {
+    if (!programId || !program) return;
+    
+    showWorkoutForm({
+      title: "Edit Workout",
+      initialData: workout,
+      onSave: (updates) => {
+        // Get the current workouts and update the specific one
+        const workouts = [...dayProgram.workouts];
+        const workoutIndex = workouts.findIndex(w => w.id === workout.id);
+        
+        if (workoutIndex === -1) {
+          console.error("Workout not found:", workout.id);
+          return;
+        }
+        
+        workouts[workoutIndex] = {
+          ...workouts[workoutIndex],
+          ...updates,
+          updatedAt: new Date().toISOString(),
+          wasEdited: true // Mark as edited for database update
+        };
+        
+        // Update the day with the modified workouts array
+        updateProgram(programId, {
+          days: {
+            ...program.days,
+            [dateStr]: {
+              ...dayProgram,
+              workouts
+            }
+          }
+        });
+        // Set unsaved changes flag
+        setHasUnsavedChanges(true);
+      }
+    });
   };
 
   if (!program) {
@@ -855,7 +1118,7 @@ export function ProgramCalendar() {
               className="inline-flex items-center text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
             >
               <ArrowLeft className="h-4 w-4 mr-1" />
-              Back to Programs
+              {t('back-to-programs')}
             </button>
           </div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
@@ -873,10 +1136,37 @@ export function ProgramCalendar() {
             className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
           >
             <Save className="h-4 w-4 mr-2" />
-            {isSaving ? 'Saving...' : 'Save'}
+            {isSaving ? t('saving') : t('save')}
           </button>
         </div>
       </div>
+
+      {/* Toast Notification above Calendar */}
+      {toast && (
+        <div className="flex justify-center animate-fade-in-down">
+          <div className={`flex items-center p-3 px-4 rounded-lg shadow-md max-w-md ${
+            toast.type === 'success' ? 'bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800' 
+                               : 'bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800'
+          }`}>
+            {toast.type === 'success' ? (
+              <CheckCircle2 className="h-5 w-5 text-green-500 dark:text-green-400 mr-3 flex-shrink-0" />
+            ) : (
+              <XCircle className="h-5 w-5 text-red-500 dark:text-red-400 mr-3 flex-shrink-0" />
+            )}
+            <span className={`text-sm font-medium ${
+              toast.type === 'success' ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'
+            }`}>
+              {toast.message}
+            </span>
+            <button 
+              onClick={() => setToast(null)}
+              className="ml-4 text-gray-400 hover:text-gray-500 dark:text-gray-500 dark:hover:text-gray-400"
+            >
+              <XCircle className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Calendar Navigation */}
       <div className="bg-white dark:bg-gray-800 rounded-t-lg border-b border-gray-200 dark:border-gray-700">
@@ -913,11 +1203,11 @@ export function ProgramCalendar() {
                     ? 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200'
                     : 'bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
                 }`}
-                title="Week View"
+                title={t('week-view')}
                 data-testid="week-view-btn"
               >
                 <LayoutGrid className="h-4 w-4" />
-                <span className="ml-1 hidden sm:inline">Week</span>
+                <span className="ml-1 hidden sm:inline">{t('week')}</span>
               </button>
               <button
                 onClick={() => setViewMode('day')}
@@ -926,11 +1216,11 @@ export function ProgramCalendar() {
                     ? 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200'
                     : 'bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
                 }`}
-                title="Day View"
+                title={t('day-view')}
                 data-testid="day-view-btn"
               >
                 <List className="h-4 w-4" />
-                <span className="ml-1 hidden sm:inline">Day</span>
+                <span className="ml-1 hidden sm:inline">{t('day')}</span>
               </button>
         </div>
             
@@ -938,10 +1228,10 @@ export function ProgramCalendar() {
             <button
               onClick={handleTodayClick}
               className="mr-2 flex items-center justify-center p-2 text-sm bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-800/30 rounded-md"
-              title="Go to Today"
+              title={t('today')}
             >
               <CalendarDays className="h-4 w-4" />
-              <span className="ml-1 hidden sm:inline">Today</span>
+              <span className="ml-1 hidden sm:inline">{t('today')}</span>
             </button>
           
             {/* Navigation */}
@@ -995,71 +1285,91 @@ export function ProgramCalendar() {
                 }`}
               >
                 <div className="font-medium text-sm text-gray-900 dark:text-gray-100">
-                  {format(date, 'EEEE')}
+                  {getTranslatedDayName(date)}
                 </div>
                 <div className="text-sm text-gray-500 dark:text-gray-400">
                   {format(date, 'MMM d')}
                 </div>
               </div>
 
-              {/* Sessions */}
+              {/* Workouts */}
               <div className="p-3 space-y-3">
                 {isInProgram && (
                   <>
-                    {dayProgram?.sessions.map((session) => (
-                      <SessionBlock
-                        key={session.id}
-                        session={session}
-                        onUpdate={(updates) => {
-                          updateSession(programId, dateStr, session.id, updates);
-                          // Set unsaved changes flag
-                          setHasUnsavedChanges(true);
-                        }}
-                          onDelete={() => confirmDeleteSession(session.id, dateStr, session.name)}
-                          onAddWorkout={(workout) => {
-                            handleAddWorkout(session.id, dateStr, workout);
-                          }}
-                          onEditWorkout={(workoutId, updates) => {
-                            try {
-                              // Use the session from the map function scope directly
-                              // Get the current workouts and update the specific one
-                              const workouts = [...session.workouts];
-                              const workoutIndex = workouts.findIndex(w => w.id === workoutId);
+                    {dayProgram?.workouts && dayProgram.workouts.length > 0 ? (
+                      // Display workouts directly
+                      <>
+                        {dayProgram.workouts.map((workout) => (
+                          <div
+                            key={workout.id}
+                            className={`group relative rounded-lg border-l-4 p-3 cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50 shadow-sm border border-gray-200/50 dark:border-gray-700/50 
+                              ${workout.color ? getWorkoutColorClass(workout.color) : 'border-gray-400 bg-gray-50 dark:bg-gray-900/20'}`}
+                            style={workout.color && (workout.color.startsWith('#') || workout.color.startsWith('rgb') || workout.color.startsWith('hsl')) ? 
+                              { backgroundColor: workout.color, color: 'var(--workout-text-color, #1F2937)' } : undefined}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                {/* Show workout type as main title, similar to AthleteCalendar */}
+                                <div className="flex flex-col gap-0.5 mb-2">
+                                  <span className="font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-700 font-poppins text-base">
+                                    {workout.workout_type?.code || 'Workout'}
+                                  </span>
+                                  
+                                  {/* Only show name if it exists */}
+                                  {workout.name && (
+                                    <span className="text-sm opacity-90 truncate text-gray-700 dark:text-gray-700 font-inter">
+                                      {workout.name}
+                                    </span>
+                                  )}
+                                </div>
+                                
+                                {/* Shortened description with line clamp for week view */}
+                                <p className="text-sm text-gray-700 dark:text-gray-700 font-roboto line-clamp-2">
+                                  {workout.description}
+                                </p>
+                              </div>
                               
-                              if (workoutIndex === -1) {
-                                console.error("Workout not found:", workoutId);
-                                return;
-                              }
-                              
-                              workouts[workoutIndex] = {
-                                ...workouts[workoutIndex],
-                                ...updates,
-                                updatedAt: new Date().toISOString(),
-                                wasEdited: true // Mark as edited for database update
-                              };
-                              
-                              // Update the session with the modified workouts array
-                              updateSession(programId, dateStr, session.id, { workouts });
-                              // Set unsaved changes flag
-                              setHasUnsavedChanges(true);
-                              console.log("Workout updated:", workoutId);
-                            } catch (error) {
-                              console.error("Error updating workout:", error);
-                            }
-                          }}
-                          onDeleteWorkout={(workoutId) => {
-                            handleDeleteWorkout(session.id, dateStr, workoutId);
-                        }}
-                      />
-                    ))}
-
-                    <button
-                      onClick={() => setAddSessionDate(dateStr)}
-                      className="w-full flex items-center justify-center px-3 py-2 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Session
-                    </button>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEditWorkout(workout, dateStr, dayProgram);
+                                  }}
+                                  className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full"
+                                >
+                                  <Edit2 className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    confirmDeleteWorkout(workout.id, dateStr);
+                                  }}
+                                  className="p-1.5 hover:bg-red-100 dark:hover:bg-red-900/30 hover:text-red-600 dark:hover:text-red-400 rounded-full"
+                                >
+                                  <Trash2 className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        
+                        <button
+                          onClick={() => handleAddWorkout(dateStr)}
+                          className="w-full flex items-center justify-center px-3 py-2 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                        >
+                          <Plus className="h-4 w-4 mr-1.5 text-gray-500 dark:text-gray-400" />
+                          {t('add-workout')}
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={() => handleAddWorkout(dateStr)}
+                        className="w-full flex items-center justify-center px-3 py-2 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                      >
+                        <Plus className="h-4 w-4 mr-1.5 text-gray-500 dark:text-gray-400" />
+                        {t('add-workout')}
+                      </button>
+                    )}
                   </>
                 )}
               </div>
@@ -1078,21 +1388,21 @@ export function ProgramCalendar() {
             if (!isInProgram) {
               return (
                 <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-                  <p>This date is outside the program date range.</p>
+                  <p>{t('outside-program-date-range')}</p>
                 </div>
               );
             }
             
-            if (!dayProgram || !dayProgram.sessions || dayProgram.sessions.length === 0) {
+            if (!dayProgram || !dayProgram.workouts || dayProgram.workouts.length === 0) {
               return (
                 <div className="py-8 text-center">
-                  <p className="text-gray-500 dark:text-gray-400 mb-6">No sessions for this day yet.</p>
+                  <p className="text-gray-500 dark:text-gray-400 mb-6">{t('no-workouts-for-this-day')}</p>
                   <button
-                    onClick={() => setAddSessionDate(dateStr)}
+                    onClick={() => handleAddWorkout(dateStr)}
                     className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
                   >
                     <Plus className="h-4 w-4 mr-2" />
-                    Add First Session
+                    {t('add-workout')}
                   </button>
                 </div>
               );
@@ -1100,59 +1410,67 @@ export function ProgramCalendar() {
             
             return (
               <div className="space-y-8">
-                {dayProgram.sessions.map((session) => (
-                  <SessionBlock
-                    key={session.id}
-                    session={session}
-                    onUpdate={(updates) => {
-                      updateSession(programId, dateStr, session.id, updates);
-                      // Set unsaved changes flag
-                      setHasUnsavedChanges(true);
-                    }}
-                    onDelete={() => confirmDeleteSession(session.id, dateStr, session.name)}
-                    onAddWorkout={(workout) => {
-                      handleAddWorkout(session.id, dateStr, workout);
-                    }}
-                    onEditWorkout={(workoutId, updates) => {
-                      try {
-                        // Get the current workouts and update the specific one
-                        const workouts = [...session.workouts];
-                        const workoutIndex = workouts.findIndex(w => w.id === workoutId);
+                <div className="space-y-3">
+                  {dayProgram.workouts.map((workout) => (
+                    <div
+                      key={workout.id}
+                      className={`group relative rounded-lg border-l-4 p-3 cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50 shadow-sm border border-gray-200/50 dark:border-gray-700/50 
+                        ${workout.color ? getWorkoutColorClass(workout.color) : 'border-gray-400 bg-gray-50 dark:bg-gray-900/20'}`}
+                      style={workout.color && (workout.color.startsWith('#') || workout.color.startsWith('rgb') || workout.color.startsWith('hsl')) ? 
+                        { backgroundColor: workout.color, color: 'var(--workout-text-color, #1F2937)' } : undefined}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          {/* Show workout type as main title, similar to AthleteCalendar */}
+                          <div className="flex flex-col gap-0.5 mb-2">
+                            <span className="font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-700 font-poppins text-base">
+                              {workout.workout_type?.code || 'Workout'}
+                            </span>
+                            
+                            {/* Only show name if it exists */}
+                            {workout.name && (
+                              <span className="text-sm opacity-90 truncate text-gray-700 dark:text-gray-700 font-inter">
+                                {workout.name}
+                              </span>
+                            )}
+                          </div>
+                          
+                          {/* Full description with line breaks preserved */}
+                          <p className="text-sm text-gray-700 dark:text-gray-700 font-roboto whitespace-pre-wrap">
+                            {workout.description}
+                          </p>
+                        </div>
                         
-                        if (workoutIndex === -1) {
-                          console.error("Workout not found:", workoutId);
-                          return;
-                        }
-                        
-                        workouts[workoutIndex] = {
-                          ...workouts[workoutIndex],
-                          ...updates,
-                          updatedAt: new Date().toISOString(),
-                          wasEdited: true // Mark as edited for database update
-                        };
-                        
-                        // Update the session with the modified workouts array
-                        updateSession(programId, dateStr, session.id, { workouts });
-                        // Set unsaved changes flag
-                        setHasUnsavedChanges(true);
-                        console.log("Workout updated:", workoutId);
-                      } catch (error) {
-                        console.error("Error updating workout:", error);
-                      }
-                    }}
-                    onDeleteWorkout={(workoutId) => {
-                      handleDeleteWorkout(session.id, dateStr, workoutId);
-                    }}
-                  />
-                ))}
-                
-                <div className="text-center mt-8">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditWorkout(workout, dateStr, dayProgram);
+                            }}
+                            className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full"
+                          >
+                            <Edit2 className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              confirmDeleteWorkout(workout.id, dateStr);
+                            }}
+                            className="p-1.5 hover:bg-red-100 dark:hover:bg-red-900/30 hover:text-red-600 dark:hover:text-red-400 rounded-full"
+                          >
+                            <Trash2 className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  
                   <button
-                    onClick={() => setAddSessionDate(dateStr)}
-                    className="inline-flex items-center px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors border border-gray-300 dark:border-gray-600"
+                    onClick={() => handleAddWorkout(dateStr)}
+                    className="w-full flex items-center justify-center px-3 py-2 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                   >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Session
+                    <Plus className="h-4 w-4 mr-1.5 text-gray-500 dark:text-gray-400" />
+                    {t('add-workout')}
                   </button>
                 </div>
               </div>
@@ -1162,27 +1480,11 @@ export function ProgramCalendar() {
       )}
 
       {/* Modals */}
-      {addSessionDate && (
-        <SessionForm
-          title={`Add Session for ${format(parseISO(addSessionDate), 'MMMM d, yyyy')}`}
-          onClose={() => setAddSessionDate(null)}
-          onSave={(session) => {
-            addSession(programId, addSessionDate, {
-              ...session,
-              workouts: [],
-            });
-            setAddSessionDate(null);
-            // Set unsaved changes flag
-            setHasUnsavedChanges(true);
-          }}
-        />
-      )}
-
-      {deleteSessionInfo && (
+      {deleteWorkoutInfo && (
         <DeleteConfirmModal
-          sessionName={deleteSessionInfo.name}
-          onConfirm={handleDeleteSession}
-          onCancel={() => setDeleteSessionInfo(null)}
+          workoutName="this workout"
+          onConfirm={handleDeleteWorkout}
+          onCancel={() => setDeleteWorkoutInfo(null)}
         />
       )}
 
@@ -1193,6 +1495,92 @@ export function ProgramCalendar() {
           onCancel={handleCancelNavigation}
         />
       )}
+
+      {/* Add workout search modal */}
+      {showWorkoutSearch && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md overflow-hidden">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                {t('add-workout')}
+              </h2>
+              <button
+                onClick={() => setShowWorkoutSearch(false)}
+                className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-4 space-y-4">
+              <button
+                onClick={handleCreateNewWorkout}
+                className="w-full flex items-center justify-center p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-300 dark:hover:border-blue-600 transition-colors"
+              >
+                <div className="text-center">
+                  <Plus className="h-8 w-8 text-blue-500 mx-auto mb-2" />
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {t('create-new-workout')}
+                  </span>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    {t('design-new-workout-from-scratch')}
+                  </p>
+                </div>
+              </button>
+
+              <div className="relative py-3">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-300 dark:border-gray-600"></div>
+                </div>
+                <div className="relative flex justify-center">
+                  <span className="px-2 bg-white dark:bg-gray-800 text-sm text-gray-500 dark:text-gray-400">
+                    {t('or')}
+                  </span>
+                </div>
+              </div>
+
+              <button
+                onClick={() => {
+                  setShowWorkoutSearch(false);
+                  setTimeout(() => {
+                    const searchModal = document.getElementById('workout-search-modal');
+                    if (searchModal) {
+                      searchModal.classList.remove('hidden');
+                    }
+                  }, 100);
+                }}
+                className="w-full flex items-center justify-center p-4 border-2 border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-300 dark:hover:border-blue-600 transition-colors"
+              >
+                <div className="text-center">
+                  <Search className="h-8 w-8 text-blue-500 mx-auto mb-2" />
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {t('search-existing-workouts')}
+                  </span>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    {t('choose-from-workout-library')}
+                  </p>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Workout search modal */}
+      <div id="workout-search-modal" className="hidden">
+        {currentDateStr && (
+          <WorkoutSearchModal
+            dateStr={currentDateStr}
+            onSelect={handleAddExistingWorkout}
+            onClose={() => {
+              const searchModal = document.getElementById('workout-search-modal');
+              if (searchModal) {
+                searchModal.classList.add('hidden');
+              }
+            }}
+          />
+        )}
+      </div>
     </div>
   );
 }

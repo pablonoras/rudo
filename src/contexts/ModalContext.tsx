@@ -1,98 +1,96 @@
 import { createContext, ReactNode, useContext, useState } from 'react';
-import { SessionForm } from '../components/session/SessionForm';
 import { BlockEditor } from '../components/workout/BlockEditor';
 import { WorkoutForm } from '../components/workout/WorkoutForm';
-import { Session, WorkoutBlock } from '../lib/workout';
+import { WorkoutBlock } from '../lib/workout';
 
 type ModalContextType = {
-  showSessionForm: (props: SessionFormProps) => void;
   showWorkoutForm: (props: WorkoutFormProps) => void;
   showBlockEditor: (props: BlockEditorProps) => void;
   closeModal: () => void;
 };
 
-type SessionFormProps = {
+// Define the types for form props
+export interface WorkoutFormProps {
   title: string;
-  initialData?: Partial<Session>;
-  onSave: (data: Partial<Session>) => void;
-};
+  initialData?: {
+    description?: string;
+    color?: string;
+    notes?: string;
+    name?: string;
+    type_id: number;
+  };
+  onSave: (workout: {
+    description: string;
+    color: string;
+    notes?: string;
+    name?: string;
+    type_id: number;
+    wasEdited: boolean;
+    coach_id?: string;
+  }) => void;
+}
 
-type WorkoutFormProps = {
+export interface BlockEditorProps {
   title: string;
+  blockType: string;
   initialData?: Partial<WorkoutBlock>;
-  onSave: (data: WorkoutBlock) => void;
-};
+  onSave: (blockData: Partial<WorkoutBlock>) => void;
+}
 
-type BlockEditorProps = {
-  block: WorkoutBlock;
-  onSave: (block: WorkoutBlock) => void;
-};
+// Create the Modal Context
+const ModalContext = createContext<ModalContextType | undefined>(undefined);
 
-const ModalContext = createContext<ModalContextType | null>(null);
+// Define the types of modals
+type ModalType = 'workout' | 'block' | null;
 
 export function ModalProvider({ children }: { children: ReactNode }) {
-  const [currentModal, setCurrentModal] = useState<{
-    type: 'session' | 'workout' | 'block';
-    props: any;
-  } | null>(null);
-
-  const showSessionForm = (props: SessionFormProps) => {
-    setCurrentModal({ type: 'session', props });
-  };
+  const [modalType, setModalType] = useState<ModalType>(null);
+  const [workoutFormProps, setWorkoutFormProps] = useState<WorkoutFormProps | null>(null);
+  const [blockEditorProps, setBlockEditorProps] = useState<BlockEditorProps | null>(null);
 
   const showWorkoutForm = (props: WorkoutFormProps) => {
-    setCurrentModal({ type: 'workout', props });
+    setWorkoutFormProps(props);
+    setModalType('workout');
   };
 
   const showBlockEditor = (props: BlockEditorProps) => {
-    setCurrentModal({ type: 'block', props });
+    setBlockEditorProps(props);
+    setModalType('block');
   };
 
   const closeModal = () => {
-    setCurrentModal(null);
+    setModalType(null);
   };
 
   return (
-    <ModalContext.Provider value={{ showSessionForm, showWorkoutForm, showBlockEditor, closeModal }}>
+    <ModalContext.Provider value={{
+      showWorkoutForm,
+      showBlockEditor,
+      closeModal,
+    }}>
       {children}
-      {currentModal?.type === 'session' && (
-        <SessionForm
-          {...currentModal.props}
-          onClose={closeModal}
-          onSave={(data) => {
-            currentModal.props.onSave(data);
-            closeModal();
-          }}
-        />
-      )}
-      {currentModal?.type === 'workout' && (
+
+      {modalType === 'workout' && workoutFormProps && (
         <WorkoutForm
-          {...currentModal.props}
+          {...workoutFormProps}
           onClose={closeModal}
-          onSave={(data) => {
-            currentModal.props.onSave(data);
-            closeModal();
-          }}
         />
       )}
-      {currentModal?.type === 'block' && (
+
+      {modalType === 'block' && blockEditorProps && (
         <BlockEditor
-          {...currentModal.props}
+          {...blockEditorProps}
           onClose={closeModal}
-          onSave={(block) => {
-            currentModal.props.onSave(block);
-            closeModal();
-          }}
         />
       )}
     </ModalContext.Provider>
   );
 }
 
-export function useModal() {
+export const useModal = () => {
   const context = useContext(ModalContext);
-  if (!context) {
+  if (context === undefined) {
     throw new Error('useModal must be used within a ModalProvider');
   }
   return context;
-}
+};

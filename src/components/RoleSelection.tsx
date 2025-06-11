@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useI18n } from '../lib/i18n/context';
 import LanguageToggle from './LanguageToggle';
+import { Logo } from './Logo';
 
 export type UserRole = 'coach' | 'athlete';
 
@@ -41,9 +42,7 @@ const RoleSelection = () => {
         </div>
 
         <div className="flex items-center gap-3 mb-12">
-          <div className="text-2xl font-black tracking-tighter bg-gradient-to-r from-[#8A2BE2] to-[#4169E1] bg-clip-text text-transparent">
-            RUDO
-          </div>
+          <Logo variant="text-only" size="lg" />
         </div>
 
         <div className="max-w-md w-full mx-auto flex-1 flex flex-col justify-center">

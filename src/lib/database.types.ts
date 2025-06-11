@@ -99,6 +99,107 @@ export type Database = {
           updated_at?: string
         }
       },
+      workouts: {
+        Row: {
+          workout_id: string
+          coach_id: string
+          description: string
+          color: string | null
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          workout_id?: string
+          coach_id: string
+          description: string
+          color?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          workout_id?: string
+          coach_id?: string
+          description?: string
+          color?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      },
+      workout_assignments: {
+        Row: {
+          id: string
+          workout_id: string
+          athlete_id: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          workout_id: string
+          athlete_id: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          workout_id?: string
+          athlete_id?: string
+          created_at?: string
+          updated_at?: string
+        }
+      },
+      program_workouts: {
+        Row: {
+          id: string
+          program_id: string
+          workout_id: string
+          workout_date: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          program_id: string
+          workout_id: string
+          workout_date: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          program_id?: string
+          workout_id?: string
+          workout_date?: string
+          created_at?: string
+          updated_at?: string
+        }
+      },
+      program_assignments: {
+        Row: {
+          id: string
+          program_id: string
+          athlete_id: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          program_id: string
+          athlete_id: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          program_id?: string
+          athlete_id?: string
+          created_at?: string
+          updated_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never
