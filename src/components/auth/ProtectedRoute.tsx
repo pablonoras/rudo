@@ -1,57 +1,94 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { supabase } from '../../lib/supabase';
+import type { UserRole } from '../../lib/supabase';
+import { getCurrentProfile, supabase } from '../../lib/supabase';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  role: 'coach' | 'athlete';
+  role: UserRole;
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, role }) => {
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState<{ id: string; role?: UserRole } | null>(null);
+  const [authorized, setAuthorized] = useState(false);
 
   useEffect(() => {
-  
-    const fetchSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-
-      if (session?.user) {
-        // Fetch user's role from user_metadata or custom table
-        const userRole = session.user.user_metadata.role; 
-        setUser({ ...session.user, role: userRole });
-      } else {
+    const checkAuth = async () => {
+      setLoading(true);
+      
+      try {
+        // Get the current session
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!session?.user) {
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+        
+        // Get the user's profile from the database to check their role
+        const profile = await getCurrentProfile();
+        
+        if (profile) {
+          setUser({ 
+            id: session.user.id, 
+            role: profile.role 
+          });
+          
+          // Check if the user's role matches the required role for this route
+          setAuthorized(profile.role === role);
+        } else {
+          setUser({ id: session.user.id });
+        }
+      } catch (error) {
+        console.error('Error checking authentication:', error);
         setUser(null);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
-    fetchSession();
-    // Check authentication status
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user || null);
-      setLoading(false);
-    });
-
+    checkAuth();
+    
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user || null);
-      setLoading(false);
+      if (session) {
+        checkAuth();
+      } else {
+        setUser(null);
+        setLoading(false);
+      }
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [role]);
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
+      <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
       </div>
     );
   }
 
   if (!user) {
-    return <Navigate to="/role-selection" replace />;
+    // Redirect to login if not authenticated
+    return <Navigate to="/login" replace />;
+  }
+
+  if (!authorized) {
+    // Redirect to the appropriate dashboard based on the user's actual role
+    if (user.role === 'coach') {
+      // If a coach tries to access athlete routes, redirect to coach dashboard
+      return <Navigate to="/coach" replace />;
+    } else if (user.role === 'athlete') {
+      // If an athlete tries to access coach routes, redirect to athlete dashboard
+      return <Navigate to="/athlete" replace />;
+    } else {
+      // If role is unknown, redirect to login
+      return <Navigate to="/login" replace />;
+    }
   }
 
   return <>{children}</>;

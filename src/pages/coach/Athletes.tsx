@@ -1,8 +1,9 @@
-import { AlertCircle, BarChart2, CheckCircle, Plus, Search, Users, X } from 'lucide-react';
+import { AlertCircle, BarChart2, Calendar, CheckCircle, Plus, Search, Trash2, Users, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { AddAthleteModal } from '../../components/athlete/AddAthleteModal';
 import { useProfile } from '../../contexts/ProfileContext';
-import { supabase } from '../../lib/supabase';
+import { deleteAthleteAccount, supabase } from '../../lib/supabase';
 
 type AthleteLevel = 'beginner' | 'intermediate' | 'advanced';
 type TeamFilter = 'all' | string;
@@ -20,7 +21,9 @@ type Athlete = {
 
 export function Athletes() {
   const { profile } = useProfile();
+  const navigate = useNavigate();
   const [athletes, setAthletes] = useState<Athlete[]>([]);
+  const [publishedProgramsCount, setPublishedProgramsCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -30,6 +33,33 @@ export function Athletes() {
   const [activatingAthleteId, setActivatingAthleteId] = useState<string | null>(null);
   const [updatingAthleteId, setUpdatingAthleteId] = useState<string | null>(null);
   const [showStatusMenu, setShowStatusMenu] = useState<string | null>(null);
+
+  // Delete athlete state
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState<string | null>(null);
+  const [isDeletingAthlete, setIsDeletingAthlete] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // Fetch published programs count for the current coach
+  const fetchPublishedProgramsCount = async () => {
+    if (!profile?.id) return;
+    
+    try {
+      const { count, error } = await supabase
+        .from('programs')
+        .select('*', { count: 'exact', head: true })
+        .eq('coach_id', profile.id)
+        .eq('status', 'published');
+        
+      if (error) {
+        console.error('Error fetching published programs count:', error);
+        return;
+      }
+      
+      setPublishedProgramsCount(count || 0);
+    } catch (error) {
+      console.error('Error fetching published programs count:', error);
+    }
+  };
 
   // Fetch athletes for the current coach
   const fetchAthletes = async () => {
@@ -118,6 +148,7 @@ export function Athletes() {
   useEffect(() => {
     if (profile) {
       fetchAthletes();
+      fetchPublishedProgramsCount();
     }
   }, [profile]);
 
@@ -244,6 +275,41 @@ export function Athletes() {
     setShowStatusMenu(prevId => prevId === athleteId ? null : athleteId);
   };
 
+  // Function to delete an athlete account
+  const handleDeleteAthlete = async (athleteId: string) => {
+    if (!profile?.id) return;
+    
+    try {
+      setIsDeletingAthlete(athleteId);
+      setDeleteError(null);
+      
+      console.log('Coach deleting athlete account:', athleteId);
+      
+      const result = await deleteAthleteAccount(athleteId, profile.id);
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to delete athlete account');
+      }
+      
+      console.log('Athlete account deleted successfully by coach:', result.data);
+      
+      // Remove the athlete from the local state
+      setAthletes(prev => prev.filter(athlete => athlete.id !== athleteId));
+      
+      // Close confirmation modal
+      setShowDeleteConfirmation(null);
+      
+      // Show success message briefly
+      setError(null);
+      
+    } catch (error: any) {
+      console.error('Error deleting athlete account:', error);
+      setDeleteError(error.message || 'Failed to delete athlete account. Please try again.');
+    } finally {
+      setIsDeletingAthlete(null);
+    }
+  };
+
   const handleAddAthletes = () => {
     setShowAddAthlete(false);
     // Refresh the athletes list after adding
@@ -310,8 +376,7 @@ export function Athletes() {
                   </dt>
                   <dd className="flex items-baseline">
                     <div className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
-                      {/* This can be updated with actual program count */}
-                      0
+                      {publishedProgramsCount}
                     </div>
                   </dd>
                 </dl>
@@ -395,6 +460,9 @@ export function Athletes() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Joined
                 </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  View
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
@@ -419,7 +487,9 @@ export function Athletes() {
                       </div>
                       <div className="ml-4">
                         <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                          {athlete.full_name}
+                          <Link to={`/coach/athlete/${athlete.id}`} className="hover:text-blue-600 dark:hover:text-blue-400">
+                            {athlete.full_name}
+                          </Link>
                         </div>
                         <div className="text-sm text-gray-500 dark:text-gray-400">
                           {athlete.email}
@@ -488,6 +558,21 @@ export function Athletes() {
                                   <span className="whitespace-nowrap">Activate</span>
                                 </button>
                               )}
+                              
+                              {/* Divider */}
+                              <div className="border-t border-gray-100 dark:border-gray-600 my-1"></div>
+                              
+                              {/* Delete athlete button */}
+                              <button
+                                onClick={() => {
+                                  setShowStatusMenu(null);
+                                  setShowDeleteConfirmation(athlete.id);
+                                }}
+                                className="w-full text-left px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-red-50 dark:hover:bg-red-900/20 group flex items-center"
+                              >
+                                <Trash2 className="h-4 w-4 mr-3 text-red-600 flex-shrink-0" />
+                                <span className="whitespace-nowrap text-red-600 dark:text-red-400">Delete Account</span>
+                              </button>
                             </div>
                           </div>
                         )}
@@ -504,6 +589,22 @@ export function Athletes() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                     {new Date(athlete.joined_at).toLocaleDateString()}
                   </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => navigate(`/coach/athlete/${athlete.id}`)}
+                        className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+                      >
+                      </button>
+                      <button
+                        onClick={() => navigate(`/coach/athlete/${athlete.id}/calendar`)}
+                        className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                      >
+                        <Calendar className="h-3.5 w-3.5 mr-1" />
+                        Calendar
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -516,6 +617,84 @@ export function Athletes() {
           onClose={() => setShowAddAthlete(false)}
           onAdd={handleAddAthletes}
         />
+      )}
+
+      {/* Delete Error Message */}
+      {deleteError && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white dark:bg-gray-800">
+            <div className="mt-3 text-center">
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 dark:bg-red-900/30">
+                <AlertCircle className="h-6 w-6 text-red-600 dark:text-red-400" />
+              </div>
+              <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-gray-100 mt-4">
+                Delete Failed
+              </h3>
+              <div className="mt-2 px-7 py-3">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  {deleteError}
+                </p>
+              </div>
+              <div className="items-center px-4 py-3">
+                <button
+                  onClick={() => setDeleteError(null)}
+                  className="px-4 py-2 bg-blue-600 text-white text-base font-medium rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                >
+                  OK
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Athlete Confirmation Modal */}
+      {showDeleteConfirmation && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white dark:bg-gray-800">
+            <div className="mt-3 text-center">
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 dark:bg-red-900/30">
+                <Trash2 className="h-6 w-6 text-red-600 dark:text-red-400" />
+              </div>
+              <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-gray-100 mt-4">
+                Delete Athlete Account
+              </h3>
+              <div className="mt-2 px-7 py-3">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Are you sure you want to permanently delete this athlete's account? This will remove:
+                </p>
+                <ul className="text-sm text-gray-500 dark:text-gray-400 mt-2 text-left list-disc list-inside">
+                  <li>Their profile and personal information</li>
+                  <li>All coach-athlete relationships</li>
+                  <li>Their workout and program assignments</li>
+                  <li>Their workout history and activity records</li>
+                  <li>Their login credentials</li>
+                </ul>
+                <p className="text-sm text-red-600 dark:text-red-400 mt-2 font-medium">
+                  This action cannot be undone.
+                </p>
+              </div>
+              <div className="items-center px-4 py-3">
+                <div className="flex space-x-3">
+                  <button
+                    onClick={() => setShowDeleteConfirmation(null)}
+                    disabled={isDeletingAthlete === showDeleteConfirmation}
+                    className="flex-1 px-4 py-2 bg-gray-500 text-white text-base font-medium rounded-md shadow-sm hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-300 disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => handleDeleteAthlete(showDeleteConfirmation)}
+                    disabled={isDeletingAthlete === showDeleteConfirmation}
+                    className="flex-1 px-4 py-2 bg-red-600 text-white text-base font-medium rounded-md shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-300 disabled:opacity-50"
+                  >
+                    {isDeletingAthlete === showDeleteConfirmation ? 'Deleting...' : 'Delete Forever'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

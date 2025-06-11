@@ -6,23 +6,21 @@
  */
 
 import {
-    Bell,
     ChevronDown,
-    HelpCircle,
     Loader2,
     LogOut,
     Settings,
-    Shield,
-    User,
+    User
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useProfile } from '../contexts/ProfileContext';
-import { signOut } from '../lib/supabase';
+import { signOut, supabase } from '../lib/supabase';
 
 export function UserSettings() {
   const [isOpen, setIsOpen] = useState(false);
   const [imgError, setImgError] = useState(false);
+  const [isOAuthUser, setIsOAuthUser] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const { profile, loading } = useProfile();
@@ -42,6 +40,34 @@ export function UserSettings() {
   useEffect(() => {
     if (profile) {
       setImgError(false);
+      
+      // Check if user is signed in with OAuth
+      const checkAuthMethod = async () => {
+        const { data } = await supabase.auth.getUser();
+        if (data?.user) {
+          // Check if user has identities array (indicates OAuth)
+          const hasOAuthIdentities = data.user.identities && 
+            data.user.identities.some(identity => 
+              identity.provider !== 'email'
+            );
+          
+          // Check app_metadata provider as backup
+          const hasOAuthProvider = 
+            data.user.app_metadata?.provider && 
+            data.user.app_metadata.provider !== 'email';
+            
+          console.log('User auth info:', {
+            hasOAuthIdentities,
+            hasOAuthProvider,
+            identities: data.user.identities,
+            appMetadata: data.user.app_metadata
+          });
+          
+          setIsOAuthUser(hasOAuthIdentities || hasOAuthProvider);
+        }
+      };
+      
+      checkAuthMethod();
     }
   }, [profile]);
 
@@ -123,30 +149,14 @@ export function UserSettings() {
           </div>
 
           <div className="py-1">
-            <button
+            <Link
+              to={`/${profile?.role}/account`}
               className="w-full px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
+              onClick={() => setIsOpen(false)}
             >
               <Settings className="h-4 w-4 mr-3" />
               Settings
-            </button>
-            <button
-              className="w-full px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
-            >
-              <Bell className="h-4 w-4 mr-3" />
-              Notifications
-            </button>
-            <button
-              className="w-full px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
-            >
-              <Shield className="h-4 w-4 mr-3" />
-              Privacy
-            </button>
-            <button
-              className="w-full px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
-            >
-              <HelpCircle className="h-4 w-4 mr-3" />
-              Help Center
-            </button>
+            </Link>
           </div>
 
           <div className="py-1 border-t border-gray-200 dark:border-gray-700">

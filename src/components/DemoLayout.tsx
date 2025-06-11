@@ -5,17 +5,16 @@
  * It provides visual indicators to show users they are in demo mode.
  */
 
-import { ArrowLeft } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
-import { DemoUserSettings } from './DemoUserSettings';
 import { GlobalSearch } from './GlobalSearch';
-import { ThemeToggle } from './ThemeToggle';
+import { ThemeToggle } from './ui/ThemeToggle';
+import { UserSettings } from './UserSettings';
 
 export function DemoLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
+    <div className="min-h-screen bg-gradient-to-br from-gray-100 to-white dark:from-[#161616] dark:to-[#1A1A1A] text-gray-900 dark:text-white transition-colors">
       {/* Demo banner */}
       <div className="bg-amber-500 dark:bg-amber-600 text-amber-950 dark:text-amber-50 p-2">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center text-sm">
@@ -38,14 +37,14 @@ export function DemoLayout({ children }: { children: React.ReactNode }) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center">
-              <Link to="/demo" className="flex items-center">
+              <div className="flex items-center">
                 <span className="text-2xl font-black tracking-wider text-gray-900 dark:text-gray-100">
                   RUDO
                 </span>
                 <span className="ml-2 text-sm font-medium text-gray-500 dark:text-gray-400">
                   DEMO
                 </span>
-              </Link>
+              </div>
               <div className="ml-8 flex space-x-4">
                 <Link
                   to="/demo"
@@ -82,7 +81,7 @@ export function DemoLayout({ children }: { children: React.ReactNode }) {
             <div className="flex items-center space-x-4">
               <GlobalSearch />
               <ThemeToggle />
-              <DemoUserSettings />
+              <UserSettings />
             </div>
           </div>
         </div>

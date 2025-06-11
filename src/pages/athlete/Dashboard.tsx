@@ -2,478 +2,595 @@
  * src/pages/athlete/Dashboard.tsx
  * 
  * Athlete Dashboard main page showing workouts and program information.
- * Updated to include a link to the Find a Coach page and display current coach status.
- * Fixed to properly detect and display active coach connections.
- * Fixed the Supabase query to correctly join coach_athletes and profiles tables.
- * Added support for managing multiple coaches and unsubscribing from coaches.
- * Fixed unsubscribe functionality with improved error handling.
+ * Updated to include week navigation, assigned programs list, and display all assigned programs in the calendar.
+ * Athletes can view all their assigned programs and navigate through days of the week.
+ * Enhanced with athlete activity features for workout completion and notes.
+ * Coach management has been moved to the Account Settings page.
+ * Added inactive athlete functionality - shows message instead of workouts when athlete is inactive.
  */
 
-import { addDays, format, isToday, parseISO, subDays } from 'date-fns';
-import { Calendar, CheckCircle, ChevronLeft, ChevronRight, ExternalLink, MoreHorizontal, PlusCircle, Users, X } from 'lucide-react';
+import { format, subDays } from 'date-fns';
+import { Calendar, ChevronLeft, ChevronRight, Info, Mail } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { AssignedProgram, AssignedPrograms } from '../../components/athlete/AssignedPrograms';
+import { WorkoutCard } from '../../components/athlete/WorkoutCard';
+import { InstallBanner } from '../../components/InstallBanner';
 import { useProfile } from '../../contexts/ProfileContext';
+import {
+  addDays,
+  formatDayName,
+  formatFullDateWithDay,
+  formatMonthDayYear,
+  isToday,
+  startOfWeek
+} from '../../lib/dateUtils';
+import { useI18n } from '../../lib/i18n/context';
 import { supabase } from '../../lib/supabase';
 import { useWorkoutStore } from '../../lib/workout';
 
-// Type for coach connection
-type CoachConnection = {
-  id: string;
-  coach_id: string;
-  status: 'pending' | 'active' | 'inactive' | 'declined';
-  coach: {
-    full_name: string;
-    avatar_url: string | null;
-  };
-};
-
-function WorkoutCard({ workout }: { workout: any }) {
-  const [isCompleted, setIsCompleted] = useState(false);
-
-  const getTypeColor = (type: string) => {
-    const colors = {
-      warmup: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-      strength: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-      wod: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-      cooldown: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-    };
-    return colors[type as keyof typeof colors] || 'bg-gray-100 text-gray-800';
-  };
-
-  return (
-    <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-sm border ${
-      isCompleted ? 'border-green-500 dark:border-green-400' : 'border-gray-200 dark:border-gray-700'
-    }`}>
-      <div className="p-4">
-        <div className="flex items-center justify-between mb-2">
-          <div>
-            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
-              {workout.name}
-            </h3>
-            <span className={`text-xs px-2 py-0.5 rounded-full capitalize mt-1 inline-block ${getTypeColor(workout.type)}`}>
-              {workout.type}
-            </span>
-          </div>
-          <button
-            onClick={() => setIsCompleted(!isCompleted)}
-            className={`p-1 rounded-full transition-colors ${
-              isCompleted
-                ? 'text-green-500 dark:text-green-400'
-                : 'text-gray-400 hover:text-gray-500 dark:hover:text-gray-300'
-            }`}
-          >
-            <CheckCircle className="h-6 w-6" />
-          </button>
-        </div>
-        
-        <div className="mt-2 text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap">
-          {workout.description}
-        </div>
-      </div>
-    </div>
-  );
-}
+// Define interface for assigned programs
+// interface AssignedProgram {
+//   id: string;
+//   name: string;
+//   description?: string;
+//   startDate: string;
+//   endDate: string;
+//   coachName: string;
+// }
 
 export function AthleteDashboard() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const { programs } = useWorkoutStore();
   const { profile } = useProfile();
-  const [coachConnections, setCoachConnections] = useState<CoachConnection[]>([]);
-  const [isLoadingCoach, setIsLoadingCoach] = useState(true);
-  const [unsubscribingCoach, setUnsubscribingCoach] = useState<string | null>(null);
-  const [showCoachActions, setShowCoachActions] = useState<{[key: string]: boolean}>({});
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  // Mock assigned program for demonstration
-  const assignedProgram = Object.values(programs)[0];
+  const { t, language } = useI18n();
+  
+  // Assigned programs state
+  const [assignedPrograms, setAssignedPrograms] = useState<AssignedProgram[]>([]);
+  const [isLoadingPrograms, setIsLoadingPrograms] = useState(true);
+  const [selectedProgramId, setSelectedProgramId] = useState<string | null>(null);
+  const [dayWorkouts, setDayWorkouts] = useState<any[]>([]);
+  
+  // Inactive status state
+  const [isInactive, setIsInactive] = useState(false);
+  const [coachNames, setCoachNames] = useState<string[]>([]);
+  const [isCheckingStatus, setIsCheckingStatus] = useState(true);
 
   const navigateDay = (direction: 'prev' | 'next') => {
     setSelectedDate(direction === 'prev' ? subDays(selectedDate, 1) : addDays(selectedDate, 1));
   };
 
-  // Function to refresh coach connections
-  const fetchCoachConnections = async () => {
-    if (!profile) return;
+  // Function to refresh data when activity changes
+  const handleActivityChange = () => {
+    // Could potentially refresh statistics or program data here
+    // For now, we'll keep it simple and let the WorkoutCard handle its own state
+  };
+
+  // Check if athlete is inactive
+  const checkAthleteStatus = async () => {
+    if (!profile?.id) return;
     
     try {
-      setIsLoadingCoach(true);
-      console.log('Fetching coach connections for athlete:', profile.id);
+      setIsCheckingStatus(true);
       
-      // Use the proper foreign key reference to disambiguate the relationship
-      const { data, error } = await supabase
+      // Get all coach relationships for this athlete
+      const { data: relationships, error } = await supabase
         .from('coach_athletes')
         .select(`
-          id,
-          coach_id,
           status,
-          coach:profiles!coach_athletes_coach_id_fkey(full_name, avatar_url)
+          coach:coach_id(full_name)
         `)
-        .eq('athlete_id', profile.id)
-        .not('status', 'eq', 'inactive'); // Don't show inactive coaches
+        .eq('athlete_id', profile.id);
       
       if (error) {
-        console.error('Error fetching coach connections:', error);
-        throw error;
+        console.error('Error checking athlete status:', error);
+        return;
       }
       
-      console.log('Coach connections data:', data);
-      setCoachConnections(data || []);
+      if (!relationships || relationships.length === 0) {
+        // No coach relationships found
+        setIsInactive(false);
+        return;
+      }
+      
+      // Check if all relationships are inactive
+      const allInactive = relationships.every(rel => rel.status === 'inactive');
+      const hasActiveOrPending = relationships.some(rel => rel.status === 'active' || rel.status === 'pending');
+      
+      if (allInactive && !hasActiveOrPending) {
+        setIsInactive(true);
+        // Get coach names for display
+        const names = relationships
+          .map(rel => 
+            rel.coach && typeof rel.coach === 'object' && 'full_name' in rel.coach 
+              ? (rel.coach.full_name as string)
+              : 'Unknown Coach'
+          )
+          .filter((name): name is string => typeof name === 'string');
+        setCoachNames(names);
+      } else {
+        setIsInactive(false);
+      }
     } catch (err) {
-      console.error('Error fetching coach connections:', err);
+      console.error('Error checking athlete status:', err);
+      setIsInactive(false);
     } finally {
-      setIsLoadingCoach(false);
+      setIsCheckingStatus(false);
     }
   };
 
-  // Fetch coach connections immediately when profile is available
+  // Fetch assigned programs (only if athlete is not inactive)
+  const fetchAssignedPrograms = async () => {
+    if (!profile?.id || isInactive) {
+      setAssignedPrograms([]);
+      setIsLoadingPrograms(false);
+      return;
+    }
+    
+    try {
+      setIsLoadingPrograms(true);
+      
+      // Step 1: Get program assignments for this athlete
+      const { data: assignments, error: assignmentError } = await supabase
+        .from('program_assignments')
+        .select('program_id, start_date, end_date')
+        .eq('athlete_id', profile.id);
+      
+      if (assignmentError) {
+        console.error('Error fetching program assignments:', assignmentError);
+        return;
+      }
+      
+      if (!assignments || assignments.length === 0) {
+        setAssignedPrograms([]);
+        setIsLoadingPrograms(false);
+        return;
+      }
+      
+      // Step 2: Get program details
+      const programIds = assignments.map(a => a.program_id);
+      const { data: programs, error: programsError } = await supabase
+        .from('programs')
+        .select('id, name, description, coach_id')
+        .in('id', programIds);
+      
+      if (programsError) {
+        console.error('Error fetching programs:', programsError);
+        return;
+      }
+      
+      // Step 3: Get coach details
+      const coachIds = programs?.map(p => p.coach_id) || [];
+      const uniqueCoachIds = [...new Set(coachIds)];
+      
+      const { data: coaches, error: coachesError } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', uniqueCoachIds);
+      
+      if (coachesError) {
+        console.error('Error fetching coaches:', coachesError);
+      }
+      
+      // Step 4: Combine all data
+      const formattedPrograms: AssignedProgram[] = assignments.map(assignment => {
+        const program = programs?.find(p => p.id === assignment.program_id);
+        const coach = program ? coaches?.find(c => c.id === program.coach_id) : null;
+        
+        return {
+          id: assignment.program_id,
+          name: program?.name || 'Unknown Program',
+          description: program?.description,
+          startDate: assignment.start_date,
+          endDate: assignment.end_date,
+          coachName: coach?.full_name || 'Unknown Coach'
+        };
+      });
+      
+      setAssignedPrograms(formattedPrograms);
+    } catch (err) {
+      console.error('Error fetching assigned programs:', err);
+    } finally {
+      setIsLoadingPrograms(false);
+    }
+  };
+
+  // Fetch workouts for the selected date and program (only if athlete is not inactive)
+  const fetchDayWorkouts = async () => {
+    if (!profile?.id || isInactive) {
+      setDayWorkouts([]);
+      return;
+    }
+    
+    try {
+      const dateStr = format(selectedDate, 'yyyy-MM-dd');
+      
+      // Initialize array to hold all workouts from different sources
+      let allWorkouts: any[] = [];
+      
+      // 1. First, get all direct workout assignments for this athlete
+      const { data: directAssignments, error: directError } = await supabase
+        .from('workout_assignments')
+        .select(`
+          id, 
+          workout_id,
+          workout_date
+        `)
+        .eq('athlete_id', profile.id)
+        .eq('workout_date', dateStr);
+      
+      if (directError) {
+        console.error('Error fetching direct workout assignments:', directError);
+      } else if (directAssignments && directAssignments.length > 0) {
+        // Extract workout IDs for the query
+        const workoutIds = directAssignments.map(a => a.workout_id);
+        
+        // Get the workout details using the workout_id
+        const { data: workouts, error: workoutsError } = await supabase
+          .from('workouts')
+          .select('*')
+          .in('workout_id', workoutIds);
+        
+        if (workoutsError) {
+          console.error('Error fetching workout details:', workoutsError);
+        } else if (workouts) {
+          // Process direct workout assignments
+          const directWorkouts = directAssignments.map(assignment => {
+            const workout = workouts?.find(w => w.workout_id === assignment.workout_id);
+            
+            return {
+              id: assignment.workout_id,
+              name: workout?.name || '',
+              description: workout?.description || '',
+              color: workout?.color || '#6366f1',
+              notes: workout?.notes || '',
+              assignmentType: 'direct',
+              assignmentId: assignment.id
+            };
+          });
+          
+          allWorkouts = [...allWorkouts, ...directWorkouts];
+        }
+      }
+      
+      // 2. Now get program assignments for this athlete within the date range
+      const { data: programAssignments, error: programAssignmentError } = await supabase
+        .from('program_assignments')
+        .select(`
+          id,
+          program_id,
+          start_date,
+          end_date,
+          programs:programs(name, description)
+        `)
+        .eq('athlete_id', profile.id)
+        .lte('start_date', dateStr)
+        .gte('end_date', dateStr);
+      
+      if (programAssignmentError) {
+        console.error('Error fetching program assignments:', programAssignmentError);
+      } else if (programAssignments && programAssignments.length > 0) {
+        // For each program assignment, find program workouts scheduled for this day
+        for (const assignment of programAssignments) {
+          // Get workouts for this program on this date
+          const { data: programWorkouts, error: programWorkoutsError } = await supabase
+            .from('program_workouts')
+            .select(`
+              id,
+              workout_id,
+              workout_date,
+              program_id
+            `)
+            .eq('program_id', assignment.program_id)
+            .eq('workout_date', dateStr);
+          
+          if (programWorkoutsError) {
+            console.error('Error fetching program workouts:', programWorkoutsError);
+          } else if (programWorkouts && programWorkouts.length > 0) {
+            // Extract workout IDs for the query
+            const workoutIds = programWorkouts.map(pw => pw.workout_id).filter(id => id !== null && id !== undefined);
+            
+            if (workoutIds.length > 0) {
+              // Get the workout details directly from the workouts table
+              const { data: workouts, error: workoutsError } = await supabase
+                .from('workouts')
+                .select('*')
+                .in('workout_id', workoutIds);
+              
+              if (workoutsError) {
+                console.error('Error fetching workout details for program:', workoutsError);
+              } else if (workouts && workouts.length > 0) {
+                // Process program workouts
+                const workoutsFromProgram = programWorkouts.map(pw => {
+                  const workout = workouts?.find(w => w.workout_id === pw.workout_id);
+                  
+                  if (!workout) return null;
+                  
+                  // Extract program name safely
+                  const programName = typeof assignment.programs === 'object' && 
+                    assignment.programs !== null && 
+                    'name' in assignment.programs ? 
+                    assignment.programs.name : 'Unknown Program';
+                  
+                  return {
+                    id: pw.workout_id,
+                    name: workout.name || '',
+                    description: workout.description || '',
+                    color: workout.color || '#6366f1', // Default indigo color
+                    notes: workout.notes || '',
+                    programName: programName,
+                    assignmentType: 'program',
+                    programId: assignment.program_id
+                  };
+                }).filter(workout => workout !== null);
+                
+                allWorkouts = [...allWorkouts, ...workoutsFromProgram];
+              }
+            }
+          }
+        }
+      }
+      
+      setDayWorkouts(allWorkouts);
+      
+    } catch (err) {
+      console.error('Error fetching day workouts:', err);
+      setDayWorkouts([]);
+    }
+  };
+
+  // Check athlete status when profile is available
   useEffect(() => {
     if (profile) {
-      fetchCoachConnections();
+      checkAthleteStatus();
     }
   }, [profile]);
 
-  const dateStr = format(selectedDate, 'yyyy-MM-dd');
-  const dayWorkouts = assignedProgram?.days[dateStr]?.workouts || [];
-  
-  // Check if athlete has an active coach or pending requests
-  const activeCoaches = coachConnections.filter(conn => conn.status === 'active');
-  const pendingCoaches = coachConnections.filter(conn => conn.status === 'pending');
-  
-  const hasActiveCoach = activeCoaches.length > 0;
-  const hasPendingRequest = pendingCoaches.length > 0;
-  
-  const toggleCoachActions = (coachId: string) => {
-    setShowCoachActions(prev => ({
-      ...prev,
-      [coachId]: !prev[coachId]
-    }));
-  };
-
-  const unsubscribeFromCoach = async (connectionId: string) => {
-    if (!profile) return;
-    setErrorMessage(null);
-
-    try {
-      setUnsubscribingCoach(connectionId);
-      console.log(`Attempting to unsubscribe from coach with connection ID: ${connectionId}`);
-      
-      // Get connection details first for logging
-      const { data: connection, error: getError } = await supabase
-        .from('coach_athletes')
-        .select('*')
-        .eq('id', connectionId)
-        .single();
-        
-      if (getError) {
-        console.error('Error getting coach connection details:', getError);
-      } else {
-        console.log('Connection details before update:', connection);
-      }
-      
-      // Update the coach_athletes record to set status to 'inactive'
-      const { data, error } = await supabase
-        .from('coach_athletes')
-        .update({ status: 'inactive' })
-        .eq('id', connectionId)
-        .select();
-      
-      if (error) {
-        console.error('Error unsubscribing from coach:', error);
-        setErrorMessage(`Failed to unsubscribe: ${error.message}`);
-        throw error;
-      }
-      
-      console.log('Unsubscribe result:', data);
-      
-      // Update local state
-      setCoachConnections(prev => 
-        prev.filter(conn => conn.id !== connectionId)
-      );
-      
-      // Reset action menu
-      setShowCoachActions({});
-      
-    } catch (err) {
-      console.error('Error unsubscribing from coach:', err);
-      setErrorMessage('Failed to unsubscribe from coach. Please try again later.');
-    } finally {
-      setUnsubscribingCoach(null);
+  // Fetch assigned programs when profile is available and not inactive
+  useEffect(() => {
+    if (profile && !isCheckingStatus) {
+      fetchAssignedPrograms();
     }
-  };
+  }, [profile, isInactive, isCheckingStatus]);
 
+  // Fetch workouts when date or selected program changes and not inactive
+  useEffect(() => {
+    if (profile && !isCheckingStatus && !isInactive) {
+      fetchDayWorkouts();
+    }
+  }, [selectedDate, selectedProgramId, assignedPrograms, isInactive, isCheckingStatus]);
+
+  // Loading state while checking status
+  if (isCheckingStatus) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <span className="ml-3 text-gray-600 dark:text-gray-400">Loading...</span>
+      </div>
+    );
+  }
+
+  // Inactive athlete view
+  if (isInactive) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+            {t('your-training')}
+          </h1>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            {t('welcome-athlete-dashboard')}
+          </p>
+        </div>
+
+        {/* Inactive Status Message */}
+        <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-6">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <Info className="h-5 w-5 text-orange-400" />
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-orange-800 dark:text-orange-200">
+                {t('inactive-account')}
+              </h3>
+              <div className="mt-2 text-sm text-orange-700 dark:text-orange-400">
+                <p className="mb-3">
+                  {t('inactive-account-desc')}
+                </p>
+                <p className="mb-3">
+                  <strong>{t('what-this-means')}</strong>
+                </p>
+                <ul className="list-disc list-inside mb-3 space-y-1">
+                  <li>{t('no-workouts-displayed')}</li>
+                  <li>{t('no-programs-visible')}</li>
+                  <li>{t('calendar-empty')}</li>
+                </ul>
+                <p className="mb-3">
+                  <strong>{t('to-reactivate')}</strong>
+                </p>
+                <p>
+                  {coachNames.length > 1 ? t('contact-coaches') : t('contact-coach')}
+                  {coachNames.length > 0 && (
+                    <span className="font-semibold">
+                      {coachNames.length === 1 
+                        ? ` (${coachNames[0]})` 
+                        : ` (${coachNames.join(', ')})`
+                      }
+                    </span>
+                  )} {t('request-reactivation')}
+                </p>
+              </div>
+              <div className="mt-4">
+                <div className="flex items-center text-sm">
+                  <Mail className="h-4 w-4 text-orange-400 mr-2" />
+                  <span className="text-orange-700 dark:text-orange-400">
+                    {t('contact-coach-directly')}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Empty calendar placeholder */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 text-center">
+          <Calendar className="h-12 w-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-1">{t('no-workouts-today')}</h3>
+          <p className="text-gray-500 dark:text-gray-400">
+            {t('check-other-days')}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const dateStr = format(selectedDate, 'yyyy-MM-dd');
+  
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-          {isToday(selectedDate) ? "Today's Workouts" : format(selectedDate, 'MMMM d, yyyy')}
-        </h1>
-        <div className="flex items-center space-x-2">
+    <div className="space-y-4 md:space-y-6 pb-4 md:pb-0">
+      {/* Mobile Date Header with Navigation and Language Toggle */}
+      <div className="block md:hidden">
+        <div className="flex items-center justify-between px-4 py-2">
           <button
             onClick={() => navigateDay('prev')}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full"
+            className="p-2 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
           >
             <ChevronLeft className="h-5 w-5" />
           </button>
-          <button
-            onClick={() => setSelectedDate(new Date())}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full"
-            title="Go to today"
-          >
-            <Calendar className="h-5 w-5" />
-          </button>
+          
+          <div className="text-center">
+            <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">
+              {formatFullDateWithDay(selectedDate, language)}
+            </h1>
+          </div>
+          
           <button
             onClick={() => navigateDay('next')}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full"
+            className="p-2 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
           >
             <ChevronRight className="h-5 w-5" />
           </button>
         </div>
       </div>
 
-      {/* Coach Connection Card */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+      {/* Desktop Header with Language Toggle */}
+      <div className="hidden md:block">
         <div className="flex items-center justify-between">
-          <div className="flex items-center">
-            <Users className="h-5 w-5 text-purple-500 mr-2" />
-            <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">
-              My Coaches
-            </h2>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+              {isToday(selectedDate) ? t('your-training') : formatMonthDayYear(selectedDate, language)}
+            </h1>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              {t('welcome-athlete-dashboard')}
+            </p>
           </div>
-          {hasActiveCoach && (
-            <Link
-              to="/athlete/find-coach"
-              className="inline-flex items-center text-sm font-medium text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-300 p-1 rounded-md hover:bg-purple-50 dark:hover:bg-purple-900/20"
-              title="Add another coach"
-            >
-              <PlusCircle className="h-4 w-4 mr-1" />
-              Add Coach
-            </Link>
-          )}
+        </div>
+      </div>
+
+      {/* Install Banner for mobile users not in PWA mode */}
+      <InstallBanner />
+
+      {/* Week Navigation - Compact for mobile */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 mx-2 md:mx-0">
+        <div className="flex justify-between">
+          {Array.from({ length: 7 }, (_, i) => {
+            const date = addDays(startOfWeek(selectedDate), i);
+            const dayName = formatDayName(date, language);
+            const dayNumber = format(date, 'd');
+            const isSelectedDay = format(date, 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd');
+            const isTodayDay = isToday(date);
+            
+            return (
+              <button
+                key={`${dayName}-${dayNumber}`}
+                onClick={() => setSelectedDate(date)}
+                className={`flex-1 py-3 md:py-3 flex flex-col items-center transition-colors first:rounded-l-lg last:rounded-r-lg ${
+                  isSelectedDay
+                    ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200'
+                    : isTodayDay
+                    ? 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200'
+                    : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                }`}
+              >
+                <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                  {dayName}
+                </span>
+                <span className={`text-base md:text-lg font-semibold mt-1 ${
+                  isSelectedDay
+                    ? 'text-blue-800 dark:text-blue-200'
+                    : isTodayDay
+                    ? 'text-gray-800 dark:text-gray-200'
+                    : 'text-gray-900 dark:text-gray-100'
+                }`}>
+                  {dayNumber}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Assigned Programs - Hidden on mobile, visible on desktop */}
+      {isLoadingPrograms ? (
+        <div className="hidden md:block bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+          <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+            {t('assigned-programs')}
+          </h2>
+          <p className="text-gray-500 dark:text-gray-400 text-sm">
+            {t('loading-programs')}
+          </p>
+        </div>
+      ) : (
+        <div className="hidden md:block">
+        <AssignedPrograms 
+          programs={assignedPrograms} 
+          onSelectProgram={setSelectedProgramId} 
+          selectedProgramId={selectedProgramId} 
+        />
+        </div>
+      )}
+
+      {/* Date Navigation - Hide on mobile */}
+      <div className="hidden md:flex items-center justify-between">
+        <button
+          onClick={() => navigateDay('prev')}
+          className="p-2 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+        >
+          <ChevronLeft className="h-5 w-5" />
+        </button>
+        
+        <div className="flex items-center space-x-2">
+          <Calendar className="h-5 w-5 text-gray-400" />
+          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+            {formatMonthDayYear(selectedDate, language)}
+          </span>
         </div>
         
-        {errorMessage && (
-          <div className="mt-2 p-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm rounded border border-red-200 dark:border-red-800">
-            {errorMessage}
-          </div>
-        )}
-        
-        {isLoadingCoach ? (
-          <p className="mt-2 text-gray-500 dark:text-gray-400">Loading coach information...</p>
-        ) : hasActiveCoach ? (
-          <div className="mt-3 space-y-3">
-            {activeCoaches.map(conn => (
-              <div key={conn.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 group">
-                <div className="flex items-center">
-                  {conn.coach?.avatar_url ? (
-                    <img 
-                      src={conn.coach.avatar_url} 
-                      alt={conn.coach.full_name} 
-                      className="w-10 h-10 rounded-full mr-3"
-                    />
-                  ) : (
-                    <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center mr-3">
-                      <span className="text-purple-600 font-semibold">
-                        {conn.coach?.full_name.substring(0, 1)}
-                      </span>
-                    </div>
-                  )}
-                  <div>
-                    <p className="font-medium text-gray-900 dark:text-gray-100">
-                      {conn.coach?.full_name}
-                    </p>
-                    <p className="text-sm text-green-600 dark:text-green-400">
-                      Active Coach
-                    </p>
-                  </div>
-                </div>
-                
-                {/* Menu for coach actions */}
-                <div className="relative">
-                  <button 
-                    onClick={() => toggleCoachActions(conn.id)}
-                    className="p-2 opacity-0 group-hover:opacity-100 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-opacity"
-                  >
-                    <MoreHorizontal className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-                  </button>
-                  
-                  {showCoachActions[conn.id] && (
-                    <div className="absolute right-0 mt-1 w-48 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 p-1 z-10">
-                      <button
-                        onClick={() => unsubscribeFromCoach(conn.id)}
-                        disabled={unsubscribingCoach === conn.id}
-                        className="w-full text-left px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md flex items-center"
-                      >
-                        {unsubscribingCoach === conn.id ? (
-                          <span className="flex items-center">
-                            <div className="h-3 w-3 mr-2 rounded-full border-2 border-t-transparent border-red-400 animate-spin"></div>
-                            Unsubscribing...
-                          </span>
-                        ) : (
-                          <>
-                            <X className="h-3.5 w-3.5 mr-2" />
-                            Unsubscribe
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-            
-            {pendingCoaches.length > 0 && (
-              <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Pending Requests</h3>
-                {pendingCoaches.map(conn => (
-                  <div key={conn.id} className="flex items-center mt-2 bg-gray-50 dark:bg-gray-700/50 p-2 rounded">
-                    <div className="w-8 h-8 bg-yellow-100 dark:bg-yellow-900/30 rounded-full flex items-center justify-center mr-2">
-                      <span className="text-yellow-600 dark:text-yellow-400 font-semibold">
-                        {conn.coach?.full_name.substring(0, 1)}
-                      </span>
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-900 dark:text-gray-100">
-                        {conn.coach?.full_name}
-                      </p>
-                      <p className="text-xs text-yellow-600 dark:text-yellow-400">
-                        Request Pending
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => unsubscribeFromCoach(conn.id)}
-                      disabled={unsubscribingCoach === conn.id}
-                      className="p-1 text-gray-400 hover:text-red-500 rounded"
-                      title="Cancel request"
-                    >
-                      {unsubscribingCoach === conn.id ? (
-                        <div className="h-4 w-4 rounded-full border-2 border-t-transparent border-gray-400 animate-spin"></div>
-                      ) : (
-                        <X className="h-4 w-4" />
-                      )}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-            
-            <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
-              <Link
-                to="/athlete/find-coach"
-                className="inline-flex items-center text-sm font-medium text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-300"
-              >
-                Find More Coaches
-                <ExternalLink className="ml-1 h-3 w-3" />
-              </Link>
-            </div>
-          </div>
-        ) : hasPendingRequest ? (
-          <div className="mt-3">
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              You have pending coach requests. Coaches will review your requests and accept them soon.
-            </p>
-            <div className="mt-2">
-              {pendingCoaches.map(conn => (
-                <div key={conn.id} className="flex items-center mt-2 bg-gray-50 dark:bg-gray-700/50 p-2 rounded">
-                  <div className="w-8 h-8 bg-yellow-100 dark:bg-yellow-900/30 rounded-full flex items-center justify-center mr-2">
-                    <span className="text-yellow-600 dark:text-yellow-400 font-semibold">
-                      {conn.coach?.full_name.substring(0, 1)}
-                    </span>
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-medium text-gray-900 dark:text-gray-100">
-                      {conn.coach?.full_name}
-                    </p>
-                    <p className="text-xs text-yellow-600 dark:text-yellow-400">
-                      Request Pending
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => unsubscribeFromCoach(conn.id)}
-                    disabled={unsubscribingCoach === conn.id}
-                    className="p-1 text-gray-400 hover:text-red-500 rounded"
-                    title="Cancel request"
-                  >
-                    {unsubscribingCoach === conn.id ? (
-                      <div className="h-4 w-4 rounded-full border-2 border-t-transparent border-gray-400 animate-spin"></div>
-                    ) : (
-                      <X className="h-4 w-4" />
-                    )}
-                  </button>
-                </div>
-              ))}
-            </div>
-            <div className="mt-4">
-              <Link
-                to="/athlete/find-coach"
-                className="inline-flex items-center text-sm font-medium text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-300"
-              >
-                Find More Coaches
-                <ExternalLink className="ml-1 h-3 w-3" />
-              </Link>
-            </div>
-          </div>
+        <button
+          onClick={() => navigateDay('next')}
+          className="p-2 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+        >
+          <ChevronRight className="h-5 w-5" />
+        </button>
+      </div>
+
+      {/* Workouts */}
+      <div className="space-y-4 px-2 md:px-0">
+        {dayWorkouts.length > 0 ? (
+          dayWorkouts.map((workout: any, index: number) => (
+            <WorkoutCard 
+              key={`${workout.id}-${index}`}
+              workout={workout} 
+              scheduledDate={selectedDate}
+              onActivityChange={handleActivityChange}
+            />
+          ))
         ) : (
-          <div className="mt-3">
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-              You are not connected with any coach yet. Find a coach to get personalized workouts and tracking.
-            </p>
-            <Link 
-              to="/athlete/find-coach" 
-              className="inline-flex items-center text-sm font-medium text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-300"
-            >
-              Find a Coach
-              <ExternalLink className="ml-1 h-4 w-4" />
-            </Link>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 text-center">
+            <Calendar className="h-12 w-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-1">{t('no-workouts-scheduled')}</h3>
           </div>
         )}
       </div>
-
-      {assignedProgram ? (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 mb-6">
-          <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">
-            {assignedProgram.name}
-          </h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            {format(parseISO(assignedProgram.startDate), 'MMM d')} -{' '}
-            {format(parseISO(assignedProgram.endDate), 'MMM d, yyyy')}
-          </p>
-        </div>
-      ) : (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8 text-center">
-          <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
-            No Active Program
-          </h3>
-          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-            {hasActiveCoach 
-              ? "You don't have any assigned programs yet."
-              : "Connect with a coach to get assigned programs and workouts."}
-          </p>
-          {!hasActiveCoach && !hasPendingRequest && (
-            <Link 
-              to="/athlete/find-coach" 
-              className="mt-4 inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700"
-            >
-              Find a Coach
-            </Link>
-          )}
-        </div>
-      )}
-
-      {dayWorkouts.length > 0 ? (
-        <div className="space-y-4">
-          {dayWorkouts.map((workout) => (
-            <WorkoutCard key={workout.id} workout={workout} />
-          ))}
-        </div>
-      ) : (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 text-center">
-          <p className="text-gray-500 dark:text-gray-400">
-            No workouts scheduled for this day
-          </p>
-        </div>
-      )}
     </div>
   );
 }

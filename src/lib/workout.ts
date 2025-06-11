@@ -1,34 +1,20 @@
 import { create } from 'zustand';
 import { supabase } from './supabase';
 
-export type SessionType = 
-  | 'CrossFit'
-  | 'Olympic Weightlifting'
-  | 'Powerlifting'
-  | 'Endurance'
-  | 'Gymnastics'
-  | 'Recovery'
-  | 'Competition Prep'
-  | 'Skills & Drills'
-  | 'Custom';
-
+export type BlockType = 'warmup' | 'skill' | 'strength' | 'wod' | 'cooldown';
 export type WorkoutType = 'warmup' | 'strength' | 'wod' | 'cooldown';
 export type WorkoutFormat = 'forTime' | 'amrap' | 'emom' | 'tabata' | 'rounds' | 'complex' | 'benchmark';
 export type ProgramStatus = 'draft' | 'published' | 'archived';
 
-export interface Session {
-  id: string;
-  name: string;
-  description?: string;
-  workouts: WorkoutBlock[];
-  createdAt: string;
-  updatedAt: string;
-}
-
 export interface WorkoutBlock {
   id: string;
-  name: string;
-  type: WorkoutType;
+  name?: string;
+  type?: BlockType;
+  type_id: number;
+  workout_type?: {
+    id: number;
+    code: string;
+  };
   format?: WorkoutFormat;
   description: string;
   color?: string;
@@ -39,16 +25,18 @@ export interface WorkoutBlock {
   stimulus?: string;
   goal?: string;
   notes?: string;
+  coach_id?: string;
   createdAt: string;
   updatedAt: string;
   isNew?: boolean;
   wasEdited?: boolean;
+  isExistingAssignment?: boolean;
 }
 
 export interface DayProgram {
   id: string;
   date: string;
-  sessions: Session[];
+  workouts: WorkoutBlock[];
 }
 
 export interface ProgramAssignment {
@@ -98,11 +86,6 @@ interface WorkoutStore {
   duplicateWorkout: (programId: string, fromDate: string, toDate: string, workoutId: string) => void;
   duplicateDay: (programId: string, fromDate: string, toDate: string) => void;
   duplicateWeek: (programId: string, fromDate: string) => void;
-  
-  // Session Management
-  addSession: (programId: string, date: string, session: Omit<Session, 'id' | 'createdAt' | 'updatedAt'>) => void;
-  updateSession: (programId: string, date: string, sessionId: string, updates: Partial<Session>) => void;
-  deleteSession: (programId: string, date: string, sessionId: string) => void;
   
   // Assignment Management
   assignProgram: (
@@ -335,6 +318,90 @@ export const useWorkoutStore = create<WorkoutStore>((set) => ({
         };
       }
       
+      // Fetch program workouts for each program
+      try {
+        const programIds = Object.keys(programsMap);
+        
+        if (programIds.length > 0) {
+          // Fetch all program workouts for these programs
+          const { data: programWorkouts, error: workoutsError } = await supabase
+            .from('program_workouts')
+            .select('program_id, workout_id, workout_date')
+            .in('program_id', programIds);
+            
+          if (workoutsError) {
+            console.error('Error fetching program workouts:', workoutsError);
+          } else if (programWorkouts && programWorkouts.length > 0) {
+            console.log(`Found ${programWorkouts.length} program workouts`);
+            
+            // Get all unique workout IDs
+            const workoutIds = [...new Set(programWorkouts.map(pw => pw.workout_id))];
+            
+            // Fetch details for all workouts
+            const { data: workoutsData, error: workoutsDataError } = await supabase
+              .from('workouts')
+              .select('*')
+              .in('workout_id', workoutIds);
+              
+            if (workoutsDataError) {
+              console.error('Error fetching workout details:', workoutsDataError);
+            } else if (workoutsData) {
+              // Group program workouts by program ID and date
+              const workoutsByProgram: Record<string, Record<string, any[]>> = {};
+              
+              programWorkouts.forEach(pw => {
+                // Initialize program entry if it doesn't exist
+                if (!workoutsByProgram[pw.program_id]) {
+                  workoutsByProgram[pw.program_id] = {};
+                }
+                
+                // Initialize date entry if it doesn't exist
+                if (!workoutsByProgram[pw.program_id][pw.workout_date]) {
+                  workoutsByProgram[pw.program_id][pw.workout_date] = [];
+                }
+                
+                // Find the workout details
+                const workout = workoutsData.find(w => w.workout_id === pw.workout_id);
+                if (workout) {
+                  // Add workout to the program's date
+                  workoutsByProgram[pw.program_id][pw.workout_date].push({
+                    id: workout.workout_id,
+                    description: workout.description,
+                    color: workout.color,
+                    notes: workout.notes,
+                    name: workout.name,
+                    type_id: workout.type_id,
+                    coach_id: workout.coach_id,
+                    createdAt: workout.created_at,
+                    updatedAt: workout.updated_at
+                  });
+                }
+              });
+              
+              // Update each program with its workouts
+              Object.entries(workoutsByProgram).forEach(([programId, dateWorkouts]) => {
+                const dayPrograms: Record<string, DayProgram> = {};
+                
+                Object.entries(dateWorkouts).forEach(([date, workouts]) => {
+                  dayPrograms[date] = {
+                    id: `day-${date}`, // Generate a stable ID
+                    date,
+                    workouts
+                  };
+                });
+                
+                // Update the program with its days
+                if (programsMap[programId]) {
+                  programsMap[programId].days = dayPrograms;
+                }
+              });
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Error processing program workouts:', e);
+      }
+      
       // Fetch assigned athletes for each program
       try {
         const programIds = Object.keys(programsMap);
@@ -389,7 +456,7 @@ export const useWorkoutStore = create<WorkoutStore>((set) => ({
   setProgramFilter: (filter) =>
     set({ programFilter: filter }),
 
-  // Stub methods for workout/session/assignment management
+  // Stub methods for workout/assignment management
   addWorkout: (_programId, _date, _workout) => {
     console.warn('addWorkout is not implemented yet.');
   },
@@ -407,131 +474,6 @@ export const useWorkoutStore = create<WorkoutStore>((set) => ({
   },
   duplicateWeek: (_programId, _fromDate) => {
     console.warn('duplicateWeek is not implemented yet.');
-  },
-  addSession: (programId, date, session) => {
-    set((state) => {
-      // Get existing program data
-      const program = state.programs[programId];
-      if (!program) return state;
-      
-      // Check if this date already exists in the program's days
-      const existingDay = program.days[date];
-      const newSession = {
-        ...session,
-        id: crypto.randomUUID(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      
-      if (existingDay) {
-        // Add session to existing day
-        return {
-          programs: {
-            ...state.programs,
-            [programId]: {
-              ...program,
-              days: {
-                ...program.days,
-                [date]: {
-                  ...existingDay,
-                  sessions: [...existingDay.sessions, newSession],
-                },
-              },
-            },
-          },
-        };
-      } else {
-        // Create new day with this session
-        return {
-          programs: {
-            ...state.programs,
-            [programId]: {
-              ...program,
-              days: {
-                ...program.days,
-                [date]: {
-                  id: crypto.randomUUID(),
-                  date,
-                  sessions: [newSession],
-                },
-              },
-            },
-          },
-        };
-      }
-    });
-  },
-  updateSession: (programId, date, sessionId, updates) => {
-    set((state) => {
-      // Get existing program and days data
-      const program = state.programs[programId];
-      if (!program) return state;
-      
-      // Check if the day exists in the program
-      const day = program.days[date];
-      if (!day) return state;
-      
-      // Find the session to update
-      const sessionIndex = day.sessions.findIndex(s => s.id === sessionId);
-      if (sessionIndex === -1) return state;
-      
-      // Create new array with updated session
-      const updatedSessions = [...day.sessions];
-      updatedSessions[sessionIndex] = {
-        ...updatedSessions[sessionIndex],
-        ...updates,
-        updatedAt: new Date().toISOString()
-      };
-      
-      // Return updated state
-      return {
-        programs: {
-          ...state.programs,
-          [programId]: {
-            ...program,
-            days: {
-              ...program.days,
-              [date]: {
-                ...day,
-                sessions: updatedSessions
-              }
-            }
-          }
-        }
-      };
-    });
-  },
-  deleteSession: (programId, date, sessionId) => {
-    set((state) => {
-      // Get existing program and days data
-      const program = state.programs[programId];
-      if (!program) return state;
-      
-      // Check if the day exists in the program
-      const day = program.days[date];
-      if (!day) return state;
-      
-      // Filter out the session to delete
-      const filteredSessions = day.sessions.filter(s => s.id !== sessionId);
-      
-      // If no sessions left for this day, we could remove the day entirely
-      // or keep an empty day (chosen to keep the day for simplicity)
-      return {
-        programs: {
-          ...state.programs,
-          [programId]: {
-            ...program,
-            days: {
-              ...program.days,
-              [date]: {
-                ...day,
-                sessions: filteredSessions
-              }
-            }
-          }
-        }
-      };
-    });
   },
   assignProgram: async (programId, athletes, message) => {
     console.log('Assigning program to athletes:', programId, athletes);
@@ -700,58 +642,97 @@ export function initializeWithSampleData() {
 
 // Save a workout to the workouts table
 export const saveWorkout = async (
-  sessionId: string,
   workout: {
     description: string;
     color: string;
     notes?: string;
+    coach_id: string;
   }
 ) => {
-  console.log('Saving workout to Supabase...', { sessionId, workout });
-  
   try {
     const { data, error } = await supabase
       .from('workouts')
       .insert({
-        session_id: sessionId,
         description: workout.description,
         color: workout.color,
-        notes: workout.notes || null
+        notes: workout.notes,
+        coach_id: workout.coach_id
       })
       .select();
-    
+
     if (error) {
       console.error('Error saving workout:', error);
-      throw new Error('Failed to save workout');
+      throw error;
     }
-    
-    console.log('Successfully saved workout:', data);
-    return data[0];
+
+    return { data, error: null };
   } catch (error) {
-    console.error('Error in saveWorkout:', error);
-    throw error;
+    console.error('Exception saving workout:', error);
+    return { data: null, error };
   }
 };
 
 // Delete a workout from the workouts table
 export const deleteWorkout = async (workoutId: string) => {
-  console.log('Deleting workout from Supabase...', workoutId);
-  
   try {
     const { error } = await supabase
       .from('workouts')
       .delete()
       .eq('workout_id', workoutId);
-    
+
     if (error) {
       console.error('Error deleting workout:', error);
-      throw new Error('Failed to delete workout');
+      throw error;
     }
-    
-    console.log('Successfully deleted workout');
-    return true;
+
+    return { success: true, error: null };
   } catch (error) {
-    console.error('Error in deleteWorkout:', error);
-    throw error;
+    console.error('Exception deleting workout:', error);
+    return { success: false, error };
+  }
+};
+
+export const assignWorkoutToAthlete = async (workoutId: string, athleteId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('workout_assignments')
+      .insert({
+        workout_id: workoutId,
+        athlete_id: athleteId
+      })
+      .select();
+
+    if (error) {
+      console.error('Error assigning workout to athlete:', error);
+      throw error;
+    }
+
+    return { data, error: null };
+  } catch (error) {
+    console.error('Exception assigning workout to athlete:', error);
+    return { data: null, error };
+  }
+};
+
+export const assignWorkoutToProgram = async (workoutId: string, programId: string, workoutDate: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('program_workouts')
+      .insert({
+        workout_id: workoutId,
+        program_id: programId,
+        workout_date: workoutDate
+      })
+      .select();
+
+    if (error) {
+      console.error('Error assigning workout to program:', error);
+      throw error;
+    }
+
+    return { data, error: null };
+  } catch (error) {
+    console.error('Exception assigning workout to program:', error);
+    return { data: null, error };
   }
 };

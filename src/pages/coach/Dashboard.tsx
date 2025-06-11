@@ -2,24 +2,26 @@
  * src/pages/coach/Dashboard.tsx
  * 
  * This file contains the actual Coach Dashboard that will display real data from Supabase.
- * Currently shows an empty state that will be populated as the user adds programs and athletes.
+ * Updated to show recent athlete activity instead of Quick Actions and Your Programs.
+ * Invitation link functionality has been moved to Settings.
  */
 
-import { format, parseISO } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
 import {
+    Activity,
     Calendar,
     ChevronRight,
-    Clock,
-    FilePlus,
-    Plus,
-    PlusCircle,
-    UserPlus,
-    Users,
+    Loader2,
+    MessageSquare,
+    Trophy,
+    UserCircle,
+    Users
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link as RouterLink } from 'react-router-dom';
 import { useProfile } from '../../contexts/ProfileContext';
-import { supabase } from '../../lib/supabase';
+import { useI18n } from '../../lib/i18n/context';
+import { getCoachAthleteActivity, supabase } from '../../lib/supabase';
 import { useWorkoutStore } from '../../lib/workout';
 
 // Define a type for athlete data
@@ -31,22 +33,49 @@ interface Athlete {
   status: string;
 }
 
+// Define interface for activity data
+interface AthleteActivityItem {
+  id: string;
+  athlete_id: string;
+  workout_id: string;
+  scheduled_on: string | null;
+  is_completed: boolean;
+  completed_at: string | null;
+  notes: string | null;
+  is_unscaled: boolean | null;
+  created_at: string;
+  updated_at: string;
+  athlete: {
+    id: string;
+    full_name: string;
+    avatar_url: string | null;
+  };
+  workout: {
+    workout_id: string;
+    description: string;
+    session_id: string;
+  };
+}
+
 export function CoachDashboard() {
-  const { profile } = useProfile();
+  const { profile, refreshProfile } = useProfile();
   const { programs, fetchPrograms } = useWorkoutStore();
-  const [athletes, setAthletes] = useState<Athlete[]>([]);
   const [loading, setLoading] = useState(true);
+  const [athletes, setAthletes] = useState<Athlete[]>([]);
+  const [recentActivity, setRecentActivity] = useState<AthleteActivityItem[]>([]);
+  const [activityLoading, setActivityLoading] = useState(true);
+  const { t } = useI18n();
+
+  // Default coach name fallback
+  const coachName = profile?.full_name || 'Coach';
 
   // Get greeting based on time of day
   const getGreeting = () => {
     const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 17) return 'Good afternoon';
-    return 'Good evening';
+    if (hour < 12) return t('good-morning');
+    if (hour < 17) return t('good-afternoon');
+    return t('good-evening');
   };
-
-  // Get coach name from profile
-  const coachName = profile?.full_name || 'Coach';
   
   // Fetch athletes assigned to this coach
   const fetchAthletes = async () => {
@@ -126,18 +155,35 @@ export function CoachDashboard() {
     }
   };
 
+  // Fetch recent athlete activity
+  const fetchRecentActivity = async () => {
+    if (!profile) return;
+    
+    try {
+      setActivityLoading(true);
+      const { data, error } = await getCoachAthleteActivity(profile.id, 10);
+      
+      if (error) {
+        console.error('Error fetching recent activity:', error);
+        return;
+      }
+      
+      setRecentActivity(data || []);
+    } catch (error) {
+      console.error('Error in fetchRecentActivity:', error);
+    } finally {
+      setActivityLoading(false);
+    }
+  };
+
   // Fetch data when component mounts
   useEffect(() => {
     if (profile) {
       fetchPrograms();
       fetchAthletes();
+      fetchRecentActivity();
     }
   }, [profile, fetchPrograms]);
-
-  // Get programs to display
-  const programList = Object.values(programs)
-    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-    .slice(0, 3);
 
   return (
     <div className="space-y-6">
@@ -146,193 +192,186 @@ export function CoachDashboard() {
           {getGreeting()}, {coachName} 👋
         </h1>
         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          Welcome to your dashboard. Here you can manage your athletes and programs.
+          {t('welcome-dashboard')}
         </p>
       </div>
 
-      {/* Quick Actions */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-        <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Link
-            to="/coach/programs"
-            className="flex items-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
-          >
-            <FilePlus className="h-6 w-6 text-blue-600 dark:text-blue-400 mr-3" />
-            <div>
-              <h3 className="font-medium text-gray-900 dark:text-gray-100">Create Program</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Build workout templates</p>
+      {/* Key Metrics */}
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="bg-white dark:bg-gray-800 overflow-hidden rounded-lg shadow">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <Users className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
+                    {t('active-athletes')}
+                  </dt>
+                  <dd className="flex items-baseline">
+                    <div className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
+                      {loading ? '-' : athletes.length}
+                    </div>
+                  </dd>
+                </dl>
+              </div>
             </div>
-          </Link>
-          <Link
-            to="/coach/athletes"
-            className="flex items-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors"
-          >
-            <UserPlus className="h-6 w-6 text-green-600 dark:text-green-400 mr-3" />
-            <div>
-              <h3 className="font-medium text-gray-900 dark:text-gray-100">Add Athletes</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Invite people to join</p>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 overflow-hidden rounded-lg shadow">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <Calendar className="h-6 w-6 text-green-600 dark:text-green-400" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
+                    {t('programs')}
+                  </dt>
+                  <dd className="flex items-baseline">
+                    <div className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
+                      {loading ? '-' : Object.values(programs).length}
+                    </div>
+                  </dd>
+                </dl>
+              </div>
             </div>
-          </Link>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 overflow-hidden rounded-lg shadow">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <Activity className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
+                    {t('recent-activity')}
+                  </dt>
+                  <dd className="flex items-baseline">
+                    <div className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
+                      {activityLoading ? '-' : recentActivity.length}
+                    </div>
+                  </dd>
+                </dl>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Programs */}
-      <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
+      {/* Recent Activity Section */}
+      <div className="bg-white dark:bg-gray-800 shadow rounded-lg">
         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">
-              Your Programs
+              {t('recent-activity')}
             </h2>
-            <Link
-              to="/coach/programs"
-              className="flex items-center text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300"
-            >
-              <PlusCircle className="h-4 w-4 mr-1" />
-              New Program
-            </Link>
-          </div>
-        </div>
-        
-        {loading ? (
-          <div className="p-6 text-center">
-            <p className="text-gray-500 dark:text-gray-400">Loading programs...</p>
-          </div>
-        ) : programList.length > 0 ? (
-          <div className="divide-y divide-gray-200 dark:divide-gray-700">
-            {programList.map((program) => (
-              <Link
-                key={program.id}
-                to={`/coach/program/${program.id}`}
-                className="block px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/50"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                      {program.name}
-                    </h3>
-                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                      {format(parseISO(program.startDate), 'MMM d')} -{' '}
-                      {format(parseISO(program.endDate), 'MMM d, yyyy')}
-                    </p>
-                  </div>
-                  <div className="flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400">
-                    <div className="flex items-center">
-                      <Clock className="h-4 w-4 mr-1" />
-                      <span>{program.weekCount} weeks</span>
-                    </div>
-                    <div className="flex items-center">
-                      <Users className="h-4 w-4 mr-1" />
-                      <span>{program.assignedTo.athletes.length} assigned</span>
-                    </div>
-                    <ChevronRight className="h-5 w-5 text-gray-400" />
-                  </div>
-                </div>
-              </Link>
-            ))}
-            {programList.length < Object.values(programs).length && (
-              <Link 
-                to="/coach/programs"
-                className="block px-6 py-3 text-center text-sm text-blue-600 dark:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-700/50"
-              >
-                View all programs
-              </Link>
-            )}
-          </div>
-        ) : (
-          <div className="p-6 flex flex-col items-center justify-center text-center py-12">
-            <Calendar className="h-12 w-12 text-gray-400 dark:text-gray-500 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-1">No programs yet</h3>
-            <p className="text-gray-500 dark:text-gray-400 max-w-md mb-6">
-              Create your first workout program to start assigning to your athletes and teams.
-            </p>
-            <Link
-              to="/coach/programs"
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Create Program
-            </Link>
-          </div>
-        )}
-      </div>
-
-      {/* Athletes */}
-      <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">
-              Your Athletes
-            </h2>
-            <Link
+            <RouterLink
               to="/coach/athletes"
-              className="flex items-center text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300"
+              className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 flex items-center"
             >
-              <PlusCircle className="h-4 w-4 mr-1" />
-              Add Athletes
-            </Link>
+              {t('view-all-athletes')}
+              <ChevronRight className="h-4 w-4 ml-1" />
+            </RouterLink>
           </div>
         </div>
         
-        {loading ? (
+        {activityLoading ? (
           <div className="p-6 text-center">
-            <p className="text-gray-500 dark:text-gray-400">Loading athletes...</p>
+            <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-gray-500 dark:text-gray-400" />
+            <p className="text-gray-500 dark:text-gray-400">{t('loading-recent-activity')}</p>
           </div>
-        ) : athletes.length > 0 ? (
+        ) : recentActivity.length > 0 ? (
           <div className="divide-y divide-gray-200 dark:divide-gray-700">
-            {athletes.slice(0, 5).map((athlete) => (
-              <Link
-                key={athlete.id}
-                to={`/coach/athletes/${athlete.id}`}
-                className="block px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/50"
-              >
-                <div className="flex items-center">
-                  <div className="flex-shrink-0 h-10 w-10">
-                    {athlete.avatar_url ? (
+            {recentActivity.map((activity) => (
+              <div key={activity.id} className="p-4">
+                <div className="flex items-center space-x-3">
+                  {/* Athlete Avatar */}
+                  <div className="flex-shrink-0">
+                    {activity.athlete.avatar_url ? (
                       <img
-                        className="h-10 w-10 rounded-full"
-                        src={athlete.avatar_url}
-                        alt={`${athlete.full_name}'s avatar`}
+                        className="h-8 w-8 rounded-full object-cover"
+                        src={activity.athlete.avatar_url}
+                        alt={activity.athlete.full_name}
+                        onError={(e) => {
+                          // If image fails to load, replace with default icon
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          const parent = target.parentElement;
+                          if (parent) {
+                            parent.innerHTML = `
+                              <div class="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                                <svg class="h-5 w-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.963 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                </svg>
+                              </div>
+                            `;
+                          }
+                        }}
                       />
                     ) : (
-                      <div className="h-10 w-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-                        <Users className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+                      <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                        <UserCircle className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                       </div>
                     )}
                   </div>
-                  <div className="ml-4 flex-1">
-                    <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                      {athlete.full_name}
-                    </h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">{athlete.email}</p>
+                  
+                  {/* Activity Details */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center space-x-2">
+                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                        {activity.athlete.full_name}
+                      </p>
+                      {activity.is_completed && (
+                        <div className="flex items-center space-x-1">
+                          <Trophy className="h-4 w-4 text-green-600 dark:text-green-400" />
+                          {activity.is_unscaled !== null && (
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                              activity.is_unscaled 
+                                ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200'
+                                : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                            }`}>
+                              {activity.is_unscaled ? t('scaled') : t('as-prescribed')}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    
+                    <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
+                      {activity.is_completed ? t('completed') : t('updated')}: {activity.workout.description || t('workout')}
+                    </p>
+                    
+                    {activity.notes && (
+                      <div className="mt-1 flex items-center space-x-1">
+                        <MessageSquare className="h-3 w-3 text-gray-400" />
+                        <p className="text-xs text-gray-600 dark:text-gray-300 truncate">
+                          "{activity.notes}"
+                        </p>
+                      </div>
+                    )}
+                    
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                      {formatDistanceToNow(new Date(activity.updated_at), { addSuffix: true })}
+                    </p>
                   </div>
-                  <ChevronRight className="h-5 w-5 text-gray-400" />
                 </div>
-              </Link>
+              </div>
             ))}
-            {athletes.length > 5 && (
-              <Link 
-                to="/coach/athletes"
-                className="block px-6 py-3 text-center text-sm text-blue-600 dark:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-700/50"
-              >
-                View all athletes
-              </Link>
-            )}
           </div>
         ) : (
           <div className="p-6 flex flex-col items-center justify-center text-center py-12">
-            <Users className="h-12 w-12 text-gray-400 dark:text-gray-500 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-1">No athletes yet</h3>
-            <p className="text-gray-500 dark:text-gray-400 max-w-md mb-6">
-              Add athletes to your roster to start assigning programs and tracking their progress.
+            <Activity className="h-12 w-12 text-gray-400 dark:text-gray-500 mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-1">{t('no-recent-activity')}</h3>
+            <p className="text-gray-500 dark:text-gray-400 max-w-md">
+              {t('no-recent-activity-desc')}
             </p>
-            <Link
-              to="/coach/athletes"
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 dark:focus:ring-offset-gray-800"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Athletes
-            </Link>
           </div>
         )}
       </div>
