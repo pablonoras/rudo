@@ -24,7 +24,7 @@ export default defineConfig({
           }
         ]
       },
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
+      includeAssets: ['favicon.svg', 'icon-192.svg', 'icon-512.svg'],
       manifest: {
         name: 'RUDO - Fitness Coaching Platform',
         short_name: 'RUDO',
@@ -36,14 +36,21 @@ export default defineConfig({
         start_url: '/',
         icons: [
           {
-            src: 'icon-192x192.png',
+            src: '/icon-192.svg',
             sizes: '192x192',
-            type: 'image/png'
+            type: 'image/svg+xml',
+            purpose: 'any maskable'
           },
           {
-            src: 'icon-512x512.png',
+            src: '/icon-512.svg',
             sizes: '512x512',
-            type: 'image/png'
+            type: 'image/svg+xml',
+            purpose: 'any maskable'
+          },
+          {
+            src: '/favicon.svg',
+            sizes: '32x32',
+            type: 'image/svg+xml'
           }
         ]
       }
