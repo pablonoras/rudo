@@ -15,7 +15,6 @@ import { useEffect, useState } from 'react';
 import { AssignedProgram, AssignedPrograms } from '../../components/athlete/AssignedPrograms';
 import { WorkoutCard } from '../../components/athlete/WorkoutCard';
 import { InstallBanner } from '../../components/InstallBanner';
-import LanguageToggle from '../../components/LanguageToggle';
 import { useProfile } from '../../contexts/ProfileContext';
 import {
   addDays,
@@ -471,11 +470,6 @@ export function AthleteDashboard() {
             <ChevronRight className="h-5 w-5" />
           </button>
         </div>
-        
-        {/* Language Toggle for mobile */}
-        <div className="flex justify-center pb-2">
-          <LanguageToggle />
-        </div>
       </div>
 
       {/* Desktop Header with Language Toggle */}
@@ -489,7 +483,6 @@ export function AthleteDashboard() {
               {t('welcome-athlete-dashboard')}
             </p>
           </div>
-          <LanguageToggle />
         </div>
       </div>
 

@@ -1,31 +1,83 @@
 <svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <!-- Dark background with subtle gradient -->
+  <!-- Modern gradient background -->
   <defs>
-    <linearGradient id="bgGradient512" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#0A0A0A"/>
-      <stop offset="100%" style="stop-color:#1A1A1A"/>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1a1a"/>
+      <stop offset="50%" style="stop-color:#2a2a2a"/>
+      <stop offset="100%" style="stop-color:#0a0a0a"/>
     </linearGradient>
-    <linearGradient id="textGradient512" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" style="stop-color:#4A148C"/>
-      <stop offset="50%" style="stop-color:#6A1B9A"/>
-      <stop offset="100%" style="stop-color:#8A2BE2"/>
+    <linearGradient id="brandGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#8A2BE2"/>
+      <stop offset="50%" style="stop-color:#9A3CF0"/>
+      <stop offset="100%" style="stop-color:#B84DFF"/>
     </linearGradient>
-    <!-- Subtle glow effect -->
-    <filter id="glow512">
-      <feGaussianBlur stdDeviation="6" result="coloredBlur"/>
-      <feMerge> 
+    <linearGradient id="accentGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4169E1"/>
+      <stop offset="100%" style="stop-color:#6A5ACD"/>
+    </linearGradient>
+    <!-- Enhanced glow effect -->
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="8" result="coloredBlur"/>
+      <feMerge>
         <feMergeNode in="coloredBlur"/>
         <feMergeNode in="SourceGraphic"/>
       </feMerge>
     </filter>
+    <!-- Drop shadow -->
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#000000" flood-opacity="0.3"/>
+    </filter>
   </defs>
   
-  <!-- Background with rounded corners -->
-  <rect width="512" height="512" rx="85" fill="url(#bgGradient512)"/>
+  <!-- Background with modern rounded corners -->
+  <rect width="512" height="512" rx="112" fill="url(#bgGradient)"/>
   
-  <!-- Subtle border -->
-  <rect x="2" y="2" width="508" height="508" rx="83" fill="none" stroke="url(#textGradient512)" stroke-width="1" opacity="0.3"/>
+  <!-- Stylized dumbbell icon (top) -->
+  <g transform="translate(256, 140)">
+    <!-- Outer weights -->
+    <rect x="-100" y="-20" width="40" height="40" rx="10" fill="url(#brandGradient)" filter="url(#shadow)"/>
+    <rect x="60" y="-20" width="40" height="40" rx="10" fill="url(#brandGradient)" filter="url(#shadow)"/>
+    
+    <!-- Inner weights -->
+    <rect x="-70" y="-12" width="24" height="24" rx="6" fill="url(#accentGradient)" filter="url(#shadow)"/>
+    <rect x="46" y="-12" width="24" height="24" rx="6" fill="url(#accentGradient)" filter="url(#shadow)"/>
+    
+    <!-- Central bar with glow -->
+    <rect x="-46" y="-5" width="92" height="10" rx="5" fill="url(#brandGradient)" filter="url(#glow)"/>
+    
+    <!-- Central grip -->
+    <rect x="-20" y="-8" width="40" height="16" rx="8" fill="#ffffff" opacity="0.9" filter="url(#shadow)"/>
+    
+    <!-- Decorative accents -->
+    <circle cx="-85" cy="-8" r="4" fill="#ffffff" opacity="0.6"/>
+    <circle cx="-85" cy="8" r="4" fill="#ffffff" opacity="0.6"/>
+    <circle cx="85" cy="-8" r="4" fill="#ffffff" opacity="0.6"/>
+    <circle cx="85" cy="8" r="4" fill="#ffffff" opacity="0.6"/>
+  </g>
   
-  <!-- RUDO text with glow effect -->
-  <text x="256" y="320" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="112" text-anchor="middle" fill="url(#textGradient512)" letter-spacing="-3px" filter="url(#glow512)">RUDO</text>
+  <!-- RUDO text with enhanced styling -->
+  <text x="256" y="340" 
+        font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" 
+        font-weight="900" 
+        font-size="96" 
+        text-anchor="middle" 
+        fill="url(#brandGradient)" 
+        letter-spacing="-2px" 
+        filter="url(#glow)">
+    RUDO
+  </text>
+  
+  <!-- Subtle beta indicator -->
+  <text x="256" y="380" 
+        font-family="system-ui, -apple-system, sans-serif" 
+        font-weight="600" 
+        font-size="32" 
+        text-anchor="middle" 
+        fill="#ffffff" 
+        opacity="0.7">
+    BETA
+  </text>
+  
+  <!-- Modern border -->
+  <rect x="4" y="4" width="504" height="504" rx="108" fill="none" stroke="url(#brandGradient)" stroke-width="1" opacity="0.5"/>
 </svg> 

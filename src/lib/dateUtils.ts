@@ -43,6 +43,13 @@ export const formatMonthDayYear = (date: Date, locale: SupportedLocale = 'en'): 
 };
 
 export const formatFullDateWithDay = (date: Date, locale: SupportedLocale = 'en'): string => {
+  if (locale === 'es') {
+    // Format as "miércoles 11 de junio" instead of "miércoles, junio 11"
+    const dayName = formatLocalized(date, 'EEEE', locale);
+    const dayNumber = formatLocalized(date, 'd', locale);
+    const monthName = formatLocalized(date, 'MMMM', locale);
+    return `${dayName} ${dayNumber} de ${monthName}`;
+  }
   return formatLocalized(date, 'EEEE, MMMM d', locale);
 };
 
