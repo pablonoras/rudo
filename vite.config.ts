@@ -33,7 +33,7 @@ export default defineConfig({
         background_color: '#0A0A0A',
         display: 'standalone',
         scope: '/',
-        start_url: '/athlete',
+        start_url: '/login/athlete',
         icons: [
           {
             src: '/icon-32.png',

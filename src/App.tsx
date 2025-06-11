@@ -127,10 +127,24 @@ const PWAHomeRoute = () => {
       const isIOSStandalone = (window.navigator as any).standalone === true;
       const isAndroidApp = document.referrer.includes('android-app://');
       
+      // Check if launched from home screen (iOS Safari)
+      const isFromHomeScreen = isIOSStandalone || isStandaloneDisplayMode;
+      
       // Additional check for Chrome/Android PWA
       const isMinimalUI = window.matchMedia('(display-mode: minimal-ui)').matches;
       
       const isPWAMode = isStandaloneDisplayMode || isIOSStandalone || isAndroidApp || isMinimalUI;
+      
+      // Debug logging (can be removed in production)
+      console.log('PWA Detection:', {
+        isStandaloneDisplayMode,
+        isIOSStandalone,
+        isAndroidApp,
+        isMinimalUI,
+        isFromHomeScreen,
+        forceWeb,
+        finalDecision: isPWAMode
+      });
       
       setIsPWA(isPWAMode);
     };
@@ -144,9 +158,9 @@ const PWAHomeRoute = () => {
     return <LoadingScreen />;
   }
 
-  // If it's a PWA, redirect to athlete dashboard
+  // If it's a PWA, redirect to athlete login
   if (isPWA) {
-    return <Navigate to="/athlete" replace />;
+    return <Navigate to="/login/athlete" replace />;
   }
 
   // Otherwise, show the landing page

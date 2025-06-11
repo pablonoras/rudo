@@ -1,4 +1,4 @@
-import { Download, Monitor, Smartphone, X } from 'lucide-react';
+import { Smartphone, X, Zap } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useI18n } from '../lib/i18n/context';
 
@@ -11,60 +11,57 @@ export function InstallBanner({ className = '' }: InstallBannerProps) {
   const [showBanner, setShowBanner] = useState(false);
   const [platform, setPlatform] = useState<'ios' | 'android' | 'desktop' | 'unknown'>('unknown');
 
+  // Detect platform
   useEffect(() => {
-    // Check if already in PWA mode
+    const userAgent = navigator.userAgent.toLowerCase();
+    if (/iphone|ipad|ipod/.test(userAgent)) {
+      setPlatform('ios');
+    } else if (/android/.test(userAgent)) {
+      setPlatform('android');
+    } else if (window.navigator.platform.includes('Win') || window.navigator.platform.includes('Mac') || window.navigator.platform.includes('Linux')) {
+      setPlatform('desktop');
+    }
+  }, []);
+
+  // Check if should show banner
+  useEffect(() => {
+    // Don't show if already running as PWA
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
     const isInWebAppiOS = (window.navigator as any).standalone === true;
     const isMinimalUI = window.matchMedia('(display-mode: minimal-ui)').matches;
     
-    // Don't show if already running as PWA
     if (isStandalone || isInWebAppiOS || isMinimalUI) {
       return;
     }
 
-    // Check if previously dismissed (within last 7 days)
+    // Don't show in athlete dashboard (only show on landing page)
+    if (window.location.pathname.includes('/athlete') || window.location.pathname.includes('/coach')) {
+      return;
+    }
+
+    // Check if previously dismissed
     const dismissed = localStorage.getItem('pwa-banner-dismissed');
-    if (dismissed) {
-      const dismissedDate = new Date(dismissed);
-      const weekAgo = new Date();
-      weekAgo.setDate(weekAgo.getDate() - 7);
-      
-      if (dismissedDate > weekAgo) {
-        return;
-      }
+    const dismissedDate = dismissed ? new Date(dismissed) : null;
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    
+    // Show again after a week
+    if (dismissedDate && dismissedDate > weekAgo) {
+      return;
     }
 
-    // Detect platform
-    const userAgent = navigator.userAgent.toLowerCase();
-    let detectedPlatform: typeof platform = 'unknown';
-    
-    if (/iphone|ipad|ipod/.test(userAgent)) {
-      detectedPlatform = 'ios';
-    } else if (/android/.test(userAgent)) {
-      detectedPlatform = 'android';
-    } else if (window.navigator.platform.includes('Win') || 
-               window.navigator.platform.includes('Mac') || 
-               window.navigator.platform.includes('Linux')) {
-      detectedPlatform = 'desktop';
+    // Show banner for mobile devices
+    if (platform === 'ios' || platform === 'android') {
+      setShowBanner(true);
     }
-    
-    setPlatform(detectedPlatform);
-
-    // Show banner after a short delay for mobile devices
-    if (detectedPlatform === 'ios' || detectedPlatform === 'android') {
-      const timer = setTimeout(() => {
-        setShowBanner(true);
-      }, 5000); // 5 seconds delay
-      
-      return () => clearTimeout(timer);
-    }
-  }, []);
+  }, [platform]);
 
   const handleDismiss = () => {
     setShowBanner(false);
     localStorage.setItem('pwa-banner-dismissed', new Date().toISOString());
   };
 
+  // Don't show banner if conditions not met
   if (!showBanner) {
     return null;
   }
@@ -73,50 +70,34 @@ export function InstallBanner({ className = '' }: InstallBannerProps) {
     switch (platform) {
       case 'ios':
         return {
-          title: t('pwa-add-to-home'),
-          description: t('pwa-ios-description'),
-          icon: <Smartphone className="h-4 w-4" />
+          icon: <Smartphone className="h-4 w-4" />,
+          text: t('pwa-ios-description')
         };
       case 'android':
         return {
-          title: t('pwa-install-app'),
-          description: t('pwa-android-description'),
-          icon: <Download className="h-4 w-4" />
-        };
-      case 'desktop':
-        return {
-          title: t('pwa-install-desktop'),
-          description: t('pwa-desktop-description'),
-          icon: <Monitor className="h-4 w-4" />
+          icon: <Zap className="h-4 w-4" />,
+          text: t('pwa-android-description')
         };
       default:
         return {
-          title: t('pwa-install-generic'),
-          description: t('pwa-generic-description'),
-          icon: <Download className="h-4 w-4" />
+          icon: <Zap className="h-4 w-4" />,
+          text: t('pwa-generic-description')
         };
     }
   };
 
-  const { title, description, icon } = getBannerContent();
+  const content = getBannerContent();
 
   return (
-    <div className={`bg-gradient-to-r from-[#8A2BE2]/10 to-[#4169E1]/10 border border-[#8A2BE2]/20 rounded-lg p-3 mb-4 ${className}`}>
-      <div className="flex items-center gap-3">
-        <div className="flex-shrink-0 p-2 bg-[#8A2BE2]/20 rounded-lg">
-          {icon}
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-            {title}
-          </p>
-          <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
-            {description}
-          </p>
+    <div className={`bg-gradient-to-r from-purple-600 to-blue-600 text-white p-3 rounded-lg shadow-lg border border-white/20 ${className}`}>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-3 flex-1">
+          {content.icon}
+          <span className="text-sm font-medium">{content.text}</span>
         </div>
         <button
           onClick={handleDismiss}
-          className="flex-shrink-0 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+          className="text-white/80 hover:text-white transition-colors"
           aria-label="Dismiss"
         >
           <X className="h-4 w-4" />
