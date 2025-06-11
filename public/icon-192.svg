@@ -1,83 +1,36 @@
 <svg width="192" height="192" viewBox="0 0 192 192" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <!-- Modern gradient background -->
   <defs>
-    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#1a1a1a"/>
-      <stop offset="50%" style="stop-color:#2a2a2a"/>
-      <stop offset="100%" style="stop-color:#0a0a0a"/>
+    <!-- Dark violet gradient for the R -->
+    <linearGradient id="rGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6A2C70"/>
+      <stop offset="50%" style="stop-color:#8A2BE2"/>
+      <stop offset="100%" style="stop-color:#4A1A4A"/>
     </linearGradient>
-    <linearGradient id="brandGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#8A2BE2"/>
-      <stop offset="50%" style="stop-color:#9A3CF0"/>
-      <stop offset="100%" style="stop-color:#B84DFF"/>
-    </linearGradient>
-    <linearGradient id="accentGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#4169E1"/>
-      <stop offset="100%" style="stop-color:#6A5ACD"/>
-    </linearGradient>
-    <!-- Enhanced glow effect -->
+    <!-- Subtle glow effect -->
     <filter id="glow">
-      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+      <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
       <feMerge>
         <feMergeNode in="coloredBlur"/>
         <feMergeNode in="SourceGraphic"/>
       </feMerge>
     </filter>
-    <!-- Drop shadow -->
-    <filter id="shadow">
-      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000000" flood-opacity="0.3"/>
-    </filter>
   </defs>
   
-  <!-- Background with modern rounded corners -->
-  <rect width="192" height="192" rx="42" fill="url(#bgGradient)"/>
+  <!-- Black background with rounded corners -->
+  <rect width="192" height="192" rx="42" fill="#000000"/>
   
-  <!-- Stylized dumbbell icon (top) -->
-  <g transform="translate(96, 50)">
-    <!-- Outer weights -->
-    <rect x="-40" y="-8" width="16" height="16" rx="4" fill="url(#brandGradient)" filter="url(#shadow)"/>
-    <rect x="24" y="-8" width="16" height="16" rx="4" fill="url(#brandGradient)" filter="url(#shadow)"/>
-    
-    <!-- Inner weights -->
-    <rect x="-28" y="-5" width="10" height="10" rx="2" fill="url(#accentGradient)" filter="url(#shadow)"/>
-    <rect x="18" y="-5" width="10" height="10" rx="2" fill="url(#accentGradient)" filter="url(#shadow)"/>
-    
-    <!-- Central bar with glow -->
-    <rect x="-18" y="-2" width="36" height="4" rx="2" fill="url(#brandGradient)" filter="url(#glow)"/>
-    
-    <!-- Central grip -->
-    <rect x="-8" y="-3" width="16" height="6" rx="3" fill="#ffffff" opacity="0.9" filter="url(#shadow)"/>
-    
-    <!-- Decorative accents -->
-    <circle cx="-35" cy="-3" r="2" fill="#ffffff" opacity="0.6"/>
-    <circle cx="-35" cy="3" r="2" fill="#ffffff" opacity="0.6"/>
-    <circle cx="35" cy="-3" r="2" fill="#ffffff" opacity="0.6"/>
-    <circle cx="35" cy="3" r="2" fill="#ffffff" opacity="0.6"/>
-  </g>
-  
-  <!-- RUDO text with enhanced styling -->
-  <text x="96" y="130" 
+  <!-- Letter R -->
+  <text x="96" y="135" 
         font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" 
         font-weight="900" 
-        font-size="36" 
+        font-size="120" 
         text-anchor="middle" 
-        fill="url(#brandGradient)" 
-        letter-spacing="-0.5px" 
+        fill="url(#rGradient)" 
+        letter-spacing="-2px" 
         filter="url(#glow)">
-    RUDO
+    R
   </text>
   
-  <!-- Subtle beta indicator -->
-  <text x="96" y="150" 
-        font-family="system-ui, -apple-system, sans-serif" 
-        font-weight="600" 
-        font-size="12" 
-        text-anchor="middle" 
-        fill="#ffffff" 
-        opacity="0.7">
-    BETA
-  </text>
-  
-  <!-- Modern border -->
-  <rect x="2" y="2" width="188" height="188" rx="40" fill="none" stroke="url(#brandGradient)" stroke-width="0.5" opacity="0.5"/>
+  <!-- Subtle border -->
+  <rect x="1" y="1" width="190" height="190" rx="41" fill="none" stroke="#333333" stroke-width="0.5" opacity="0.3"/>
 </svg> 

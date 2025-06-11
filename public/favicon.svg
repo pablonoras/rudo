@@ -1,33 +1,23 @@
 <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="brandGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#8A2BE2"/>
-      <stop offset="50%" style="stop-color:#9A3CF0"/>
-      <stop offset="100%" style="stop-color:#B84DFF"/>
-    </linearGradient>
-    <linearGradient id="accentGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#4169E1"/>
-      <stop offset="100%" style="stop-color:#6A5ACD"/>
+    <!-- Dark violet gradient for the R -->
+    <linearGradient id="rGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6A2C70"/>
+      <stop offset="50%" style="stop-color:#8A2BE2"/>
+      <stop offset="100%" style="stop-color:#4A1A4A"/>
     </linearGradient>
   </defs>
   
-  <!-- Background -->
-  <rect width="32" height="32" rx="7" fill="#1a1a1a"/>
+  <!-- Black background with rounded corners -->
+  <rect width="32" height="32" rx="7" fill="#000000"/>
   
-  <!-- Stylized dumbbell icon -->
-  <g transform="translate(16, 16)">
-    <!-- Outer weights -->
-    <rect x="-8" y="-2" width="3" height="4" rx="1" fill="url(#brandGradient)"/>
-    <rect x="5" y="-2" width="3" height="4" rx="1" fill="url(#brandGradient)"/>
-    
-    <!-- Inner weights -->
-    <rect x="-6" y="-1.5" width="2" height="3" rx="0.5" fill="url(#accentGradient)"/>
-    <rect x="4" y="-1.5" width="2" height="3" rx="0.5" fill="url(#accentGradient)"/>
-    
-    <!-- Central bar -->
-    <rect x="-4" y="-0.5" width="8" height="1" rx="0.5" fill="url(#brandGradient)"/>
-    
-    <!-- Central grip -->
-    <rect x="-2" y="-0.75" width="4" height="1.5" rx="0.75" fill="#ffffff" opacity="0.9"/>
-  </g>
+  <!-- Letter R -->
+  <text x="16" y="24" 
+        font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" 
+        font-weight="900" 
+        font-size="20" 
+        text-anchor="middle" 
+        fill="url(#rGradient)">
+    R
+  </text>
 </svg> 

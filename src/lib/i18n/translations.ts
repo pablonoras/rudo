@@ -354,7 +354,21 @@ export const translations = {
     'search-existing-workouts': 'Search Existing Workouts',
     'choose-from-workout-library': 'Choose from your workout library',
     'no-workouts-for-this-day': 'No workouts for this day yet.',
-    'outside-program-date-range': 'This date is outside the program date range.'
+    'outside-program-date-range': 'This date is outside the program date range.',
+
+    // Additional Workout Card Labels
+    'mark-complete': 'Mark Complete',
+    'mark-as-completed': 'Mark as Completed',
+    'add-notes': 'Add Notes',
+    'edit-notes': 'Edit Notes',
+    'program': 'Program',
+    'assigned-program': 'Assigned Program',
+    'completed-on': 'Completed on',
+    'completed-at': 'Completed {date} at {time}',
+    'workout-notes-placeholder': 'Add your workout notes, results, or modifications...',
+    'mark-as-incomplete': 'Mark as Incomplete?',
+    'mark-incomplete-question': 'Are you sure you want to mark this workout as incomplete? This will remove the completion status and timestamp.',
+    'yes-mark-incomplete': 'Yes, Mark Incomplete'
   },
   es: {
     // Navigation
@@ -711,6 +725,20 @@ export const translations = {
     'search-existing-workouts': 'Buscar Workouts Existentes',
     'choose-from-workout-library': 'Elegir de tu biblioteca de workouts',
     'no-workouts-for-this-day': 'Aún no hay workouts para este día.',
-    'outside-program-date-range': 'Esta fecha está fuera del rango de fechas del programa.'
+    'outside-program-date-range': 'Esta fecha está fuera del rango de fechas del programa.',
+
+    // Additional Workout Card Labels
+    'mark-complete': 'Marcar Completo',
+    'mark-as-completed': 'Marcar como Completado',
+    'add-notes': 'Agregar Notas',
+    'edit-notes': 'Editar Notas',
+    'program': 'Programa',
+    'assigned-program': 'Programa Asignado',
+    'completed-on': 'Completado el',
+    'completed-at': 'Completado {date} a las {time}',
+    'workout-notes-placeholder': 'Agrega tus notas de entrenamiento, resultados o modificaciones...',
+    'mark-as-incomplete': '¿Marcar como Incompleto?',
+    'mark-incomplete-question': '¿Estás seguro de que quieres marcar este workout como incompleto? Esto eliminará el estado de completado y la marca de tiempo.',
+    'yes-mark-incomplete': 'Sí, Marcar Incompleto'
   }
 }; 

@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useProfile } from '../../contexts/ProfileContext';
+import { formatLocalized } from '../../lib/dateUtils';
 import { useI18n } from '../../lib/i18n/context';
 import {
     AthleteActivity,
@@ -46,7 +47,7 @@ interface WorkoutCardProps {
 
 export function WorkoutCard({ workout, scheduledDate, onActivityChange }: WorkoutCardProps) {
   const { profile } = useProfile();
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const [activity, setActivity] = useState<AthleteActivity | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isEditingNotes, setIsEditingNotes] = useState(false);
@@ -220,7 +221,7 @@ export function WorkoutCard({ workout, scheduledDate, onActivityChange }: Workou
               </div>
             </div>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              {format(scheduledDate, 'EEE, MMM d')}
+              {formatLocalized(scheduledDate, 'EEE, MMM d', language)}
             </p>
           </div>
 
@@ -236,13 +237,13 @@ export function WorkoutCard({ workout, scheduledDate, onActivityChange }: Workou
             {(activity?.notes || isEditingNotes) && (
               <div className="mb-4">
                 <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100">Notes</h4>
+                  <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100">{t('notes')}</h4>
                   {!isEditingNotes && activity?.notes && (
                     <button
                       onClick={() => setIsEditingNotes(true)}
                       className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
                     >
-                      Edit
+                      {t('edit')}
                     </button>
                   )}
                 </div>
@@ -252,7 +253,7 @@ export function WorkoutCard({ workout, scheduledDate, onActivityChange }: Workou
                     <textarea
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
-                      placeholder="Add your workout notes, results, or modifications..."
+                      placeholder={language === 'es' ? "Agrega tus notas de entrenamiento, resultados o modificaciones..." : "Add your workout notes, results, or modifications..."}
                       className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg text-sm resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                       rows={3}
                     />
@@ -267,14 +268,14 @@ export function WorkoutCard({ workout, scheduledDate, onActivityChange }: Workou
                         ) : (
                           <Save className="h-3 w-3 mr-1" />
                         )}
-                        Save
+                        {t('save')}
                       </button>
                       <button
                         onClick={handleCancelNotes}
                         className="flex items-center px-3 py-1.5 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 text-xs font-medium rounded hover:bg-gray-400 dark:hover:bg-gray-500"
                       >
                         <X className="h-3 w-3 mr-1" />
-                        Cancel
+                        {t('cancel')}
                       </button>
                     </div>
                   </div>
@@ -302,12 +303,12 @@ export function WorkoutCard({ workout, scheduledDate, onActivityChange }: Workou
                 ) : activity?.is_completed ? (
                   <>
                     <CheckCircle className="h-4 w-4 mr-2" />
-                    Completed
+                    {t('completed')}
                   </>
                 ) : (
                   <>
                     <Circle className="h-4 w-4 mr-2" />
-                    Mark as Completed
+                    {language === 'es' ? 'Marcar como Completo' : 'Mark as Completed'}
                   </>
                 )}
               </button>
@@ -318,7 +319,7 @@ export function WorkoutCard({ workout, scheduledDate, onActivityChange }: Workou
                   className="w-full flex items-center justify-center px-4 py-3 rounded-lg font-medium text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600"
                 >
                   <Edit3 className="h-4 w-4 mr-2" />
-                  {activity?.notes ? 'Edit Notes' : 'Add Notes'}
+                  {activity?.notes ? (language === 'es' ? 'Editar Notas' : 'Edit Notes') : (language === 'es' ? 'Agregar Notas' : 'Add Notes')}
                 </button>
               )}
             </div>
@@ -327,7 +328,7 @@ export function WorkoutCard({ workout, scheduledDate, onActivityChange }: Workou
             {workout.programName && (
               <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-600">
                 <div className="text-xs text-gray-500 dark:text-gray-400">
-                  <span className="font-medium">Assigned Program:</span> {workout.programName}
+                  <span className="font-medium">{language === 'es' ? 'Programa Asignado:' : 'Assigned Program:'}</span> {workout.programName}
                 </div>
               </div>
             )}
@@ -335,8 +336,8 @@ export function WorkoutCard({ workout, scheduledDate, onActivityChange }: Workou
             {/* Activity Status */}
             {activity?.completed_at && (
               <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                Completed on {format(new Date(activity.completed_at), 'MMM d, yyyy \'at\' h:mm a')}
-                {activity.is_unscaled && ' (Scaled)'}
+                {language === 'es' ? 'Completado el' : 'Completed on'} {formatLocalized(new Date(activity.completed_at), 'MMM d, yyyy \'at\' h:mm a', language)}
+                {activity.is_unscaled && ` (${t('scaled')})`}
               </div>
             )}
           </div>
@@ -360,11 +361,11 @@ export function WorkoutCard({ workout, scheduledDate, onActivityChange }: Workou
               <div className="flex items-center text-sm text-gray-500 dark:text-gray-400 space-x-4">
                 <div className="flex items-center space-x-1">
                   <Calendar className="h-4 w-4" />
-                  <span>{format(scheduledDate, 'MMM d, yyyy')}</span>
+                  <span>{formatLocalized(scheduledDate, 'MMM d, yyyy', language)}</span>
                 </div>
                 {workout.assignmentType && (
                   <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-xs">
-                    {workout.assignmentType}
+                    {workout.assignmentType === 'program' ? (language === 'es' ? 'programa' : 'program') : workout.assignmentType}
                   </span>
                 )}
               </div>
@@ -383,13 +384,13 @@ export function WorkoutCard({ workout, scheduledDate, onActivityChange }: Workou
           {(activity?.notes || isEditingNotes) && (
             <div className="mb-4">
               <div className="flex items-center justify-between mb-2">
-                <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100">Notes</h4>
+                <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100">{t('notes')}</h4>
                 {!isEditingNotes && activity?.notes && (
                   <button
                     onClick={() => setIsEditingNotes(true)}
                     className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
                   >
-                    Edit
+                    {t('edit')}
                   </button>
                 )}
               </div>
@@ -399,7 +400,7 @@ export function WorkoutCard({ workout, scheduledDate, onActivityChange }: Workou
                   <textarea
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
-                    placeholder="Add your workout notes, results, or modifications..."
+                    placeholder={language === 'es' ? "Agrega tus notas de entrenamiento, resultados o modificaciones..." : "Add your workout notes, results, or modifications..."}
                     className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg text-sm resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                     rows={3}
                   />
@@ -414,14 +415,14 @@ export function WorkoutCard({ workout, scheduledDate, onActivityChange }: Workou
                       ) : (
                         <Save className="h-3 w-3 mr-1" />
                       )}
-                      Save
+                      {t('save')}
                     </button>
                     <button
                       onClick={handleCancelNotes}
                       className="flex items-center px-3 py-1.5 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 text-xs font-medium rounded hover:bg-gray-400 dark:hover:bg-gray-500"
                     >
                       <X className="h-3 w-3 mr-1" />
-                      Cancel
+                      {t('cancel')}
                     </button>
                   </div>
                 </div>
@@ -450,12 +451,12 @@ export function WorkoutCard({ workout, scheduledDate, onActivityChange }: Workou
                 ) : activity?.is_completed ? (
                   <>
                     <CheckCircle className="h-4 w-4 mr-2" />
-                    Completed
+                    {t('completed')}
                   </>
                 ) : (
                   <>
                     <Circle className="h-4 w-4 mr-2" />
-                    Mark Complete
+                    {language === 'es' ? 'Marcar Completo' : 'Mark Complete'}
                   </>
                 )}
               </button>
@@ -466,7 +467,7 @@ export function WorkoutCard({ workout, scheduledDate, onActivityChange }: Workou
                   className="flex items-center px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg font-medium text-sm hover:bg-gray-200 dark:hover:bg-gray-600"
                 >
                   <Edit3 className="h-4 w-4 mr-2" />
-                  {activity?.notes ? 'Edit Notes' : 'Add Notes'}
+                  {activity?.notes ? (language === 'es' ? 'Editar Notas' : 'Edit Notes') : (language === 'es' ? 'Agregar Notas' : 'Add Notes')}
                 </button>
               )}
             </div>
@@ -477,8 +478,8 @@ export function WorkoutCard({ workout, scheduledDate, onActivityChange }: Workou
                 <div className="flex items-center space-x-1">
                   <Clock className="h-3 w-3" />
                   <span>
-                    Completed {format(new Date(activity.completed_at), 'MMM d \'at\' h:mm a')}
-                    {activity.is_unscaled && ' (Scaled)'}
+                    {language === 'es' ? 'Completado' : 'Completed'} {formatLocalized(new Date(activity.completed_at), 'MMM d \'at\' h:mm a', language)}
+                    {activity.is_unscaled && ` (${t('scaled')})`}
                   </span>
                 </div>
               </div>
@@ -490,7 +491,7 @@ export function WorkoutCard({ workout, scheduledDate, onActivityChange }: Workou
             <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
               <div className="flex items-center justify-between text-sm">
                 <div className="text-gray-500 dark:text-gray-400">
-                  <span className="font-medium">Program:</span> {workout.programName}
+                  <span className="font-medium">{language === 'es' ? 'Programa:' : 'Program:'}</span> {workout.programName}
                 </div>
               </div>
             </div>
@@ -541,10 +542,13 @@ export function WorkoutCard({ workout, scheduledDate, onActivityChange }: Workou
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
             <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
-              Mark as Incomplete?
+              {language === 'es' ? 'Marcar como Incompleto?' : 'Mark as Incomplete?'}
             </h3>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-              Are you sure you want to mark this workout as incomplete? This will remove the completion status and timestamp.
+              {language === 'es' 
+                ? '¿Estás seguro de que quieres marcar este workout como incompleto? Esto eliminará el estado de completado y la marca de tiempo.'
+                : 'Are you sure you want to mark this workout as incomplete? This will remove the completion status and timestamp.'
+              }
             </p>
             <div className="flex gap-3">
               <button
@@ -552,13 +556,13 @@ export function WorkoutCard({ workout, scheduledDate, onActivityChange }: Workou
                 disabled={isUpdatingCompletion}
                 className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50"
               >
-                Yes, Mark Incomplete
+                {language === 'es' ? 'Sí, Marcar Incompleto' : 'Yes, Mark Incomplete'}
               </button>
               <button
                 onClick={() => setShowUncompletionDialog(false)}
                 className="flex-1 px-4 py-2 text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 rounded-lg hover:text-gray-800 dark:hover:text-gray-200"
               >
-                Cancel
+                {t('cancel')}
               </button>
             </div>
           </div>
