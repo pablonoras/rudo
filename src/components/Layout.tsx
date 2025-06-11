@@ -1,7 +1,6 @@
 import { Dumbbell } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useI18n } from '../lib/i18n/context';
-import { GlobalSearch } from './GlobalSearch';
 import { LanguageSwitcher } from './ui/LanguageSwitcher';
 import { ThemeToggle } from './ui/ThemeToggle';
 import { UserSettings } from './UserSettings';
@@ -72,7 +71,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
               )}
             </div>
             <div className="flex items-center space-x-4">
-              {isCoach && <GlobalSearch />}
               <LanguageSwitcher />
               <ThemeToggle />
               <UserSettings />

@@ -27,6 +27,7 @@ import ProtectedRoute from './components/auth/ProtectedRoute';
 import Login from './components/Login';
 import Register from './components/Register';
 import RoleSelection from './components/RoleSelection';
+import { useStandaloneRedirect } from './hooks/useStandaloneRedirect';
 import { EmailConfirmation } from './pages/auth/EmailConfirmation';
 
 // Coach pages
@@ -168,6 +169,8 @@ const PWAHomeRoute = () => {
 };
 
 function App() {
+  useStandaloneRedirect();
+  
   return (
     <ThemeProvider>
       <I18nProvider>

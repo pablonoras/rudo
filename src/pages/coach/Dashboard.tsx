@@ -233,7 +233,7 @@ export function CoachDashboard() {
                   </dt>
                   <dd className="flex items-baseline">
                     <div className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
-                      {programs.length}
+                      {loading ? '-' : Object.values(programs).length}
                     </div>
                   </dd>
                 </dl>

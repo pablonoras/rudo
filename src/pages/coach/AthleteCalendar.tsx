@@ -1,3 +1,14 @@
+/*
+ * Coach Athlete Calendar - Updated workout assignment modal
+ * 
+ * Changes made:
+ * 1. Fixed workout description font color to be white/bold for dark mode and black/bold for light mode
+ * 2. Changed workout library from row-based list to grid-based boxes (similar to workout library page)
+ * 3. Added expand/collapse functionality when clicking workouts to show full description and notes
+ * 4. Added expandedWorkoutId state to track which workout is expanded
+ * 5. Improved visual design with better hover states and selection indicators
+ */
+
 import { DragDropContext, Draggable, Droppable } from '@hello-pangea/dnd';
 import { addDays, endOfWeek, format, isSameMonth, isToday, startOfMonth, startOfWeek } from 'date-fns';
 import {
@@ -132,6 +143,7 @@ export function AthleteCalendar() {
   const [librarySearchQuery, setLibrarySearchQuery] = useState('');
   const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(null);
   const [selectedTab, setSelectedTab] = useState<'library' | 'new'>('library');
+  const [expandedWorkoutId, setExpandedWorkoutId] = useState<string | null>(null);
 
   // Add state for confirmation modal
   const [showMoveConfirm, setShowMoveConfirm] = useState(false);
@@ -1180,46 +1192,107 @@ export function AthleteCalendar() {
                       </div>
                     </div>
 
-                    {/* Workout Library List */}
+                    {/* Workout Library Grid */}
                     {loadingLibrary ? (
                       <div className="py-6 flex justify-center">
                         <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
                       </div>
                     ) : filteredLibrary.length > 0 ? (
-                      <div className="h-96 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-md">
-                        {filteredLibrary.map((workout) => (
-                          <div
-                            key={workout.workout_id}
-                            className={`p-3 cursor-pointer border-b border-gray-200 dark:border-gray-700 ${
-                              selectedWorkoutId === workout.workout_id
-                                ? 'bg-blue-50 dark:bg-blue-900/20'
-                                : 'hover:bg-gray-50 dark:hover:bg-gray-700/30'
-                            }`}
-                            onClick={() => setSelectedWorkoutId(workout.workout_id)}
-                          >
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <h4 className="font-medium text-gray-900 dark:text-gray-100">
-                                  {workout.name}
-                                </h4>
-                                <div className="flex items-center gap-2 mt-1">
-                                  {workout.workout_type && (
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
-                                      {workout.workout_type.code}
-                                    </span>
+                      <div className="h-96 overflow-y-auto">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-2">
+                          {filteredLibrary.map((workout) => (
+                            <div
+                              key={workout.workout_id}
+                              className={`border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-all cursor-pointer ${
+                                selectedWorkoutId === workout.workout_id
+                                  ? 'border-blue-500 ring-2 ring-blue-200 dark:ring-blue-800'
+                                  : 'border-gray-200 dark:border-gray-700'
+                              }`}
+                              onClick={() => {
+                                if (expandedWorkoutId === workout.workout_id) {
+                                  setExpandedWorkoutId(null);
+                                } else {
+                                  setExpandedWorkoutId(workout.workout_id);
+                                  setSelectedWorkoutId(workout.workout_id);
+                                }
+                              }}
+                            >
+                              <div 
+                                className="h-2 w-full"
+                                style={{ backgroundColor: workout.color || '#BAE6FD' }}
+                              />
+                              <div className="p-4">
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="flex-1">
+                                    <h4 className="font-semibold text-gray-900 dark:text-gray-100 text-base">
+                                      {workout.name || workout.workout_type?.code || 'Workout'}
+                                    </h4>
+                                    <div className="flex items-center gap-2 mt-1">
+                                      {workout.workout_type && (
+                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+                                          {workout.workout_type.code}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (selectedWorkoutId === workout.workout_id) {
+                                        setSelectedWorkoutId(null);
+                                      } else {
+                                        setSelectedWorkoutId(workout.workout_id);
+                                      }
+                                    }}
+                                    className={`px-3 py-1 text-xs rounded-full transition-colors ${
+                                      selectedWorkoutId === workout.workout_id
+                                        ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400'
+                                        : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+                                    }`}
+                                  >
+                                    {selectedWorkoutId === workout.workout_id ? 'Selected' : 'Select'}
+                                  </button>
+                                </div>
+                                
+                                {/* Truncated or expanded description */}
+                                <div className="mt-2">
+                                  <p className={`text-sm font-mono font-medium ${
+                                    expandedWorkoutId === workout.workout_id
+                                      ? 'text-gray-600 dark:text-gray-200 whitespace-pre-wrap'
+                                      : 'text-gray-600 dark:text-gray-200 line-clamp-2'
+                                  }`}>
+                                    {workout.description}
+                                  </p>
+                                  
+                                  {/* Show expand/collapse indicator */}
+                                  {workout.description && workout.description.length > 100 && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setExpandedWorkoutId(
+                                          expandedWorkoutId === workout.workout_id ? null : workout.workout_id
+                                        );
+                                      }}
+                                      className="mt-2 text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                                    >
+                                      {expandedWorkoutId === workout.workout_id ? 'Show less' : 'Show more'}
+                                    </button>
                                   )}
                                 </div>
+                                
+                                {/* Show notes if expanded */}
+                                {expandedWorkoutId === workout.workout_id && workout.notes && (
+                                  <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                                    <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Notes:</p>
+                                    <p className="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap">
+                                      {workout.notes}
+                                    </p>
+                                  </div>
+                                )}
                               </div>
-                              <div 
-                                className="h-6 w-6 rounded-full"
-                                style={{ backgroundColor: workout.color }}
-                              />
                             </div>
-                            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400 line-clamp-2 font-mono">
-                              {workout.description}
-                            </p>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
                     ) : (
                       <div className="text-center py-10 border border-gray-200 dark:border-gray-700 rounded-md">
@@ -1396,7 +1469,7 @@ export function AthleteCalendar() {
                     {selectedWorkout.notes && (
                       <div className="mt-4">
                         <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 font-inter">
-                          Additional Notes:
+                          {t('notes')}:
                         </h4>
                         <div className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-md text-sm whitespace-pre-wrap text-gray-600 dark:text-gray-400 font-inter">
                           {selectedWorkout.notes}
@@ -1408,7 +1481,7 @@ export function AthleteCalendar() {
                     {selectedWorkout.activity && (
                       <div className="mt-4 border-t border-gray-200 dark:border-gray-600 pt-4">
                         <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 font-inter">
-                          Athlete Activity:
+                          Actividad del Atleta:
                         </h4>
                         
                         {/* Completion Status */}
@@ -1423,10 +1496,10 @@ export function AthleteCalendar() {
                             {selectedWorkout.activity.is_completed ? (
                               <>
                                 <span className="mr-1">✓</span>
-                                {selectedWorkout.activity.is_unscaled ? 'Completed (Scaled)' : 'Completed (As Prescribed)'}
+                                {selectedWorkout.activity.is_unscaled ? 'Completado (Escalado)' : 'Completado (Como se Prescribió)'}
                               </>
                             ) : (
-                              'Not Completed'
+                              'No Completado'
                             )}
                           </div>
                           
@@ -1441,7 +1514,7 @@ export function AthleteCalendar() {
                         {selectedWorkout.activity.athlete_notes && (
                           <div>
                             <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 font-inter">
-                              Athlete Notes:
+                              Notas del Atleta:
                             </h5>
                             <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-3 rounded-md text-sm whitespace-pre-wrap text-blue-900 dark:text-blue-200 font-inter">
                               {selectedWorkout.activity.athlete_notes}

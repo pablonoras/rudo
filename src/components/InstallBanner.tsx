@@ -1,4 +1,14 @@
-import { Smartphone, X, Zap } from 'lucide-react';
+/*
+ * InstallBanner Component - PWA Install Banner with Share Icon
+ * 
+ * Changes made:
+ * 1. Added Share icon import from lucide-react
+ * 2. Enhanced iOS PWA banner description to include visual share icon
+ * 3. Added [SHARE_ICON] placeholder replacement in translations for both English and Spanish
+ * 4. Made the banner more user-friendly by showing the actual share icon users need to tap
+ */
+
+import { Share, Smartphone, X, Zap } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useI18n } from '../lib/i18n/context';
 
@@ -88,9 +98,18 @@ export function InstallBanner({ className = '' }: InstallBannerProps) {
   const getBannerContent = () => {
     switch (platform) {
       case 'ios':
+        const iosText = t('pwa-ios-description');
+        const parts = iosText.split('[SHARE_ICON]');
+        
         return {
           icon: <Smartphone className="h-4 w-4" />,
-          text: t('pwa-ios-description')
+          text: (
+            <span className="flex items-center gap-1 flex-wrap">
+              <span>{parts[0]}</span>
+              <Share className="h-3 w-3 inline-block bg-white/20 rounded p-0.5 mx-1" />
+              <span>{parts[1]}</span>
+            </span>
+          )
         };
       case 'android':
         return {

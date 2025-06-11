@@ -1,29 +1,41 @@
+/*
+ * Program Calendar Component - Enhanced workout display with proper formatting
+ * 
+ * Changes made:
+ * 1. Fixed workout description display to show full text with line breaks preserved using whitespace-pre-wrap
+ * 2. Enhanced workout type display as prominent title with larger, semibold font
+ * 3. Updated fetchWorkouts to include workout_type data from database
+ * 4. Modified WorkoutBlock interface to support workout_type and isExistingAssignment properties
+ * 5. Improved visual hierarchy with better font sizes and weights
+ * 6. Removed line-clamp-2 truncation to show complete workout descriptions
+ */
+
 import {
-    addDays,
-    format,
-    isSameDay,
-    isWithinInterval,
-    parseISO,
-    startOfWeek,
+  addDays,
+  format,
+  isSameDay,
+  isWithinInterval,
+  parseISO,
+  startOfWeek,
 } from 'date-fns';
 import {
-    AlertTriangle,
-    ArrowLeft,
-    CalendarDays,
-    Calendar as CalendarIcon,
-    CheckCircle2,
-    ChevronLeft,
-    ChevronRight,
-    Edit2,
-    LayoutGrid,
-    List,
-    Loader2,
-    Plus,
-    Save,
-    Search,
-    Trash2,
-    X,
-    XCircle
+  AlertTriangle,
+  ArrowLeft,
+  CalendarDays,
+  Calendar as CalendarIcon,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  Edit2,
+  LayoutGrid,
+  List,
+  Loader2,
+  Plus,
+  Save,
+  Search,
+  Trash2,
+  X,
+  XCircle
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -333,7 +345,17 @@ export function ProgramCalendar() {
   // Helper function to get translated day names
   const getTranslatedDayName = (date: Date) => {
     const dayKey = format(date, 'EEEE').toLowerCase();
-    return t(dayKey);
+    // Map day names to translation keys
+    const dayTranslations: Record<string, string> = {
+      'monday': t('monday'),
+      'tuesday': t('tuesday'),
+      'wednesday': t('wednesday'),
+      'thursday': t('thursday'),
+      'friday': t('friday'),
+      'saturday': t('saturday'),
+      'sunday': t('sunday')
+    };
+    return dayTranslations[dayKey] || dayKey;
   };
 
   useEffect(() => {
@@ -385,7 +407,10 @@ export function ProgramCalendar() {
       // Fetch the actual workout data
       const { data: workoutsData, error: workoutsError } = await supabase
         .from('workouts')
-        .select('*')
+        .select(`
+          *,
+          workout_type:type_id(id, code)
+        `)
         .in('workout_id', workoutIds);
         
       if (workoutsError) {
@@ -413,6 +438,8 @@ export function ProgramCalendar() {
             color: workout.color,
             notes: workout.notes,
             name: workout.name,
+            workout_type: workout.workout_type,
+            type_id: workout.type_id,
             coach_id: workout.coach_id,
             createdAt: workout.created_at,
             updatedAt: workout.updated_at
@@ -1284,29 +1311,22 @@ export function ProgramCalendar() {
                               <div className="flex-1">
                                 {/* Show workout type as main title, similar to AthleteCalendar */}
                                 <div className="flex flex-col gap-0.5 mb-2">
-                                  <span className="font-normal uppercase tracking-wide text-black font-poppins text-sm">
+                                  <span className="font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-700 font-poppins text-base">
                                     {workout.workout_type?.code || 'Workout'}
                                   </span>
                                   
                                   {/* Only show name if it exists */}
                                   {workout.name && (
-                                    <span className="text-xs opacity-90 truncate text-black font-inter">
+                                    <span className="text-sm opacity-90 truncate text-gray-700 dark:text-gray-700 font-inter">
                                       {workout.name}
                                     </span>
                                   )}
                                 </div>
                                 
-                                {/* Truncated description */}
-                                <p className="text-sm text-black dark:text-black font-roboto line-clamp-2">
+                                {/* Shortened description with line clamp for week view */}
+                                <p className="text-sm text-gray-700 dark:text-gray-700 font-roboto line-clamp-2">
                                   {workout.description}
                                 </p>
-                                {workout.notes && (
-                                  <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
-                                    <p className="text-xs text-black dark:text-black line-clamp-1 font-inter">
-                                      {workout.notes}
-                                    </p>
-                                  </div>
-                                )}
                               </div>
                               
                               <div className="flex items-center gap-2">
@@ -1403,29 +1423,22 @@ export function ProgramCalendar() {
                         <div className="flex-1">
                           {/* Show workout type as main title, similar to AthleteCalendar */}
                           <div className="flex flex-col gap-0.5 mb-2">
-                            <span className="font-normal uppercase tracking-wide text-black font-poppins text-sm">
+                            <span className="font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-700 font-poppins text-base">
                               {workout.workout_type?.code || 'Workout'}
                             </span>
                             
                             {/* Only show name if it exists */}
                             {workout.name && (
-                              <span className="text-xs opacity-90 truncate text-black font-inter">
+                              <span className="text-sm opacity-90 truncate text-gray-700 dark:text-gray-700 font-inter">
                                 {workout.name}
                               </span>
                             )}
                           </div>
                           
-                          {/* Truncated description */}
-                          <p className="text-sm text-black dark:text-black font-roboto line-clamp-2">
+                          {/* Full description with line breaks preserved */}
+                          <p className="text-sm text-gray-700 dark:text-gray-700 font-roboto whitespace-pre-wrap">
                             {workout.description}
                           </p>
-                          {workout.notes && (
-                            <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
-                              <p className="text-xs text-black dark:text-black line-clamp-1 font-inter">
-                                {workout.notes}
-                              </p>
-                            </div>
-                          )}
                         </div>
                         
                         <div className="flex items-center gap-2">

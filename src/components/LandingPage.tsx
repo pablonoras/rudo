@@ -1,18 +1,18 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-    ArrowRight,
-    BarChart3,
-    Clock,
-    FileSpreadsheet,
-    MessageCircle,
-    MessageSquare,
-    Palette,
-    Plus,
-    Smartphone,
-    Star,
-    User, UserCog,
-    Users,
-    UsersRound
+  ArrowRight,
+  BarChart3,
+  Clock,
+  FileSpreadsheet,
+  MessageCircle,
+  MessageSquare,
+  Palette,
+  Plus,
+  Smartphone,
+  Star,
+  User, UserCog,
+  Users,
+  UsersRound
 } from 'lucide-react';
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';

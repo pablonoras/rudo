@@ -11,6 +11,10 @@ export interface WorkoutBlock {
   name?: string;
   type?: BlockType;
   type_id: number;
+  workout_type?: {
+    id: number;
+    code: string;
+  };
   format?: WorkoutFormat;
   description: string;
   color?: string;
@@ -26,6 +30,7 @@ export interface WorkoutBlock {
   updatedAt: string;
   isNew?: boolean;
   wasEdited?: boolean;
+  isExistingAssignment?: boolean;
 }
 
 export interface DayProgram {
