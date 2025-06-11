@@ -25,12 +25,35 @@ export function InstallBanner({ className = '' }: InstallBannerProps) {
 
   // Check if should show banner
   useEffect(() => {
-    // Don't show if already running as PWA
+    // Enhanced PWA detection - don't show if already running as PWA
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
     const isInWebAppiOS = (window.navigator as any).standalone === true;
     const isMinimalUI = window.matchMedia('(display-mode: minimal-ui)').matches;
     
-    if (isStandalone || isInWebAppiOS || isMinimalUI) {
+    // Additional check for iOS PWA mode
+    const isIOSPWA = platform === 'ios' && (
+      isInWebAppiOS || 
+      isStandalone ||
+      document.referrer === '' && window.location.pathname !== '/' // PWA launch from home screen
+    );
+    
+    // Additional check for Android PWA mode
+    const isAndroidPWA = platform === 'android' && (
+      isStandalone || 
+      isMinimalUI ||
+      window.matchMedia('(display-mode: fullscreen)').matches
+    );
+    
+    // Don't show banner if running in any PWA mode
+    if (isStandalone || isInWebAppiOS || isMinimalUI || isIOSPWA || isAndroidPWA) {
+      console.log('PWA mode detected, hiding banner:', {
+        isStandalone,
+        isInWebAppiOS,
+        isMinimalUI,
+        isIOSPWA,
+        isAndroidPWA,
+        platform
+      });
       return;
     }
 
@@ -45,8 +68,9 @@ export function InstallBanner({ className = '' }: InstallBannerProps) {
       return;
     }
 
-    // Show banner for mobile devices (even in athlete/coach areas when not in PWA mode)
+    // Show banner for mobile devices (only in browser, not in PWA mode)
     if (platform === 'ios' || platform === 'android') {
+      console.log('Mobile browser detected, showing banner:', { platform });
       setShowBanner(true);
     }
   }, [platform]);
