@@ -34,11 +34,6 @@ export function InstallBanner({ className = '' }: InstallBannerProps) {
       return;
     }
 
-    // Don't show in athlete dashboard (only show on landing page)
-    if (window.location.pathname.includes('/athlete') || window.location.pathname.includes('/coach')) {
-      return;
-    }
-
     // Check if previously dismissed
     const dismissed = localStorage.getItem('pwa-banner-dismissed');
     const dismissedDate = dismissed ? new Date(dismissed) : null;
@@ -50,7 +45,7 @@ export function InstallBanner({ className = '' }: InstallBannerProps) {
       return;
     }
 
-    // Show banner for mobile devices
+    // Show banner for mobile devices (even in athlete/coach areas when not in PWA mode)
     if (platform === 'ios' || platform === 'android') {
       setShowBanner(true);
     }
