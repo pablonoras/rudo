@@ -273,7 +273,7 @@ NHYxaC00di0xem0wIDJoMXYzaC0xdi0zem0tNS00aDN2MWgtM3YtMXptMCAyaDF2NmgtMXYtNnptLTUt
         
         <div className="max-w-md w-full relative animate-fadeIn">
           <div className="flex items-center gap-3 mb-8 justify-center">
-            <Logo variant="gradient" size="xl" className="animate-pulse" />
+            <Logo variant="text-only" size="xl" className="animate-pulse" />
           </div>
           
           <div className="bg-green-900/30 border border-green-500/50 rounded-lg p-8 text-center shadow-xl backdrop-blur-sm animate-slideUp">
@@ -312,7 +312,7 @@ NHYxaC00di0xem0wIDJoMXYzaC0xdi0zem0tNS00aDN2MWgtM3YtMXptMCAyaDF2NmgtMXYtNnptLTUt
         </div>
 
         <div className="flex items-center gap-3 mb-12">
-          <Logo variant="gradient" size="lg" />
+          <Logo variant="text-only" size="lg" />
         </div>
 
         <div className="max-w-md w-full mx-auto flex-1 flex flex-col justify-center">

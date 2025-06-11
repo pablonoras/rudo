@@ -32,7 +32,7 @@ export function Logo({
       case 'dark':
         return 'text-gray-900 dark:text-gray-100';
       case 'text-only':
-        return 'bg-gradient-to-r from-[#8A2BE2] to-[#4169E1] bg-clip-text text-transparent';
+        return 'bg-gradient-to-r from-[#4A148C] via-[#6A1B9A] to-[#8A2BE2] bg-clip-text text-transparent';
       case 'gradient':
       default:
         return 'bg-gradient-to-r from-[#4A148C] via-[#6A1B9A] to-[#8A2BE2] bg-clip-text text-transparent';
@@ -45,16 +45,21 @@ export function Logo({
         return 'text-white';
       case 'dark':
         return 'text-gray-900 dark:text-gray-100';
+      case 'text-only':
+        return 'text-[#6A1B9A]';
       case 'gradient':
       default:
         return 'text-[#6A1B9A]';
     }
   };
 
+  // For text-only variant, don't show the icon
+  const showIcon = variant !== 'text-only';
+
   return (
     <div className={`flex items-center gap-2 group cursor-pointer ${className}`}>
       {/* Custom RUDO Icon - Stylized dumbbell/strength symbol */}
-      {variant !== 'text-only' && (
+      {showIcon && (
         <div className={`${iconSizes[size]} ${getIconClasses()} relative transition-all duration-300 group-hover:scale-110 group-hover:drop-shadow-lg`}>
           <svg
             viewBox="0 0 32 32"
@@ -85,7 +90,7 @@ export function Logo({
       )}
       
       {/* RUDO Text with enhanced styling */}
-      <span className={`font-black tracking-tighter ${sizeClasses[size]} ${getTextClasses()} transition-all duration-300 group-hover:tracking-wide ${variant === 'gradient' ? 'group-hover:drop-shadow-sm' : ''}`}>
+      <span className={`font-black tracking-tighter ${sizeClasses[size]} ${getTextClasses()} transition-all duration-300 group-hover:tracking-wide ${variant === 'gradient' || variant === 'text-only' ? 'group-hover:drop-shadow-sm' : ''}`}>
         RUDO
       </span>
       

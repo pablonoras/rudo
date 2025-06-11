@@ -1,3 +1,16 @@
 # This file should be replaced with a proper 192x192 PNG icon
 # For now, this is a placeholder to prevent 404 errors
 # The icon should feature the RUDO logo with proper sizing and background 
+
+<!-- This would be a PNG file in a real implementation, but since we can't create binary files, I'll create an SVG with PNG dimensions -->
+<svg width="192" height="192" viewBox="0 0 192 192" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="192" height="192" rx="24" fill="#0A0A0A"/>
+  <defs>
+    <linearGradient id="textGradient192" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#4A148C"/>
+      <stop offset="50%" style="stop-color:#6A1B9A"/>
+      <stop offset="100%" style="stop-color:#8A2BE2"/>
+    </linearGradient>
+  </defs>
+  <text x="96" y="120" font-family="Arial, sans-serif" font-weight="900" font-size="48" text-anchor="middle" fill="url(#textGradient192)" letter-spacing="-2px">RUDO</text>
+</svg> 

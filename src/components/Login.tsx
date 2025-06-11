@@ -177,7 +177,7 @@ const Login = () => {
         </div>
 
         <div className="flex items-center gap-3 mb-12">
-          <Logo variant="gradient" size="lg" />
+          <Logo variant="text-only" size="lg" />
         </div>
 
         <div className="max-w-md w-full mx-auto flex-1 flex flex-col justify-center">

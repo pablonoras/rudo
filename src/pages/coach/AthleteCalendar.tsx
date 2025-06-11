@@ -1,16 +1,16 @@
 import { DragDropContext, Draggable, Droppable } from '@hello-pangea/dnd';
 import { addDays, endOfWeek, format, isSameMonth, isToday, startOfMonth, startOfWeek } from 'date-fns';
 import {
-    AlertCircle,
-    ArrowLeft,
-    Calendar as CalendarIcon,
-    ChevronLeft,
-    ChevronRight,
-    Dumbbell,
-    Loader2,
-    PlusCircle,
-    Search,
-    X
+  AlertCircle,
+  ArrowLeft,
+  Calendar as CalendarIcon,
+  ChevronLeft,
+  ChevronRight,
+  Dumbbell,
+  Loader2,
+  PlusCircle,
+  Search,
+  X
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -1518,4 +1518,4 @@ export function AthleteCalendar() {
       )}
     </div>
   );
-}
+} 
